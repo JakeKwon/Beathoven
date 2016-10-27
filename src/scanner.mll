@@ -1,8 +1,8 @@
 {
   open Core.Std
-  
+
   open Parser
-  
+
   exception Lexing_error of string
 }
 
@@ -12,112 +12,110 @@ let letter = lowercase | uppercase
 let digit = ['0'-'9']
 let newline = ('\n' | '\r' | "\r\n")
 let whitespace = [' ' '\t']
-let separator = (';')
-(* 
-	let invalidkeywords = uppercase [^newline separator whitespace]*
-*)
+let separator = ';'
 
 (* Used for float parsing *)
 let hasint = digit+ '.' digit*
 let hasfrac = digit* '.' digit+
 let hasexp = 'e' ('+'? | '-') digit+
 
+(* Regex conflicts are resolved by order *)
 rule token = parse
-(* 
-	| '\\' newline { token lexbuf } 
-*)
-| separator { SEP }
-| whitespace { token lexbuf }
-| eof { EOF }
-(* -------------Scoping------------- *)
-| '(' { LPAREN }
-| ')' { RPAREN }
+  | newline { token lexbuf }
+  | whitespace { token lexbuf }
+  | separator { SEP }
+  | "/*" { comment lexbuf } (* Comments *)
+(* ------------- Scoping ------------- *)
+  | '(' { LPAREN }
+  | ')' { RPAREN }
+  | '[' { LBRACK }
+  | ']' { RBRACK }
+  | '{' { LBRACE }
+  | '}' { RBRACE }
+(* ------------- Operators ------------- *)
+  | '+' { PLUS }
+  | '-' { MINUS }
+  | '*' { TIMES }
+  | '/' { DIVIDE }
+  | '%' { MOD }
+  | '=' { ASSIGN }
+  | "==" { EQ }
+  | "!=" { NEQ }
+  | '<' { LT }
+  | "<=" { LTE }
+  | '>' { GT }
+  | ">=" { GTE }
+  | ':' { COLON }
+	| '.' { DOT }
+  | ',' {COMMA}
+  | '!' { NOT }
+  | "&" { PARALLEL }
+  | "and" { AND }
+  | "or" { OR }
+  | "->" { RARROW }
+  | "::" { SCORE_RESOLUTION }
+  | '[' whitespace* ']' { ARRAY }
+  | '^' { OCTAVE_RAISE }
+  | '_' { OCTAVE_LOWER }
+  | "=>" { MATCHCASE }
 (*
-	| '{' (whitespace | newline)* '}'{ BRACES }
-*)
-| '[' { LBRACK }
-| ']' { RBRACK }
-| '{' { LBRACE }
-| '}' { RBRACE }
-(* -------------Operators------------- *)
-| '+' { PLUS }
-| '-' { MINUS }
-| '*' { TIMES }
-| '/' { DIVIDE }
-| '%' { MOD }
-| '=' { ASSIGN }
-| "==" { EQ }
-| "!=" { NEQ }
-| '<' { LT }
-| "<=" { LTE }
-| '>' { GT }
-| ">=" { GTE }
-| ".(" { DOT_LPAREN }
-(*
-	| '.' { CONCAT }
-*)
-| ',' {COMMA}
-| '!' { NOT }
-| "&&" { AND }
-| "||" { OR }
-| '#' {SHARP}
-| 'b' {FLAT}
-(*
-	| ':' {COLON}
+  | "<-" { LARROW }
 	| '@' {OCTAVE}
 	| '~' { TILDE }
-	| "->" { RARROW }
-	| "<-" { LARROW }
 	| '$' { BLING }
 *)
-(* -------------Keywords------------- *)
-(* Regex conflicts are resolved by order! Place all keywords in this section or ID_LOWER will eat them up. *)
-| "unit" { TYPE_UNIT }
-| "bool" { TYPE_BOOL }
-| "int" { TYPE_INT }
-| "float" { TYPE_FLOAT }
-| "string" { TYPE_STR }
-| "true" { LIT_BOOL(true) }
-| "false" { LIT_BOOL(false) }
-| "fun" { FUN }
-| "include" { INCLUDE }
-| "if" { IF }
-| "then" { THEN }
-| "else"{ ELSE }
-| "be" { BE }
-| "unless" { UNLESS }
-| "inwhichcase" { INWHICHCASE }
-| "for" { FOR }
-| "in" { IN }
-| "do" { DO }
-| "throw" { THROW }
-| "type" { TYPE }
-| "init" | "beget" | "bringintobeing" { INIT }
-| "extern" { EXTERN }
-| "const" { CONST }
-(* -------------Literals------------- *)
-| digit+ as lit { LIT_INT(Int.of_string lit) }
-| ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_FLOAT(Float.of_string lit) }
-| '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
-(* -------------Identifiers------------- *)
-| (lowercase | '_') (letter | digit | '_')* as lit { ID(lit) }
-(* -------------Comments------------- *)
-| "/*" { comment_multiline 0 lexbuf }
-| "*/" { raise (Lexing_error("You have a '*/' without a matching '/*'")) }
-(* -------------Invalid------------- *)
-(* any upper-case word that does not exist in Keyword *)
-| invalidkeywords | { raise (Lexing_error("Unknown keyword")) }
-| _ as c { raise (Lexing_error("Unknown token '" ^ Char.to_string c ^ "'")) }
+(* ------------- Keywords ------------- *)
+  | "unit" { TYPE_UNIT }
+  | "bool" { TYPE_BOOL }
+  | "int" { TYPE_INT }
+  | "double" { TYPE_DOUBLE }
+  | "string" { TYPE_STR }
+  | "Struct" { STRUCT }
+  | "Enum" { ENUM }
+  | "if" { IF }
+  | "else"{ ELSE }
+  | "match" { MATCH }
+  | "while" { WHILE }
+  | "for" { FOR }
+  | "in" { IN }
+  | "range" { RANGE }
+  | "break" { BREAK }
+  | "continue" { CONTINUE }
+  | "func" { FUNC }
+  | "return" { RETURN }
+  | "using" { USING }
+  | "module" { MODULE }
+  | "null" { NULL }
+  | "true" { LIT_BOOL(true) }
+  | "false" { LIT_BOOL(false) }
 (*
-	and comment_multiline depth = parse
-	| "/*" { comment_multiline (depth + 1) lexbuf }
-	| "*/" { if depth = 0 then token lexbuf else comment_multiline (depth - 1) lexbuf }
-	| eof { raise (Lexing_error("You have a '/*' without a matching '*/'")) }
-	| _ { comment_multiline depth lexbuf }
+  | "char" { TYPE_CHAR }
+  | "throw" { THROW }
+  | "type" { TYPE }
+  | "extern" { EXTERN }
+  | "const" { CONST }
 *)
+(* ------------- Music Keywords ------------- *)
+  | "pitch" { PITCH }
+  | "duration" { DURATION }
+  | "Note" { NOTE }
+  | "Chord" { CHORD }
+  | "Seq" { SEQ }
+(* ------------- Literals ------------- *)
+  | digit+ as lit { LIT_INT(Int.of_string lit) }
+  | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(Float.of_string lit) }
+  | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
+  | (letter | '_') (letter | digit | '_')* as lit { ID(lit) } (* Identifiers *)
+  | eof { EOF }
+  | _ as c { raise (Lexing_error("Unknown token '" ^ Char.to_string c ^ "'")) }
+
+and comment = parse
+    "*/" { token lexbuf }
+  | _ { comment lexbuf }
+
+
 (*
-	things to do: 
-	music keywords (uppercase)
-	concat
-	specific to our control flow
+	TODO:
+  // comment
+	space concat
 *)
