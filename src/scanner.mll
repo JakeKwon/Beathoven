@@ -118,4 +118,5 @@ and comment = parse
 	TODO:
   // comment
 	space concat
+  Note Literals
 *)
