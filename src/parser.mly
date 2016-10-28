@@ -1,25 +1,21 @@
-%{ open Ast %}
+%{
+  open Core.Std
+  open Ast
+%}
 
-%token PLUS MINUS TIMES DIVIDE EOF ASSIGNMENT SEQUENCE
-%token <int> LITERAL
-%token <int> VARIABLE
+/* token and type specifications, precedence directives, and other output directives */
 
-%left SEQUENCE
-%right ASSIGNMENT
+/* TODO: declare the list of tokens */
+%token PLUS MINUS TIMES DIVIDE EOF
+%token ASSIGN
+%token <int> LIT_INT
+
+/* TODO: Precedence (low to high) and Associativity */
+%right ASSIGN
 %left PLUS MINUS
 %left TIMES DIVIDE
 
-%start expr
-%type <Ast.expr> expr
+%start program
+%type <Ast.program> program
 
 %%
-
-expr:
-    expr SEQUENCE expr { Seq($1, $3) }
-  | VARIABLE ASSIGNMENT expr { Asn($1, $3) }
-  | expr PLUS expr { Binop($1, Add, $3) }
-  | expr MINUS expr { Binop($1, Sub, $3) }
-  | expr TIMES expr { Binop($1, Mul, $3) }
-  | expr DIVIDE expr { Binop($1, Div, $3) }
-  | LITERAL { Lit($1) }
-  | VARIABLE { Var($1) }
