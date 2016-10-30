@@ -63,18 +63,18 @@ lit_array:
 | typename   BRACES  { Arr([], Some($1)) }
 
 stmt:
-	expr SEMI { Expr($1) }
-| 	RETURN expr SEMI { Return($2) }
-|	RETURN SEMI		 { Return(Noexpr) }
+	expr SEP { Expr($1) }
+| 	RETURN expr SEP { Return($2) }
+|	RETURN SEP		 { Return(Noexpr) }
 | 	LBRACE stmt_list RBRACE { Block(List.rev $2) }
 | 	IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
 | 	IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
-| 	FOR LPAREN expr_opt SEMI expr_opt SEMI expr_opt RPAREN stmt
+| 	FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
 	 { For($3, $5, $7, $9) }
 | 	WHILE LPAREN expr RPAREN stmt 	{ While($3, $5) }
-|	BREAK SEMI					 	{ Break }
-|	CONTINUE SEMI				 	{ Continue }
-|   datatype ID SEMI 			 	{ Local($1, $2, Noexpr) }
-| 	datatype ID ASSIGN expr SEMI 	{ Local($1, $2, $4) }
+|	BREAK SEP					 	{ Break }
+|	CONTINUE SEP				 	{ Continue }
+|   datatype ID SEP 			 	{ Local($1, $2, Noexpr) }
+| 	datatype ID ASSIGN expr SEP 	{ Local($1, $2, $4) }
 
 
