@@ -14,7 +14,7 @@ https://github.com/DavidWatkins/Dice/blob/master/src/ast.ml
 
 type binary_operator =
     Add | Sub | Mult | Div | Equal | Neq
-  | Less | Leq | Greater | Geq | And | Or
+  | Less | Leq | Greater | Geq | And | Mod | Or
 type unary_operator = Neg
 
 type expr =
