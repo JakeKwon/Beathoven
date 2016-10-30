@@ -20,6 +20,7 @@ type unary_operator = Neg
 type expr =
   | LitBool of bool
   | LitInt of int
+  | LitDouble of float
   | LitStr of string
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
