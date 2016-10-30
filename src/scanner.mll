@@ -47,7 +47,7 @@ rule token = parse
   | ">=" { GTE }
   | ':' { COLON }
 	| '.' { DOT }
-  | ',' {COMMA}
+  | ',' { COMMA }
   | '!' { NOT }
   | "&" { PARALLEL }
   | "and" { AND }
