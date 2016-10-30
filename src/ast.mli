@@ -17,14 +17,20 @@ type binary_operator =
   | Less | Leq | Greater | Geq | And | Or
 type unary_operator = Neg
 
+type datatype = Datatype of typ
+type formal = Formal of datatype * string | Many of datatype
+
 type expr =
   | LitBool of bool
   | LitInt of int
+  | LitDouble of float
   | LitStr of string
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
   | Assign of string * expr
   | FuncCall of string * expr list
+  | Noexpr 
+  | Local of datatype * string * expr
 
 type stmt =
     Block of stmt list

@@ -23,6 +23,8 @@
 %token MATCHCASE
 
 /* Precedence (low to high) and Associativity */
+%nonassoc NOELSE
+%nonassoc ELSE
 %right ASSIGN
 %left NEQ GTE EQ LTE GT GT
 %left PLUS MINUS
@@ -36,4 +38,39 @@
 %start program
 %type <Ast.program> program
 
+
+
+
 %%
+
+literals:
+  ID 			   		{ Id($1) }	
+| NULL				    { Null }
+| LIT_BOOL         { LitBool($1) }
+| LIT_INT { LitInt($1) }
+| LIT_DOUBLE { LitDouble($1) }
+| LIT_STR          { LitStr($1) }
+/* | lit_array        { $1 } */
+/*
+lit_array:
+| LBRACE stmt_list_plus RBRACE { Arr((List.rev $2), None) }
+| LBRACK stmt_list_plus RBRACK { ArrMusic((List.rev $2)) }
+| typename   BRACES  { Arr([], Some($1)) }
+*/
+stmt:
+	expr SEP { Expr($1) }
+| 	RETURN expr SEP { Return($2) }
+|	RETURN SEP		 { Return(Noexpr) }
+| 	LBRACE stmt_list RBRACE { Block(List.rev $2) }
+| 	IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
+| 	IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
+/*
+| 	FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
+	 { For($3, $5, $7, $9) }
+*/
+| 	WHILE LPAREN expr RPAREN stmt 	{ While($3, $5) }
+|	BREAK SEP					 	{ Break }
+|	CONTINUE SEP				 	{ Continue }
+|   datatype ID SEP 			 	{ Local($1, $2, Noexpr) }
+| 	datatype ID ASSIGN expr SEP 	{ Local($1, $2, $4) }
+
