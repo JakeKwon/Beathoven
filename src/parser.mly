@@ -39,29 +39,19 @@
 %%
 
 literals:
-  INT_LITERAL      		{ Int_Lit($1) }
-| FLOAT_LITERAL    		{ Float_Lit($1) }
-| TRUE			   		{ Boolean_Lit(true) }
-| FALSE			   		{ Boolean_Lit(false) }
-| STRING_LITERAL   		{ String_Lit($1) }  
-| CHAR_LITERAL			{ Char_Lit($1) }
-| THIS 			   		{ This }
-| ID 			   		{ Id($1) }	
+  ID 			   		{ Id($1) }	
 | NULL				    { Null }
-| BAR array_prim BAR 	{ ArrayPrimitive($2) }
 | LIT_BOOL         { LitBool($1) }
 | LIT_INT { LitInt($1) }
 | LIT_DOUBLE { LitDouble($1) }
-| LIT_FLOAT        { LitFloat($1) }
 | LIT_STR          { LitStr($1) }
-| TILDE            { StructInit("chord", []) }
-| lit_array        { $1 }
-
+/* | lit_array        { $1 } */
+/*
 lit_array:
 | LBRACE stmt_list_plus RBRACE { Arr((List.rev $2), None) }
 | LBRACK stmt_list_plus RBRACK { ArrMusic((List.rev $2)) }
 | typename   BRACES  { Arr([], Some($1)) }
-
+*/
 stmt:
 	expr SEP { Expr($1) }
 | 	RETURN expr SEP { Return($2) }
@@ -76,5 +66,4 @@ stmt:
 |	CONTINUE SEP				 	{ Continue }
 |   datatype ID SEP 			 	{ Local($1, $2, Noexpr) }
 | 	datatype ID ASSIGN expr SEP 	{ Local($1, $2, $4) }
-
 
