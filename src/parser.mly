@@ -23,6 +23,8 @@
 %token MATCHCASE
 
 /* Precedence (low to high) and Associativity */
+%nonassoc NOELSE
+%nonassoc ELSE
 %right ASSIGN
 %left NEQ GTE EQ LTE GT GT
 %left PLUS MINUS
@@ -35,6 +37,9 @@
 /* AST program start */
 %start program
 %type <Ast.program> program
+
+
+
 
 %%
 
@@ -59,8 +64,10 @@ stmt:
 | 	LBRACE stmt_list RBRACE { Block(List.rev $2) }
 | 	IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
 | 	IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
+/*
 | 	FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
 	 { For($3, $5, $7, $9) }
+*/
 | 	WHILE LPAREN expr RPAREN stmt 	{ While($3, $5) }
 |	BREAK SEP					 	{ Break }
 |	CONTINUE SEP				 	{ Continue }
