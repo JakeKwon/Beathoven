@@ -1,6 +1,5 @@
 %{
- open Core.Std
- open Ast
+  open Ast
 %}
 
 /* token and type specifications, precedence directives, and other output directives */
@@ -11,7 +10,7 @@
 %token <string> LIT_STR
 %token <float> LIT_DOUBLE
 %token <string> ID
-%token NULL TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_DOUBLE TYPE_STR
+%token NULL TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_DOUBLE TYPE_STR TYPE_STRUCT TYPE_ENUM
 %token ASSIGN
 %token RETURN SEP EOF
 %token LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE
@@ -22,8 +21,10 @@
 %token RARROW
 %token ARRAY
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
-%token MATCHCASE
-%token IF WHILE FOR BREAK CONTINUE
+%token PITCH DURATION NOTE CHORD SEQ
+%token FUNC USING MODULE
+%token MATCH MATCHCASE
+%token IF ELSE WHILE FOR IN RANGE BREAK CONTINUE
 
 /* Precedence (low to high) and Associativity */
 %nonassoc NOELSE
@@ -107,13 +108,13 @@ stmt:
 expr:
     literals { $1 }
   | expr PLUS expr { Binop($1, Add, $3) }
-/*
   | expr MINUS expr { Binop($1, Sub, $3) }
-  | MINUS expr { Unop (Sub, $2) }
+  | MINUS expr { Uniop (Neg, $2) }
   | expr TIMES expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD expr { Binop($1, Mod, $3)}
   | expr ASSIGN expr { Assign($1, $3) }
+  /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
   | expr LT expr { Binop($1, Less, $3) }
