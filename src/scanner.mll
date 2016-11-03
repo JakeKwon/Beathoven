@@ -1,5 +1,5 @@
 {
-  open Core.Std
+  (* open Core.Std *)
 
   open Parser
 
@@ -70,8 +70,8 @@ rule token = parse
   | "int" { TYPE_INT }
   | "double" { TYPE_DOUBLE }
   | "string" { TYPE_STR }
-  | "Struct" { STRUCT }
-  | "Enum" { ENUM }
+  | "Struct" { TYPE_STRUCT }
+  | "Enum" { TYPE_ENUM }
   | "if" { IF }
   | "else"{ ELSE }
   | "match" { MATCH }
@@ -102,12 +102,12 @@ rule token = parse
   | "Chord" { CHORD }
   | "Seq" { SEQ }
 (* ------------- Literals ------------- *)
-  | digit+ as lit { LIT_INT(Int.of_string lit) }
-  | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(Float.of_string lit) }
+  | digit+ as lit { LIT_INT(int_of_string lit) }
+  | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
   | (letter | '_') (letter | digit | '_')* as lit { ID(lit) } (* Identifiers *)
   | eof { EOF }
-  | _ as c { raise (Lexing_error("Unknown token '" ^ Char.to_string c ^ "'")) }
+  | _ as c { raise (Lexing_error("Unknown token '" ^ String.make 1 c ^ "'")) }
 
 and comment = parse
     "*/" { token lexbuf }

@@ -1,7 +1,7 @@
 type typ =
-  | Unit
+    Unit
   | Int
-  | Float
+  | Double
   | String
   | Bool
 
@@ -14,23 +14,25 @@ https://github.com/DavidWatkins/Dice/blob/master/src/ast.ml
 
 type binary_operator =
     Add | Sub | Mult | Div | Equal | Neq
-  | Less | Leq | Greater | Geq | And | Or
+  | Less | Leq | Greater | Geq | And | Mod | Or
 type unary_operator = Neg
 
 type datatype = Datatype of typ
 type formal = Formal of datatype * string | Many of datatype
 
 type expr =
+    Id of string
   | LitBool of bool
   | LitInt of int
   | LitDouble of float
   | LitStr of string
+  | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
-  | Assign of string * expr
+  | Assign of expr * expr
   | FuncCall of string * expr list
-  | Noexpr 
-  | Local of datatype * string * expr
+  | Noexpr
+  (* LitChar, Array, ... *)
 
 type stmt =
     Block of stmt list
@@ -38,6 +40,9 @@ type stmt =
   | If of expr * stmt * stmt
   | While of expr * stmt
   | Return of expr
+  | Break
+  | Continue
+  | Local of datatype * string * expr
 
 type func_decl = {
   fname : string;
@@ -47,4 +52,5 @@ type func_decl = {
   body : stmt list;
 }
 
-type program = bind list * func_decl list * stmt list
+(* type program = bind list * func_decl list * stmt list *)
+type program = bind list * stmt list
