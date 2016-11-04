@@ -7,10 +7,25 @@ type num =
 
 let stringify = function
 
-  (* Arithmetic Operators *)
+  (*  Operators - Arithmatic *)
   | PLUS -> "PLUS"     | MINUS -> "MINUS"
   | TIMES -> "TIMES"   | DIVIDE -> "DIVIDE"
-  | MOD -> "MOD"       | POWER -> "POWER"
+  | MOD -> "MOD"       | ASSIGN -> "ASSIGN"
+
+  (*  Operators - Relational *)
+  | EQ -> "EQ"    | NEQ -> "NEQ"
+  | LT -> "LT"    | GT -> "GT"
+  | LTE -> "LTE"  | GTE -> "GTE"
+
+  (* Logical Operators & Keywords *)
+  | AND -> "AND"   | OR -> "OR"
+  | NOT -> "NOT"   | PARALLEL -> "PARALLEL"
+
+
+  (* Scoping  *)
+  | LPAREN -> "LPAREN"  | RPAREN -> "RPAREN"
+  | LBRACE -> "LBRACE"  | RBRACE -> "RBRACE"
+  | LBRACK -> "LBRACK"  | RBRACK -> "RBRACK"
 
 let _ =
   let lexbuf = Lexing.from_channel stdin in
