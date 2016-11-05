@@ -1,5 +1,5 @@
 
-# Odds: compiler Makefile
+# Beathoven: compiler Makefile
 #  - builds and manages all compiler components
 
 OCAMLC = ocamlc
