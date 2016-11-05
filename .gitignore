@@ -4,3 +4,11 @@ parser.mli
 
 *.cmi
 *.cmo
+
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
