@@ -1,3 +1,6 @@
+src/beathoven
+test/scanner/tokenize
+
 scanner.ml
 parser.ml
 parser.mli
@@ -9,6 +12,7 @@ parser.mli
 *.cmi
 *.a
 *.o
+*.output
 *.cmx
 *.cmxs
 *.cmxa
