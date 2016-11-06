@@ -1,6 +1,0 @@
-../../src/beathoven < tests/test-nothing.bt > test-nothing.out
-diff -b test-nothing.out tests/test-nothing.out > test-nothing.diff
-###### SUCCESS
-../../src/beathoven < tests/fail-duplicate.bt 2> fail-duplicate.err >> testall.log
-diff -b fail-duplicate.err tests/fail-duplicate.err > fail-duplicate.diff
-###### SUCCESS
