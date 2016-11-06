@@ -7,7 +7,7 @@ OCAMLC = ocamlc
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
 # OBJS = utils.cmo parser.cmo scanner.cmo semant.cmo printer.cmo pythonizer.cmo generator.cmo beathoven.cmo
-OBJS = parser.cmo scanner.cmo beathoven.cmo semant.cmo
+OBJS = parser.cmo scanner.cmo semant.cmo beathoven.cmo 
 EXEC = beathoven
 
 
@@ -34,15 +34,16 @@ parser.cmo : ast.cmi parser.cmi
 scanner.cmo : parser.cmi 
 parser.cmi : ast.cmi
 semant.cmo : ast.cmi
-
+beathoven.cmo : semant.cmo 
 .PHONY: clean
 clean:
 	rm -f $(EXEC) *.cm[iox] parser.ml parser.mli scanner.ml \
 *.out *.diff *.orig *.output
 
 
-# beathoven.cmo: utils.cmo scanner.cmo pythonizer.cmo printer.cmo parser.cmi \
-#     generator.cmo semant.cmo
+# beathoven.cmo: semant.cmo 
+# utils.cmo scanner.cmo pythonizer.cmo printer.cmo parser.cmi \
+#     generator.cmo 
 # beathoven.cmx: utils.cmx scanner.cmx pythonizer.cmx printer.cmx parser.cmx \
 #     generator.cmx semant.cmx
 # parser.cmx: ast.cmi parser.cmi
