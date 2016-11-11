@@ -1,3 +1,4 @@
+open Codegen
 open Printf
 
 type action = Compile | Help | Raw | Sast
