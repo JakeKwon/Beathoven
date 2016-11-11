@@ -1,4 +1,5 @@
 src/beathoven
+src/_build
 test/scanner/tokenize
 
 scanner.ml
