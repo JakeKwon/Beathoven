@@ -1,6 +1,7 @@
 ../../src/beathoven < tests/test-nothing.bt > test-nothing.out
-diff -b test-nothing.out tests/test-nothing.out > test-nothing.diff
-###### SUCCESS
+./testall.sh: line 57: ../../src/beathoven: No such file or directory
+###### FAILED
 ../../src/beathoven < tests/fail-duplicate.bt 2> fail-duplicate.err >> testall.log
 diff -b fail-duplicate.err tests/fail-duplicate.err > fail-duplicate.diff
-###### SUCCESS
+FAILED fail-duplicate.err differs from tests/fail-duplicate.err
+###### FAILED

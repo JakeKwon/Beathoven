@@ -129,3 +129,26 @@ expr:
   | expr bracket_args RBRACKET { ArrayAccess($1, List.rev $2) }
   | ID LPAREN func_args RPAREN { Call($1, $3) }
 */
+
+fdecl:
+   typ ID LPAREN formals_opt RPAREN LBRACE vdecl_list stmt_list RBRACE
+     { { returnType = $1;
+   fname = $2;
+   formals = $4;
+   locals = List.rev $7;
+   body = List.rev $8 } }
+
+formals_opt:
+    /* nothing */ { [] }
+  | formal_list   { List.rev $1 }
+
+formal_list:
+    typ ID                   { [($1,$2)] }
+  | formal_list COMMA typ ID { ($3,$4) :: $1 }
+
+vdecl_list:
+    /* nothing */    { [] }
+  | vdecl_list vdecl { $2 :: $1 }
+
+
+
