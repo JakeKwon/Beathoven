@@ -30,7 +30,7 @@
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
-%left NEQ GTE EQ LTE GT 
+%left NEQ GTE EQ LTE GT
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
 %left COLON

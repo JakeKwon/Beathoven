@@ -1,5 +1,4 @@
-open Codegen
-open Printf
+(* open Printf *)
 
 type action = Compile | Help | Raw | Sast
 
@@ -34,7 +33,9 @@ let _ =
     match action with
       Sast -> () (* print_string (Ast.string_of_program ast) *)
     | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)
-    | Compile -> ()
+    | Compile -> let m = Codegen.codegen_main ast in
+      (* Llvm_analysis.assert_valid_module m; *)
+      print_string (Llvm.string_of_llmodule m)
       (* let output_file = Sys.argv.(2) and stdlib_file = Sys.argv.(3) in
       let stdlib = Utils.str_of_file stdlib_file in
       let file = open_out output_file
