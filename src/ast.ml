@@ -45,6 +45,8 @@ type stmt =
   | Break
   | Continue
   | Local of datatype * string * expr
+  | Update_variable of string * expr
+
 
 type func_decl = {
   fname : string;

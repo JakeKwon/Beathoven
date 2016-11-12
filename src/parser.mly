@@ -46,7 +46,7 @@
 
 program:
   program_body EOF { $1 }
-
+/*program body is a pair of lists and concatenates the first and second part*/
 program_body:
     /* nothing */ { [], [] }
   | program_body vdecl { ($2 :: fst $1), snd $1 }
@@ -110,7 +110,9 @@ stmt:
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
   | CONTINUE SEP { Continue }
-
+  | assign_stmt SEP { $1 }
+assign_stmt:
+  ID ASSIGN expr { Update_variable($1, $3) }
 expr:
     literals { $1 }
   | expr PLUS expr { Binop($1, Add, $3) }
