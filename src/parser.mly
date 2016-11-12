@@ -50,7 +50,7 @@ program:
 program_body:
     /* nothing */ { [], [] }
   | program_body vdecl { ($2 :: fst $1), snd $1 }
-  | program_body stmt { fst $1, ($2 :: snd $1) }
+  | program_body fdecl { fst $1, ($2 :: snd $1) }
 
 vdecl:
     typ ID SEP { ($1, $2) } /* bind */
@@ -113,7 +113,7 @@ expr:
   | expr TIMES expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD expr { Binop($1, Mod, $3)}
-  | expr ASSIGN expr { Assign($1, $3) }
+  | ID ASSIGN expr { Assign($1, $3) }
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
