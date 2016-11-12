@@ -49,7 +49,7 @@ let check (globals, funclists) =
      { returnType = Unit; fname = "printb"; formals = [(Bool, "x")];
        locals = []; body = [] })
    in
-     
+
   let function_decls = List.fold_left (fun m fd -> StringMap.add fd.fname fd m)
                          built_in_decls funclists
   in
@@ -57,8 +57,6 @@ let check (globals, funclists) =
   let function_decl s = try StringMap.find s function_decls
        with Not_found -> raise (Failure ("unrecognized function " ^ s))
   in
-
-  let _ = function_decl "main" in (* Ensure "main" is defined *)
 
   let check_function func =
 
@@ -109,7 +107,7 @@ let check (globals, funclists) =
       | Assign(var, e) as ex -> let lt = type_of_identifier var
                                 and rt = expr e in
         check_assign lt rt (Failure ("illegal assignment " ^ string_of_typ lt ^
-             " = " ^ string_of_typ rt ^ " in " ^ 
+             " = " ^ string_of_typ rt ^ " in " ^
              string_of_expr ex))
       | FuncCall(fname, actuals) as call -> let fd = function_decl fname in
          if List.length actuals != List.length fd.formals then
@@ -141,13 +139,13 @@ let check (globals, funclists) =
       | Return e -> let t = expr e in if t = func.returnType then () else
          raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^
                          string_of_typ func.returnType ^ " in " ^ string_of_expr e))
-           
+
       | If(p, b1, b2) -> check_bool_expr p; stmt b1; stmt b2
       | While(p, s) -> check_bool_expr p; stmt s
     in
 
     stmt (Block func.body)
-   
+
   in
   List.iter check_function funclists
 
@@ -200,7 +198,7 @@ let check (globals, funclists) =
       | Assign(var, e) as ex -> let lt = type_of_identifier var
                                 and rt = expr e in
         check_assign lt rt (Failure ("illegal assignment " ^ string_of_typ lt ^
-				     " = " ^ string_of_typ rt ^ " in " ^ 
+				     " = " ^ string_of_typ rt ^ " in " ^
 				     string_of_expr ex))
       | Call(fname, actuals) as call -> let fd = function_decl fname in
          if List.length actuals != List.length fd.formals then
@@ -232,7 +230,7 @@ let check (globals, funclists) =
       | Return e -> let t = expr e in if t = func.typ then () else
          raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^
                          string_of_typ func.typ ^ " in " ^ string_of_expr e))
-           
+
       | If(p, b1, b2) -> check_bool_expr p; stmt b1; stmt b2
       | For(e1, e2, e3, st) -> ignore (expr e1); check_bool_expr e2;
                                ignore (expr e3); stmt st
@@ -240,7 +238,7 @@ let check (globals, funclists) =
     in
 
     stmt (Block func.body)
-   
+
   in
   List.iter check_function funclists
  *)
