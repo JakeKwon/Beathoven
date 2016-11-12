@@ -50,7 +50,7 @@ program:
 program_body:
     /* nothing */ { [], [] }
   | program_body vdecl { ($2 :: fst $1), snd $1 }
-  | program_body stmt { fst $1, ($2 :: snd $1) }
+  | program_body fdecl { fst $1, ($2 :: snd $1) }
 
 vdecl:
     typ ID SEP { ($1, $2) } /* bind */
@@ -113,7 +113,7 @@ expr:
   | expr TIMES expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD expr { Binop($1, Mod, $3)}
-  | expr ASSIGN expr { Assign($1, $3) }
+  | ID ASSIGN expr { Assign($1, $3) }
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
@@ -129,3 +129,26 @@ expr:
   | expr bracket_args RBRACKET { ArrayAccess($1, List.rev $2) }
   | ID LPAREN func_args RPAREN { Call($1, $3) }
 */
+
+fdecl:
+   typ ID LPAREN formals_opt RPAREN LBRACE vdecl_list stmt_list RBRACE
+     { { returnType = $1;
+   fname = $2;
+   formals = $4;
+   locals = List.rev $7;
+   body = List.rev $8 } }
+
+formals_opt:
+    /* nothing */ { [] }
+  | formal_list   { List.rev $1 }
+
+formal_list:
+    typ ID                   { [($1,$2)] }
+  | formal_list COMMA typ ID { ($3,$4) :: $1 }
+
+vdecl_list:
+    /* nothing */    { [] }
+  | vdecl_list vdecl { $2 :: $1 }
+
+
+
