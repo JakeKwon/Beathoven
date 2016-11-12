@@ -24,6 +24,11 @@ globalerror=0
 
 keep=0
 
+NC='\033[0m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+
 Usage() {
     echo "Usage: testall.sh [options] [.bt files]"
     echo "-k    Keep intermediate files"
@@ -33,7 +38,7 @@ Usage() {
 
 SignalError() {
     if [ $error -eq 0 ] ; then
-	echo "FAILED"
+	echo "${RED}FAILURE${NC}"
 	error=1
     fi
     echo "  $1"
@@ -78,16 +83,17 @@ Check() {
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    echo "$basename..."
+    # echo "$basename..."
 
     # echo 1>&2
-    echo "###### Testing $basename" # 1>&2
+    echo "${CYAN}\n###### Testing $basename${NC}" # 1>&2
 
     generatedfiles=""
 
     generatedfiles="$generatedfiles ${basename}.ll ${basename}.out" &&
     Run "$MICROC" "<" $1 ">" "${basename}.out" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
+    echo "Running $MICROC < $1"
     Compare ${basename}.out ${reffile}.out ${basename}.diff
 
     # Report the status and clean up the generated files
@@ -96,7 +102,7 @@ Check() {
 	if [ $keep -eq 0 ] ; then
 	    rm -f $generatedfiles
 	fi
-	echo "OK"
+	echo "${GREEN}OK${NC}"
 	echo "###### SUCCESS" 1>&2
     else
 	echo "###### FAILED" 1>&2
@@ -111,14 +117,16 @@ CheckFail() {
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    echo "$basename..."
+    # echo "$basename..."
 
     # echo 1>&2
-    echo "###### Testing $basename" # 1>&2
+    echo "${CYAN}\n###### Testing $basename${NC}" # 1>&2
 
     generatedfiles=""
 
     generatedfiles="$generatedfiles ${basename}.err ${basename}.diff" &&
+    echo "Running $MICROC < $1" &&
+
     RunFail "$MICROC" "<" $1 "2>" "${basename}.err" ">>" $globallog &&
     Compare ${basename}.err ${reffile}.err ${basename}.diff
 
@@ -128,7 +136,7 @@ CheckFail() {
 	if [ $keep -eq 0 ] ; then
 	    rm -f $generatedfiles
 	fi
-	echo "OK"
+	echo "${GREEN}OK${NC}"
 	echo "###### SUCCESS" 1>&2
     else
 	echo "###### FAILED" 1>&2
