@@ -29,7 +29,6 @@ clean:
 	rm -f $(TARGET) *.cm[iox] parser.ml parser.mli scanner.ml \
 *.out *.diff *.orig *.output
 
-
 all:
 	cd ..; make all
 

@@ -1,0 +1,4 @@
+1c1
+< ./testall.sh: line 67: ../../src/beathoven: No such file or directory
+---
+> Fatal error: exception Failure("duplicate global b")
