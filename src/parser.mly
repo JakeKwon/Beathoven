@@ -30,7 +30,7 @@
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
-%left NEQ GTE EQ LTE GT 
+%left NEQ GTE EQ LTE GT
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
 %left COLON
@@ -54,8 +54,14 @@ program_body:
 
 vdecl:
     typ ID SEP { ($1, $2) } /* bind */
+/*TYPE_INT
+ID
+ASSIGN
+LIT_STR
+SEP*/
+    | typ ID ASSIGN stmt { ($1, $2)}
    /*datatype ID SEP  { Local($1, $2, Noexpr) } */
-  /*| datatype ID ASSIGN expr SEP { Local($1, $2, $4) }*/
+  /*| typ ID ASSIGN expr SEP { Local($1, $2, $4) } */
 
 typ:
     TYPE_UNIT { Unit }
@@ -114,6 +120,7 @@ expr:
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD expr { Binop($1, Mod, $3)}
   | ID ASSIGN expr { Assign($1, $3) }
+  | typ ID ASSIGN expr { Assign($2, $4) }
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
