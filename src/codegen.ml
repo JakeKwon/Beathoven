@@ -24,11 +24,11 @@ let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 (* cannot use map since StringMap.add returns a new map.  *)
 
 let lltype_of_typ = function
-    Unit -> unit_t
-  | Int -> i32_t
-  | Double -> double_t
-  | String -> str_t
-  | Bool -> i1_t
+    Primitive(Unit) -> unit_t
+  | Primitive(Int) -> i32_t
+  | Primitive(Double) -> double_t
+  | Primitive(String) -> str_t
+  | Primitive(Bool) -> i1_t
 
 (* Declare global variable; remember its llvalue in a map *)
 let allocate typ var_name builder =
@@ -40,8 +40,13 @@ let lookup s = try Hashtbl.find global_vars s
   with Not_found -> raise (Exceptions.UnknownVariable s)
 
 
+let rec codegen_assign lhs rhs builder =
+  let lhs = match lhs with Id s -> lookup s in
+  let rhs = codegen_expr builder rhs in
+  ignore(L.build_store rhs lhs builder); rhs
+
 (* Construct code for an expression; return its llvalue *)
-let rec codegen_expr builder = function
+and codegen_expr builder = function
     Id s -> L.build_load (lookup s) s builder
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
@@ -49,19 +54,16 @@ let rec codegen_expr builder = function
   | LitStr s -> L.build_global_stringptr s "tmp" builder
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
-  | Assign (e1, e2) ->
-    let codegen_assign lhs rhs builder =
-      let lhs = match lhs with Id s -> lookup s in
-      let rhs = codegen_expr builder rhs in
-      ignore(L.build_store rhs lhs builder);
-      rhs
-    in codegen_assign e1 e2 builder
+  | Assign (e1, e2) -> codegen_assign e1 e2 builder
+
 
 let rec codegen_stmt builder = function (*rec??*)
     Block sl -> List.fold_left codegen_stmt builder sl
-  | Expr e -> ignore (codegen_expr builder e); builder
-and codegen_stmts builder sl = List.fold_left codegen_stmt builder sl
-
+  | Expr e -> ignore(codegen_expr builder e); builder
+  | VarDecl (t, s, e) ->
+    allocate t s builder;
+    if e <> Noexpr then ignore(codegen_assign (Id(s)) e builder);
+    builder
 
 let codegen_builtin_functions () =
   (* Declare printf(), which the print built-in function will call *)
@@ -70,7 +72,8 @@ let codegen_builtin_functions () =
   ()
 
 
-let codegen_main (globals, statements) =
+let codegen_main (btmodule) =
+  let statements = btmodule.funcs.body in (* main_module -> main_func -> body *)
 
   let beathoven_t = L.function_type i32_t [| i32_t; L.pointer_type str_t |] in
   let beathoven = L.define_function "~beathoven" beathoven_t the_module in
@@ -78,17 +81,16 @@ let codegen_main (globals, statements) =
   let llbuilder = L.builder_at_end context (L.entry_block beathoven) in
 
   (* Declare each global variable; remember its value in map global_vars *)
-  let _ =
+  (* let _ =
     let add_global_var (datatype, var_name) =
       ignore (allocate datatype var_name llbuilder) in
-    let tmp k v = print_string k in
-    List.iter add_global_var globals;
-  in
+    List.iter add_global_var globals
+  in *)
 
-  let _ = codegen_stmts llbuilder statements in
+  let _ = codegen_stmt llbuilder (Block(statements)) in
 
   (* Finish off the function. *)
-  L.build_ret (L.const_int i32_t 0) llbuilder;
+  L.build_ret (L.const_int i32_t 0) llbuilder; (* must return 0?? *)
   the_module
 
 (*

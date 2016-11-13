@@ -1,26 +1,21 @@
 
-type typ =
+type primi =
     Unit
   | Int
   | Double
   | String
   | Bool
 
-type bind = typ * string
-
 type binary_operator =
     Add | Sub | Mult | Div | Equal | Neq
   | Less | Leq | Greater | Geq | And | Mod | Or
 
-(* Reference:
-https://github.com/el2724/note-hashtag/blob/master/src/ast.ml
-https://github.com/DavidWatkins/Dice/blob/master/src/ast.ml
- *)
-
 type unary_operator = Neg | Not
 
-type datatype = Datatype of typ
-type formal = Formal of datatype * string | Many of datatype
+type datatype = Primitive of primi
+type bind = datatype * string
+(* type formal = Formal of bind | Many of datatype *)
+
 
 type expr =
     Id of string
@@ -31,7 +26,7 @@ type expr =
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
-  | Assign of string * expr
+  | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
   (* LitChar, Array, ... *)
@@ -44,18 +39,28 @@ type stmt =
   | Return of expr
   | Break
   | Continue
-  | Local of datatype * string * expr
+  | VarDecl of datatype * string * expr
+
 
 type func_decl = {
   fname : string;
   formals : bind list;
-  returnType : typ;
-  locals : bind list;
+  returnType : datatype;
   body : stmt list;
+  (* TODO?: separate vars from stmt list *)
 }
 
-(* type program = bind list * func_decl list * stmt list *)
-type program = bind list * func_decl list
+type btmodule = {
+  mname : string;
+  (* TODO: usr_type Struct, Enum *)
+  funcs : func_decl; (* * func_decl list; *)
+}
+
+type program = btmodule (* * btmodule list *)
+
+
+(* --------------------------------------- *)
+
 
 let string_of_op = function
     Add -> "+"
@@ -73,9 +78,9 @@ let string_of_op = function
   | Or -> "||"
 
 let string_of_typ = function
-    Int -> "int"
-  | Bool -> "bool"
-  | Unit -> "void"
+    Primitive(Int) -> "int"
+  | Primitive(Bool) -> "bool"
+  | Primitive(Unit) -> "void"
 
 let string_of_uop = function
     Neg -> "-"
@@ -89,7 +94,7 @@ let rec string_of_expr = function
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Uniop(o, e) -> string_of_uop o ^ string_of_expr e
-  | Assign(v, e) -> v ^ " = " ^ string_of_expr e
+  | Assign(v, e) -> string_of_expr v ^ " = " ^ string_of_expr e
   | FuncCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
@@ -110,7 +115,6 @@ let string_of_fdecl fdecl =
   string_of_typ fdecl.returnType ^ " " ^
   fdecl.fname ^ "(" ^ String.concat ", " (List.map snd fdecl.formals) ^
   ")\n{\n" ^
-  String.concat "" (List.map string_of_vdecl fdecl.locals) ^
   String.concat "" (List.map string_of_stmt fdecl.body) ^
   "}\n"
 

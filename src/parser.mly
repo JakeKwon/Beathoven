@@ -2,9 +2,7 @@
   open Ast
 %}
 
-/* token and type specifications, precedence directives, and other output directives */
-
-/* Token List */
+/* Token and type specifications */
 %token <int> LIT_INT
 %token <bool> LIT_BOOL
 %token <string> LIT_STR
@@ -45,17 +43,46 @@
 %%
 
 program:
-  program_body EOF { $1 }
+  main_module EOF { $1 }
+  /*main_module btmodule_list EOF { $1, $2 }*/ /* rev?? */
 
-program_body:
-    /* nothing */ { [], [] }
-  | program_body vdecl { ($2 :: fst $1), snd $1 }
-  | program_body fdecl { fst $1, ($2 :: snd $1) }
 
-vdecl:
-    typ ID SEP { ($1, $2) } /* bind */
-   /*datatype ID SEP  { Local($1, $2, Noexpr) } */
-  /*| datatype ID ASSIGN expr SEP { Local($1, $2, $4) }*/
+btmodule_list:
+    /* nothing */ { [] }
+  | btmodule btmodule_list { $1::$2 } /* rev?? */
+
+btmodule:
+  MODULE ID LBRACE mbody RBRACE
+  {
+    { mname = $2; funcs = $4 }
+  }
+
+main_module:
+  mbody
+  {
+    { mname = "~beathoven"; funcs = $1 }
+  }
+
+/*funcs : func_decl;*/
+mbody:
+  main_func { $1 }
+  /*main_func func_list { $1, $2 }*/
+
+main_func:
+  stmt_list
+  {
+    { fname = "~main"; formals = []; returnType = Primitive(Unit); body = List.rev $1 }
+  }
+
+stmt_list:
+    /* nothing */ { [] }
+  | stmt_list stmt { $2::$1 }
+
+
+var_decl:
+    typ ID SEP { VarDecl(Primitive($1), $2, Noexpr) }  /* ?? */
+  | typ ID ASSIGN expr SEP { VarDecl(Primitive($1), $2, $4) }
+
 
 typ:
     TYPE_UNIT { Unit }
@@ -63,17 +90,6 @@ typ:
   | TYPE_DOUBLE { Double }
   | TYPE_STR { String }
   | TYPE_BOOL { Bool }
-
-
-/*
-vdecl_list:
-     { [] }
-  | vdecl_list vdecl { $2::$1 }
-  */
-
-stmt_list:
-     { [] }
-  | stmt_list stmt { $2::$1 }
 
 literals:
     ID { Id($1) }
@@ -92,6 +108,7 @@ literals:
 
 stmt:
     expr SEP { Expr($1) }
+  | var_decl { $1 }
   | RETURN expr SEP { Return($2) }
   | RETURN SEP { Return(Noexpr) }
   | LBRACE stmt_list RBRACE { Block(List.rev $2) }
@@ -113,7 +130,7 @@ expr:
   | expr TIMES expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD expr { Binop($1, Mod, $3)}
-  | ID ASSIGN expr { Assign($1, $3) }
+  | expr ASSIGN expr { Assign($1, $3) }
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
@@ -130,25 +147,24 @@ expr:
   | ID LPAREN func_args RPAREN { Call($1, $3) }
 */
 
+/*----------------------------------------*/
+
+
 fdecl:
-   typ ID LPAREN formals_opt RPAREN LBRACE vdecl_list stmt_list RBRACE
-     { { returnType = $1;
+   typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
+     { { returnType = Primitive($1);
    fname = $2;
    formals = $4;
-   locals = List.rev $7;
-   body = List.rev $8 } }
+   body = List.rev $7 } }
 
 formals_opt:
     /* nothing */ { [] }
   | formal_list   { List.rev $1 }
 
 formal_list:
-    typ ID                   { [($1,$2)] }
-  | formal_list COMMA typ ID { ($3,$4) :: $1 }
+    typ ID                   { [( Primitive($1),$2)] }
+  | formal_list COMMA typ ID { (Primitive($3),$4) :: $1 }
 
 vdecl_list:
     /* nothing */    { [] }
-  | vdecl_list vdecl { $2 :: $1 }
-
-
-
+  | vdecl_list var_decl { $2 :: $1 }
