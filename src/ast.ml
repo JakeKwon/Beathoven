@@ -13,6 +13,7 @@ type binary_operator =
 type unary_operator = Neg | Not
 
 type datatype = Primitive of primi
+
 type bind = datatype * string
 (* type formal = Formal of bind | Many of datatype *)
 
