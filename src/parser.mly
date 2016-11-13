@@ -63,9 +63,8 @@ main_module:
     { mname = "~beathoven"; funcs = $1 }
   }
 
-/*funcs : func_decl;*/
 mbody:
-  main_func { $1 }
+  main_func { [$1] }
   /*main_func func_list { $1, $2 }*/
 
 main_func:
