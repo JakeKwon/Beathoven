@@ -34,6 +34,50 @@ let check (btmodule) =
 
   report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
 
+
+
+let build_class_maps reserved cdecls =
+  let reserved_map = List.fold_left (fun m f -> StringMap.add (Utils.string_of_fname f.sfname) f m) StringMap.empty reserved in
+  let helper m (cdecl:Ast.btmodule) =  
+    let fieldfun = (fun m -> (function Field(s, d, n) -> if (StringMap.mem (n) m) then raise(Exceptions.DuplicateField) else (StringMap.add n (Field(s, d, n)) m))) in
+    let funcname = get_name cdecl.cname in
+    let funcfun m fdecl = 
+      if (StringMap.mem (funcname fdecl) m) 
+        then raise(Exceptions.DuplicateFunction(funcname fdecl)) 
+      else if (StringMap.mem (Utils.string_of_fname fdecl.fname) reserved_map)
+        then raise(Exceptions.CannotUseReservedFuncName(Utils.string_of_fname fdecl.fname))
+      else (StringMap.add (funcname fdecl) fdecl m) 
+    in
+    let constructor_name = get_constructor_name cdecl.cname in
+    let constructorfun m fdecl = 
+      if fdecl.formals = [] then m
+      else if StringMap.mem (constructor_name fdecl) m 
+        then raise(Exceptions.DuplicateConstructor) 
+        else (StringMap.add (constructor_name fdecl) fdecl m)
+    in
+    let default_c = default_c cdecl.cname in
+    let constructor_map = StringMap.add (get_constructor_name cdecl.cname default_c) default_c StringMap.empty in
+    (if (StringMap.mem cdecl.cname m) then raise (Exceptions.DuplicateClassName(cdecl.cname)) else
+      StringMap.add cdecl.cname 
+      {   field_map = List.fold_left fieldfun StringMap.empty cdecl.cbody.fields; 
+        func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods;
+        constructor_map = List.fold_left constructorfun constructor_map cdecl.cbody.constructors; 
+        reserved_map = reserved_map; 
+        cdecl = cdecl } 
+                     m) in
+  List.fold_left helper StringMap.empty cdecls
+
+
+(* Main method for analyzer *)
+let analyze (btmodule) = match btmodule with
+  Program(includes, classes) ->
+  (* Generate the class_maps for look up in checking functions *)
+  let class_maps = build_class_maps reserved cdecls in
+  let class_maps, cdecls = handle_inheritance cdecls class_maps in
+  let sast = convert_cdecls_to_sast class_maps reserved cdecls in
+  sast
+
+
   (**** Checking funclists ****)
 
   (* if List.mem "print" (List.map (fun fd -> fd.fname) funclists)
