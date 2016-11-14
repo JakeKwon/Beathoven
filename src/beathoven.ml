@@ -26,7 +26,7 @@ let _ =
   let lexbuf = Lexing.from_channel stdin in
   (* try *)
     let ast = Parser.program Scanner.token lexbuf in
-    Semant.check ast;
+    Semant.check_program ast;
     (* let sast = Analyzer.check_ast ast in
     let past = Pythonizer.generate_past sast in
     let prog = Generator.gen_program ast in *)
