@@ -1,1 +1,2 @@
-exception UnknownVariable of string
+exception VariableNotDefined of string
+exception LLVMFunctionNotFound of string

@@ -20,24 +20,30 @@ and i8_t = L.i8_type context
 and i1_t = L.i1_type context
 and unit_t = L.void_type context
 let str_t = L.pointer_type i8_t
+(* let p_str_t = L.pointer_type str_t  *)
 let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 (* cannot use map since StringMap.add returns a new map.  *)
 
-let lltype_of_typ = function
+let lltype_of_datatype = function
     Primitive(Unit) -> unit_t
   | Primitive(Int) -> i32_t
   | Primitive(Double) -> double_t
   | Primitive(String) -> str_t
   | Primitive(Bool) -> i1_t
 
-(* Declare global variable; remember its llvalue in a map *)
+(* Declare variable; remember its llvalue in a map; returns () *)
 let allocate typ var_name builder =
-  let alloca = L.build_alloca (lltype_of_typ typ) var_name builder in
+  let alloca = L.build_alloca (lltype_of_datatype typ) var_name builder in
   Hashtbl.add global_vars var_name alloca
 
 (* Return the value for a variable or formal argument *)
 let lookup s = try Hashtbl.find global_vars s
-  with Not_found -> raise (Exceptions.UnknownVariable s)
+  with Not_found -> raise (Exceptions.VariableNotDefined s)
+
+and lookup_func fname =
+  match (L.lookup_function fname the_module) with
+    None -> raise (Exceptions.LLVMFunctionNotFound fname)
+  | Some f -> f
 
 
 let rec codegen_assign lhs rhs builder =
@@ -88,14 +94,27 @@ let codegen_builtin_functions () =
   let _ = L.declare_function "printf" printf_t the_module in
   ()
 
+let codegen_def_func func =
+  let formals = List.map (fun (t, _) -> lltype_of_datatype t) func.formals in
+  let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals) in
+  ignore(L.define_function func.fname func_t the_module) (* llfunc *)
+
+let codegen_func func =
+  (* Hashtbl.clear named_values;
+  Hashtbl.clear named_params;
+  let _ = init_params f func.formals in *)
+  let llfunc = lookup_func func.fname in
+  (* An instance of the IRBuilder class used in generating LLVM instructions *)
+  let llbuilder = L.builder_at_end context (L.entry_block llfunc) in
+  let _ = codegen_stmt llbuilder (Block(func.body)) in
+  (* Finish off the function. *)
+  (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
+  if func.returnType = Primitive(Unit) then ignore(L.build_ret_void llbuilder)
+  else ()
 
 let codegen_main (btmodule) =
-  let statements = btmodule.funcs.body in (* main_module -> main_func -> body *)
-
-  let beathoven_t = L.function_type i32_t [| i32_t; L.pointer_type str_t |] in
-  let beathoven = L.define_function "~beathoven" beathoven_t the_module in
-  (* An instance of the IRBuilder class used in generating LLVM instructions *)
-  let llbuilder = L.builder_at_end context (L.entry_block beathoven) in
+  List.iter codegen_def_func btmodule.funcs;
+  List.iter codegen_func btmodule.funcs;
 
   (* Declare each global variable; remember its value in map global_vars *)
   (* let _ =
@@ -103,24 +122,8 @@ let codegen_main (btmodule) =
       ignore (allocate datatype var_name llbuilder) in
     List.iter add_global_var globals
   in *)
-
-  let _ = codegen_stmt llbuilder (Block(statements)) in
-
-  (* Finish off the function. *)
-  L.build_ret (L.const_int i32_t 0) llbuilder; (* must return 0?? *)
   the_module
 
-(*
-| Binop of expr * binary_operator * expr
-| Uniop of unary_operator * expr
-
-| FuncCall of string * expr list *)
-
-(* and codegen_expr llbuilder = function
-   	|   SBinop(e1, op, e2, d)     	-> handle_binop e1 op e2 d llbuilder
-   	|   SCall(fname, el, d, _)       	-> codegen_call llbuilder d el fname
-   	|   SUnop(op, e, d)           	-> handle_unop op e d llbuilder
-*)
 
 (* Batteries  *)
 
@@ -130,7 +133,6 @@ let codegen_main (btmodule) =
   match L.block_terminator (L.insertion_block builder) with
     Some _ -> ()
   | None -> ignore (f builder) in *)
-
 
 (*
 Code generation: translate takes a semantically checked AST and produces LLVM IR

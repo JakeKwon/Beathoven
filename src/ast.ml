@@ -54,7 +54,7 @@ type func_decl = {
 type btmodule = {
   mname : string;
   (* TODO: usr_type Struct, Enum *)
-  funcs : func_decl; (* * func_decl list; *)
+  funcs : func_decl list; 
 }
 
 type program = btmodule (* * btmodule list *)
