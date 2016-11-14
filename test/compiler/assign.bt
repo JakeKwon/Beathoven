@@ -1,3 +1,8 @@
 int a;
 /* a = 0; */
 a = 1;
+int b = a + 2;
+print(1);
+print(false);
+print(b);
+print(a+b);

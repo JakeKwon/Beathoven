@@ -70,8 +70,9 @@ mbody:
 main_func:
   stmt_list
   {
-    { fname = "~main"; formals = []; returnType = Primitive(Unit); body = List.rev $1 }
+    { fname = "main"; formals = []; returnType = Primitive(Unit); body = List.rev $1 }
   }
+  /* TODO: codegen, rename mname+fname */
 
 
 var_decl:
@@ -152,7 +153,7 @@ expr:
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD    expr { Binop($1, Mod, $3) }
   | expr ASSIGN expr { Assign($1, $3) }
-  | ID LPAREN actuals_opt RPAREN { FuncCall($1, $3)} 
+  | ID LPAREN actuals_opt RPAREN { FuncCall($1, $3)}
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }

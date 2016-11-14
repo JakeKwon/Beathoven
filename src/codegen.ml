@@ -46,7 +46,22 @@ and lookup_func fname =
   | Some f -> f
 
 
-let rec codegen_assign lhs rhs builder =
+let rec codegen_print expr_list builder =
+  let lit_list = List.map (codegen_expr builder) expr_list in
+  let printtype_of_expr = function
+    (* str_t -> "%s" *)
+  (* | double_t -> "%lf" *)
+  | i32_t -> "%d"
+  | i1_t -> "%s" (* ?? *)
+  (* TODO: other types *)
+  in
+  let type_list = List.map printtype_of_expr lit_list in
+  let fmt_str = String.concat " " type_list in
+  let format_str = L.build_global_stringptr fmt_str "fmt" builder in
+  let actuals = Array.of_list (format_str :: lit_list) in
+  L.build_call (lookup_func "printf") actuals "tmp" builder
+
+and codegen_assign lhs rhs builder =
   let lhs = match lhs with Id s -> lookup s in
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
@@ -61,24 +76,28 @@ and codegen_expr builder = function
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign (e1, e2) -> codegen_assign e1 e2 builder
-  | Binop (e1, op, e2) -> 
-  let e1' = codegen_expr builder e1
-  and e2' = codegen_expr builder e2 in
-  (match op with 
-  | Add -> L.build_add 
-  | Sub -> L.build_sub
-  | Mult -> L.build_mul
-  | Div -> L.build_sdiv
-  | Equal -> L.build_icmp L.Icmp.Eq
-  | Neq -> L.build_icmp L.Icmp.Ne
-  | Less -> L.build_icmp L.Icmp.Slt
-  | Leq -> L.build_icmp L.Icmp.Sle
-  | Greater -> L.build_icmp L.Icmp.Sgt
-  | Geq -> L.build_icmp L.Icmp.Sge
-  | And -> L.build_and
-  | Mod  -> L.build_srem
-  | Or -> L.build_or
-  ) e1' e2' "tmp" builder
+  | FuncCall (f, el) ->
+    (match f with
+      "print" -> codegen_print el builder
+    | _ -> raise (Exceptions.LLVMFunctionNotFound f)) (* not implemented *)
+  | Binop (e1, op, e2) ->
+    let e1' = codegen_expr builder e1
+    and e2' = codegen_expr builder e2 in
+    (match op with
+      Add -> L.build_add
+    | Sub -> L.build_sub
+    | Mult -> L.build_mul
+    | Div -> L.build_sdiv
+    | Equal -> L.build_icmp L.Icmp.Eq
+    | Neq -> L.build_icmp L.Icmp.Ne
+    | Less -> L.build_icmp L.Icmp.Slt
+    | Leq -> L.build_icmp L.Icmp.Sle
+    | Greater -> L.build_icmp L.Icmp.Sgt
+    | Geq -> L.build_icmp L.Icmp.Sge
+    | And -> L.build_and
+    | Mod  -> L.build_srem
+    | Or -> L.build_or
+    ) e1' e2' "tmp" builder
 
 let rec codegen_stmt builder = function (*rec??*)
     Block sl -> List.fold_left codegen_stmt builder sl
@@ -88,7 +107,7 @@ let rec codegen_stmt builder = function (*rec??*)
     if e <> Noexpr then ignore(codegen_assign (Id(s)) e builder);
     builder
 
-let codegen_builtin_functions () =
+let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
   let printf_t = L.var_arg_function_type i32_t [| str_t |] in
   let _ = L.declare_function "printf" printf_t the_module in
@@ -113,6 +132,7 @@ let codegen_func func =
   else ()
 
 let codegen_main (btmodule) =
+  codegen_builtin_funcs ();
   List.iter codegen_def_func btmodule.funcs;
   List.iter codegen_func btmodule.funcs;
 
