@@ -55,7 +55,24 @@ and codegen_expr builder = function
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign (e1, e2) -> codegen_assign e1 e2 builder
-
+  | Binop (e1, op, e2) -> 
+  let e1' = codegen_expr builder e1
+  and e2' = codegen_expr builder e2 in
+  (match op with 
+  | Add -> L.build_add 
+  | Sub -> L.build_sub
+  | Mult -> L.build_mul
+  | Div -> L.build_sdiv
+  | Equal -> L.build_icmp L.Icmp.Eq
+  | Neq -> L.build_icmp L.Icmp.Ne
+  | Less -> L.build_icmp L.Icmp.Slt
+  | Leq -> L.build_icmp L.Icmp.Sle
+  | Greater -> L.build_icmp L.Icmp.Sgt
+  | Geq -> L.build_icmp L.Icmp.Sge
+  | And -> L.build_and
+  | Mod  -> L.build_srem
+  | Or -> L.build_or
+  ) e1' e2' "tmp" builder
 
 let rec codegen_stmt builder = function (*rec??*)
     Block sl -> List.fold_left codegen_stmt builder sl
