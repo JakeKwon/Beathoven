@@ -21,7 +21,7 @@ exception UniterableType;;
    throws an exception if something is wrong.
 
    Check each global variable, then check each function *)
-(* 
+
 let check (btmodule) =
 
   (* Raise an exception if the given list has a duplicate *)
@@ -48,7 +48,7 @@ let check (btmodule) =
   List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
   report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
- *)
+
 
 
 
