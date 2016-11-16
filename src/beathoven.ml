@@ -28,7 +28,6 @@ let _ =
     let ast = Parser.program Scanner.token lexbuf in
     (* Semant.check ast; *)
     Analyzer.check ast;
-
     (* let sast = Analyzer.check_ast ast in
     let past = Pythonizer.generate_past sast in
     let prog = Generator.gen_program ast in *)
@@ -36,7 +35,7 @@ let _ =
       Sast -> () (* print_string (Ast.string_of_program ast) *)
     | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)
     | Compile -> let m = Codegen.codegen_main ast in
-      (* Llvm_analysis.assert_valid_module m; *)
+      (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)
       (* let output_file = Sys.argv.(2) and stdlib_file = Sys.argv.(3) in
       let stdlib = Utils.str_of_file stdlib_file in
