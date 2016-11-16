@@ -1,5 +1,5 @@
 open Ast;;
-open Environment;;
+(* open Environment;; *)
 
 
 (* module StringMap = Map.Make(String) *)
@@ -22,7 +22,7 @@ exception UniterableType;;
 
    Check each global variable, then check each function *)
 
-let check (btmodule) =
+(* let check (btmodule) =
 
   (* Raise an exception if the given list has a duplicate *)
   let report_duplicate exceptf list =
@@ -48,7 +48,7 @@ let check (btmodule) =
   List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
   report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
-
+ *)
 
 
 
@@ -109,11 +109,12 @@ let check_bool_expr_binop_type (left_expr : data_type) (op : Ast.bool_op) (right
 let rec check_bracket_select_type (d_type : data_type) (selectors : expr list) (env : symbol_table) (id : string) (serial : string) = match d_type
   with Array ->
     if List.length selectors != 1 then raise MultiDimensionalArraysNotAllowed;
-    (* We can ignore the env because we're explicitly updating later. *)
+
+(*     (* We can ignore the env because we're explicitly updating later. *)
     let (expr_type, _) = check_expr_type (List.hd selectors) (env) in
     if expr_type != Int then raise ImproperBraceSelectorType;
     let ast_array_type = array_type (id) (env) in
-    let data_type = ast_data_to_data ast_array_type in  
+    let data_type = ast_data_to_data ast_array_type in *)
 
 and check_expr_type (expr : Ast.expr) (env: Environment.symbol_table) = match expr
   with Literal_int(i) -> (Int,env)
@@ -299,51 +300,42 @@ and check_return_statement (stmt : Ast.stmt) (env : Environment.symbol_table) (r
     check_statement stmt env
 
 (* entry point into semantic checker *)
-let check_program (stmt_list : Ast.func_decl.body) =
+let check_program (stmt_list : Ast.func_decl) =
   let env = Environment.create in
   check_statements (stmt_list) (env);
 
 
-
-
-
-
-
-
-
-
-
 (* DICE *)
-(* 
+(*
 
 let build_class_maps reserved cdecls =
   let reserved_map = List.fold_left (fun m f -> StringMap.add (Utils.string_of_fname f.sfname) f m) StringMap.empty reserved in
-  let helper m (cdecl:Ast.btmodule) =  
+  let helper m (cdecl:Ast.btmodule) =
     let fieldfun = (fun m -> (function Field(s, d, n) -> if (StringMap.mem (n) m) then raise(Exceptions.DuplicateField) else (StringMap.add n (Field(s, d, n)) m))) in
     let funcname = get_name cdecl.cname in
-    let funcfun m fdecl = 
-      if (StringMap.mem (funcname fdecl) m) 
-        then raise(Exceptions.DuplicateFunction(funcname fdecl)) 
+    let funcfun m fdecl =
+      if (StringMap.mem (funcname fdecl) m)
+        then raise(Exceptions.DuplicateFunction(funcname fdecl))
       else if (StringMap.mem (Utils.string_of_fname fdecl.fname) reserved_map)
         then raise(Exceptions.CannotUseReservedFuncName(Utils.string_of_fname fdecl.fname))
-      else (StringMap.add (funcname fdecl) fdecl m) 
+      else (StringMap.add (funcname fdecl) fdecl m)
     in
     let constructor_name = get_constructor_name cdecl.cname in
-    let constructorfun m fdecl = 
+    let constructorfun m fdecl =
       if fdecl.formals = [] then m
-      else if StringMap.mem (constructor_name fdecl) m 
-        then raise(Exceptions.DuplicateConstructor) 
+      else if StringMap.mem (constructor_name fdecl) m
+        then raise(Exceptions.DuplicateConstructor)
         else (StringMap.add (constructor_name fdecl) fdecl m)
     in
     let default_c = default_c cdecl.cname in
     let constructor_map = StringMap.add (get_constructor_name cdecl.cname default_c) default_c StringMap.empty in
     (if (StringMap.mem cdecl.cname m) then raise (Exceptions.DuplicateClassName(cdecl.cname)) else
-      StringMap.add cdecl.cname 
-      {   field_map = List.fold_left fieldfun StringMap.empty cdecl.cbody.fields; 
+      StringMap.add cdecl.cname
+      {   field_map = List.fold_left fieldfun StringMap.empty cdecl.cbody.fields;
         func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods;
-        constructor_map = List.fold_left constructorfun constructor_map cdecl.cbody.constructors; 
-        reserved_map = reserved_map; 
-        cdecl = cdecl } 
+        constructor_map = List.fold_left constructorfun constructor_map cdecl.cbody.constructors;
+        reserved_map = reserved_map;
+        cdecl = cdecl }
                      m) in
   List.fold_left helper StringMap.empty cdecls
 
@@ -385,7 +377,7 @@ let analyze (btmodule) = match btmodule with
      { returnType = Unit; fname = "printb"; formals = [(Bool, "x")];
        body = [] })
    in *)
-     
+
   (* let function_decls = List.fold_left (fun m fd -> StringMap.add fd.fname fd m)
                          built_in_decls funclists
   in *)
@@ -395,7 +387,7 @@ let analyze (btmodule) = match btmodule with
   in *)
 
 (*   let _ = function_decl "main" in (* Ensure "main" is defined *)
- *)(* 
+ *)(*
   let check_function func =
 
     List.iter (check_not_Unit (fun n -> "illegal Unit formal " ^ n ^
@@ -445,7 +437,7 @@ let analyze (btmodule) = match btmodule with
       | Assign(var, e) as ex -> let lt = type_of_identifier var
                                 and rt = expr e in
         check_assign lt rt (Failure ("illegal assignment " ^ string_of_typ lt ^
-             " = " ^ string_of_typ rt ^ " in " ^ 
+             " = " ^ string_of_typ rt ^ " in " ^
              string_of_expr ex))
       | FuncCall(fname, actuals) as call -> let fd = function_decl fname in
          if List.length actuals != List.length fd.formals then
@@ -477,13 +469,13 @@ let analyze (btmodule) = match btmodule with
       | Return e -> let t = expr e in if t = func.returnType then () else
          raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^
                          string_of_typ func.returnType ^ " in " ^ string_of_expr e))
-           
+
       | If(p, b1, b2) -> check_bool_expr p; stmt b1; stmt b2
       | While(p, s) -> check_bool_expr p; stmt s
     in
 
     stmt (Block func.body)
-   
+
   in
   List.iter check_function funclists
  *)
