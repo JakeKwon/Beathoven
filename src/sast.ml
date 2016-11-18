@@ -1,6 +1,6 @@
 module A = Ast
 
-type sexpr =
+type expr =
 	Id of string * A.datatype
 	| LitBool of bool
 	| LitInt of int
@@ -32,7 +32,7 @@ type sexpr =
 	| 	SNull
 	| 	SDelete of sexpr *)
 
-type sstmt =
+type stmt =
 	Block of stmt list
 	| Expr of expr * A.datatype
 	| If of expr * stmt * stmt
@@ -54,11 +54,11 @@ type sstmt =
 	|   SLocal of datatype * string * sexpr *)
 
 (* corresponds to ast lines 46-60*)
-type sfunc_decl = {
+type func_decl = {
 	sfname : string;
 	sformals : bind list;
 	sreturnType : datatype;
-	sbody : sstmt list;
+	sbody : stmt list;
 }
 
 (* 
@@ -70,3 +70,8 @@ type sfunc_decl = {
 	func_type : func_type;
 	source : string;
 } *)
+
+type btmodule = {
+	mname : string;
+	funcs : func_decl list;
+}
