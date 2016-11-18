@@ -40,7 +40,6 @@ type sfunc_decl = {
 	sbody : sstmt list;
 	func_type : func_type;
 	source : string;
-	overrides : bool;
 }
 
 type sclass_decl = {
