@@ -1,17 +1,17 @@
-open Ast
+module A = Ast
 
 type sexpr =
-	SId of string * datatype
-	| SLitBool of bool
-	| SLitInt of int
-	| SLitDouble of float
-	| SLitStr of string
-	| SNull
-	| SBinop of sexpr * binary_operator * sexpr * datatype
-	| SUniop of unary_operator * sexpr * datatype
-	| SAssign of sexpr * sexpr * datatype
-	| SFuncCall of string * sexpr list (* datatype at end? *)
-	| SNoexpr
+	Id of string * A.datatype
+	| LitBool of bool
+	| LitInt of int
+	| LitDouble of float
+	| LitStr of string
+	| Null
+	| Binop of expr * A.binary_operator * expr * A.datatype
+	| Uniop of A.unary_operator * expr * A.datatype
+	| Assign of expr * expr * A.datatype
+	| FuncCall of string * expr list (* datatype at end? *)
+	| Noexpr
 
 	(* 
 	| 	SInt_Lit of int
@@ -33,14 +33,14 @@ type sexpr =
 	| 	SDelete of sexpr *)
 
 type sstmt =
-	SBlock of sstmt list
-	| SExpr of expr * datatype
-	| SIf of sexpr * sstmt * sstmt
-	| SWhile of sexpr * sstmt
-	| SReturn of sexpr * datatype
-	| SBreak
-	| SContinue
-	| SVarDecl of datatype * string * sexpr
+	Block of stmt list
+	| Expr of expr * A.datatype
+	| If of expr * stmt * stmt
+	| While of expr * stmt
+	| Return of expr * A.datatype
+	| Break
+	| Continue
+	| VarDecl of A.datatype * string * expr
 
 (* 
 	SBlock of sstmt list
