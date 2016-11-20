@@ -1,0 +1,4 @@
+func print_helloworld() -> () {
+        return 7;
+        print("hello world");
+}

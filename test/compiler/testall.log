@@ -1,0 +1,19 @@
+/usr/bin/lli
+
+###### Testing assign
+lli pass/assign.bt.lli > pass/assign.bt.out
+./pass_test.sh: line 39: SignalError: command not found
+diff -b pass/assign.bt.out pass/assign.out > assign.diff
+###### SUCCESS
+
+###### Testing math
+lli pass/math.bt.lli > pass/math.bt.out
+diff -b pass/math.bt.out pass/math.out > math.diff
+./pass_test.sh: line 48: SignalError: command not found
+FAILED pass/math.bt.out differs from pass/math.out
+###### SUCCESS
+
+###### Testing printInt
+lli pass/printInt.bt.lli > pass/printInt.bt.out
+diff -b pass/printInt.bt.out pass/printInt.out > printInt.diff
+###### SUCCESS

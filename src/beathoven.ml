@@ -4,9 +4,9 @@ type action = Compile | Help | Raw | Sast | None
 
 let get_help =
   "Beathoven Usage: beathoven.sh <flag> [input_file] [output_file]\n" ^
-  "  -c\tCompile beathoven input_file to c code in output_file with stdlib #NOT IMPLEMENTED#\n" ^
+  "  -c\tCompile beathoven input_file to c code in output_file with stdlib\n" ^
   "  -h\tDisplay this list of options\n" ^
-  "  -r\tCompile beathoven input_file into raw c output_file #NOT IMPLEMENTED#\n"
+  "  -r\tCompile beathoven input_file into raw c output_file\n"
 
 (* Error reporting helper function *)
 let get_pos_and_tok lexbuf =
