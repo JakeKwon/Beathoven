@@ -12,6 +12,7 @@ type binary_operator =
 
 type unary_operator = Neg | Not
 
+(* Primitive(primi) *)
 type datatype = Primitive of primi
 
 type bind = datatype * string
@@ -54,7 +55,7 @@ type func_decl = {
 type btmodule = {
   mname : string;
   (* TODO: usr_type Struct, Enum *)
-  funcs : func_decl list; 
+  funcs : func_decl list;
 }
 
 type program = btmodule (* * btmodule list *)
@@ -82,6 +83,8 @@ let string_of_typ = function
     Primitive(Int) -> "int"
   | Primitive(Bool) -> "bool"
   | Primitive(Unit) -> "void"
+ (*  | Primitive(Double) -> "double"
+  | Primitive(String) -> "string" *)
 
 let string_of_uop = function
     Neg -> "-"
