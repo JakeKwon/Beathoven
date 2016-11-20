@@ -1,16 +1,16 @@
 module A = Ast
 
 type expr =
-	Id of string * A.datatype
+	Id of string * A.primi
 	| LitBool of bool
 	| LitInt of int
 	| LitDouble of float
 	| LitStr of string
 	| Null
-	| Binop of expr * A.binary_operator * expr * A.datatype
-	| Uniop of A.unary_operator * expr * A.datatype
-	| Assign of expr * expr * A.datatype
-	| FuncCall of string * expr list (* datatype at end? *)
+	| Binop of A.expr * A.binary_operator * A.expr * A.primi
+	| Uniop of A.unary_operator * A.expr * A.primi
+	| Assign of A.expr * A.expr * A.primi
+	| FuncCall of string * A.expr list * A.primi (* datatype at end? *)
 	| Noexpr
 
 	(* 
@@ -53,13 +53,18 @@ type stmt =
 	|   SContinue
 	|   SLocal of datatype * string * sexpr *)
 
+
+type bind = A.datatype * string
+
+
 (* corresponds to ast lines 46-60*)
 type func_decl = {
 	sfname : string;
 	sformals : bind list;
-	sreturnType : datatype;
+	sreturnType : A.datatype;
 	sbody : stmt list;
 }
+
 
 (* 
 type sfunc_decl = {

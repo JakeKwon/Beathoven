@@ -5,6 +5,85 @@ module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
 
 
+(* type binary_operator =
+    Add | Sub | Mult | Div | Equal | Neq
+  | Less | Leq | Greater | Geq | And | Mod | Or
+
+type primi =
+    Unit
+  | Int
+  | Double
+  | String
+  | Bool
+
+type datatype = Datatype of primi
+
+type unary_operator = Neg | Not
+
+let string_of_op = function
+    Add -> "+"
+  | Sub -> "-"
+  | Mult -> "*"
+  | Div -> "/"
+  | Equal -> "=="
+  | Neq -> "!="
+  | Less -> "<"
+  | Leq -> "<="
+  | Greater -> ">"
+  | Geq -> ">="
+  | And -> "&&"
+  | Mod -> "%"
+  | Or -> "||"
+
+let string_of_typ = function
+    Datatype(Int) -> "int"
+  | Datatype(Bool) -> "bool"
+  | Datatype(Unit) -> "void"
+ (*  | Primitive(Double) -> "double"
+  | Primitive(String) -> "string" *)
+
+let string_of_uop = function
+    Neg -> "-"
+  | Not -> "!"
+
+let rec string_of_expr = function
+    LitInt(l) -> string_of_int l
+  | LitBool(true) -> "true"
+  | LitBool(false) -> "false"
+  | Id(s,_) -> s
+  | Binop(e1, o, e2,_) ->
+      string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
+  | Uniop(o, e, _) -> string_of_uop o ^ string_of_expr e
+  | Assign(v, e,_) -> string_of_expr v ^ " = " ^ string_of_expr e
+  | FuncCall(f, el, _) ->
+      f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | Noexpr -> ""
+
+let rec string_of_stmt = function
+    Block(stmts) ->
+      "{\n" ^ String.concat "" (List.map string_of_stmt stmts) ^ "}\n"
+  | Expr(expr) -> string_of_expr expr ^ ";\n";
+  | Return(expr) -> "return " ^ string_of_expr expr ^ ";\n";
+  | If(e, s, Block([])) -> "if (" ^ string_of_expr e ^ ")\n" ^ string_of_stmt s
+  | If(e, s1, s2) ->  "if (" ^ string_of_expr e ^ ")\n" ^
+      string_of_stmt s1 ^ "else\n" ^ string_of_stmt s2
+  | While(e, s) -> "while (" ^ string_of_expr e ^ ") " ^ string_of_stmt s
+
+let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
+
+let string_of_fdecl fdecl =
+  string_of_typ fdecl.returnType ^ " " ^
+  fdecl.fname ^ "(" ^ String.concat ", " (List.map snd fdecl.formals) ^
+  ")\n{\n" ^
+  String.concat "" (List.map string_of_stmt fdecl.body) ^
+  "}\n"
+
+let string_of_program (vars, funcs) =
+  String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
+  String.concat "\n" (List.map string_of_fdecl funcs) *)
+
+
+
 (* type func_decl = {
   fname : string;
   formals : bind list;
@@ -21,6 +100,8 @@ module StringSet = Set.Make (String)
 
 (* let check_bind bind = *)
 
+
+
 let get_type_from_expr = function
 	Id (_,d)		-> A.Datatype(d)
   | LitBool(_)		-> A.Datatype(Bool)
@@ -28,10 +109,10 @@ let get_type_from_expr = function
   | LitDouble(_)	-> A.Datatype(Double)
   | LitStr(_)		-> A.Datatype(String)
   | Null			-> A.Datatype(Unit)
-  | Binop (_,_,_,d)	-> d
-  | Uniop (_,_,d)	-> d
-  | Assign (_,_,d)	-> d
-  | FuncCall (_,_,d)-> d 	(* ??? *)
+  | Binop (_,_,_,d)	-> A.Datatype(d)
+  | Uniop (_,_,d)	-> A.Datatype(d)
+  | Assign (_,_,d)	-> A.Datatype(d)
+  | FuncCall (_,_,d)-> A.Datatype(d) 	(* ??? *)
   | Noexpr			-> A.Datatype(Unit)
 
 (* type expr =
@@ -70,22 +151,60 @@ let rec check_expr e =
   | VarDecl of datatype * string * expr
  *)
 
+
+let sexpr_to_expr = function
+		Id (s,_)			-> A.Id(s)
+	|   LitBool b 			-> A.LitBool(b) 
+	| 	LitInt i 			-> A.LitInt(i)
+	| 	LitDouble f 		-> A.LitDouble(f)
+	| 	LitStr s 			-> A.LitStr(s)
+	| 	Binop (e1,o,e2,_)	-> A.Binop(e1,o,e2)
+	| 	Uniop (o,e,_)		-> A.Uniop(o,e)
+	| 	Assign (e1,e2,_)	-> A.Assign(e1,e2)
+	| 	FuncCall (s,el,_) 	-> A.FuncCall(s,el)
+	| 	Noexpr				-> Noexpr
+	|   Null 				-> Null	
+
+(* 
+		Int_Lit i           -> SInt_Lit(i)
+	|   Boolean_Lit b       -> SBoolean_Lit(b)
+	|   Float_Lit f         -> SFloat_Lit(f), env
+	|   String_Lit s        -> SString_Lit(s), env
+	|   Char_Lit c          -> SChar_Lit(c), env
+	|   This                -> SId("this", Datatype(Objecttype(env.env_name))), env
+	|   Id s                -> SId(s, get_ID_type env s), env
+	|   Null                -> SNull, env
+	|   Noexpr              -> SNoexpr, env
+
+	|   ObjAccess(e1, e2)   -> check_obj_access env e1 e2, env
+	|   ObjectCreate(s, el) -> check_object_constructor env s el, env
+	|   Call(s, el)         -> check_call_type env false env s el, env
+
+	|   ArrayCreate(d, el)  -> check_array_init env d el, env
+	|   ArrayAccess(e, el)  -> check_array_access env e el, env
+	|   ArrayPrimitive el   -> check_array_primitive env el, env
+
+	|   Assign(e1, e2)      -> check_assign env e1 e2, env
+	|   Unop(op, e)         -> check_unop env op e, env
+	|   Binop(e1, op, e2)   -> check_binop env e1 op e2, env
+	| 	Delete(e) 			-> check_delete env e, env *)
+
 let rec check_stmt returnType statement = 
 	match statement with 
     Block sl 			-> List.iter (check_stmt returnType) sl
   (* | Expr e 				-> check_expr e *)
   (* | If (e, s, s) ->  *)
   (* | While of expr * stmt *)
-  | Return e 			-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch e); ()
+  | Return (e,_) 		-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch (A.string_of_expr (sexpr_to_expr e))); ()
   (* | Break		-> () *)
   (* | Continue	-> () *)
-  | VarDecl (d, _, e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch e); ()
+  | VarDecl (d, _, e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch (A.string_of_expr (sexpr_to_expr e))); ()
   | _ -> ()
  
 let check_func btfunc =
 	(* fname doesnt need to be checked *)
 	(* List.iter check_bind func.formals; *)
-	List.iter (check_stmt func.returnType) btfunc.body
+	List.iter (check_stmt btfunc.sreturnType) btfunc.sbody
 
 let analyze program (btmodule) =
 	(* mname doesnt need to be checked  *)

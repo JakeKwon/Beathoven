@@ -13,7 +13,7 @@ type binary_operator =
 type unary_operator = Neg | Not
 
 (* Primitive(primi) *)
-type datatype = Primitive of primi
+type datatype = Datatype of primi
 
 type bind = datatype * string
 (* type formal = Formal of bind | Many of datatype *)
@@ -80,9 +80,9 @@ let string_of_op = function
   | Or -> "||"
 
 let string_of_typ = function
-    Primitive(Int) -> "int"
-  | Primitive(Bool) -> "bool"
-  | Primitive(Unit) -> "void"
+    Datatype(Int) -> "int"
+  | Datatype(Bool) -> "bool"
+  | Datatype(Unit) -> "void"
  (*  | Primitive(Double) -> "double"
   | Primitive(String) -> "string" *)
 

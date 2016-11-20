@@ -25,11 +25,11 @@ let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 (* cannot use map since StringMap.add returns a new map.  *)
 
 let lltype_of_datatype = function
-    Primitive(Unit) -> unit_t
-  | Primitive(Int) -> i32_t
-  | Primitive(Double) -> double_t
-  | Primitive(String) -> str_t
-  | Primitive(Bool) -> i1_t
+    Datatype(Unit) -> unit_t
+  | Datatype(Int) -> i32_t
+  | Datatype(Double) -> double_t
+  | Datatype(String) -> str_t
+  | Datatype(Bool) -> i1_t
 
 (* Declare variable; remember its llvalue in a map; returns () *)
 let allocate typ var_name builder =
@@ -128,7 +128,7 @@ let codegen_func func =
   let _ = codegen_stmt llbuilder (Block(func.body)) in
   (* Finish off the function. *)
   (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
-  if func.returnType = Primitive(Unit) then ignore(L.build_ret_void llbuilder)
+  if func.returnType = Datatype(Unit) then ignore(L.build_ret_void llbuilder)
   else ()
 
 let codegen_main (btmodule) =

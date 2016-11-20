@@ -70,14 +70,14 @@ mbody:
 main_func:
   stmt_list
   {
-    { fname = "main"; formals = []; returnType = Primitive(Unit); body = List.rev $1 }
+    { fname = "main"; formals = []; returnType = Datatype(Unit); body = List.rev $1 }
   }
   /* TODO: codegen, rename mname+fname */
 
 
 var_decl:
-    typ ID SEP { VarDecl(Primitive($1), $2, Noexpr) }  /* ?? */
-  | typ ID ASSIGN expr SEP { VarDecl(Primitive($1), $2, $4) }
+    typ ID SEP { VarDecl(Datatype($1), $2, Noexpr) }  /* ?? */
+  | typ ID ASSIGN expr SEP { VarDecl(Datatype($1), $2, $4) }
 
 /****
 formals, parameters, variables, actuals (reference Dice)
@@ -88,8 +88,8 @@ formals_opt:
   | formal_list   { List.rev $1 }
 
 formal_list:
-    typ ID                   { [( Primitive($1),$2)] }
-  | formal_list COMMA typ ID { (Primitive($3),$4) :: $1 }
+    typ ID                   { [( Datatype($1),$2)] }
+  | formal_list COMMA typ ID { (Datatype($3),$4) :: $1 }
 
 actuals_opt:
     /* nothing */ { [] }
@@ -175,7 +175,7 @@ expr:
 
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
-     { { returnType = Primitive($1);
+     { { returnType = Datatype($1);
    fname = $2;
    formals = $4;
    body = List.rev $7 } }
