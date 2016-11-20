@@ -5,21 +5,21 @@ module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
 
 
-type func_decl = {
+(* type func_decl = {
   fname : string;
   formals : bind list;
   returnType : datatype;
   body : stmt list;
   (* TODO?: separate vars from stmt list *)
-}
+} *)
 
 (* let check_stmt_list (stmt : Ast.func_decl.body) = *)
 
 
 
-type bind = datatype * string
+(* type bind = datatype * string *)
 
-let check_bind bind =
+(* let check_bind bind = *)
 
 let get_type_from_expr = function
 	Id (_,d)		-> A.Datatype(d)
@@ -32,9 +32,9 @@ let get_type_from_expr = function
   | Uniop (_,_,d)	-> d
   | Assign (_,_,d)	-> d
   | FuncCall (_,_,d)-> d 	(* ??? *)
-  | Noexpr			-> A.Datatype(Unit)
+  | Noexpr			-> A.Datatype(Unit);
 
-type expr =
+(* type expr =
     Id of string
   | LitBool of bool
   | LitInt of int
@@ -45,19 +45,21 @@ type expr =
   | Uniop of unary_operator * expr
   | Assign of expr * expr
   | FuncCall of string * expr list
-  | Noexpr
+  | Noexpr *)
 
+(*
+	**********************************************************
 let rec check_expr e =
 	match e with
 	Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
   | Assign of expr * expr
   | FuncCall of string * expr list
-  | _ -> ()
+  | _ -> ();
+ *)
 
 
-
-type stmt =
+(* type stmt =
     Block of stmt list
   | Expr of expr
   | If of expr * stmt * stmt
@@ -66,19 +68,20 @@ type stmt =
   | Break
   | Continue
   | VarDecl of datatype * string * expr
+ *)
 
 let rec check_stmt returnType statement = 
 	match statement with 
     Block sl 			-> List.iter (check_stmt returnType) sl
-  | Expr e 				-> check_expr e
+  (* | Expr e 				-> check_expr e *)
   (* | If (e, s, s) ->  *)
   (* | While of expr * stmt *)
-  | Return e 			-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch statement)); ()
+  | Return e 			-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch e)); ()
   (* | Break		-> () *)
   (* | Continue	-> () *)
-  | VarDecl (d, _,e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch statement)); ()
+  | VarDecl (d, _, e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch e)); ()
   | _ -> ()
-
+ 
 let check_func btfunc =
 	(* fname doesnt need to be checked *)
 	(* List.iter check_bind func.formals; *)
