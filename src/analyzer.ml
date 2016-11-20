@@ -32,7 +32,7 @@ let get_type_from_expr = function
   | Uniop (_,_,d)	-> d
   | Assign (_,_,d)	-> d
   | FuncCall (_,_,d)-> d 	(* ??? *)
-  | Noexpr			-> A.Datatype(Unit);
+  | Noexpr			-> A.Datatype(Unit)
 
 (* type expr =
     Id of string
@@ -76,10 +76,10 @@ let rec check_stmt returnType statement =
   (* | Expr e 				-> check_expr e *)
   (* | If (e, s, s) ->  *)
   (* | While of expr * stmt *)
-  | Return e 			-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch e)); ()
+  | Return e 			-> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch e); ()
   (* | Break		-> () *)
   (* | Continue	-> () *)
-  | VarDecl (d, _, e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch e)); ()
+  | VarDecl (d, _, e) 	-> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch e); ()
   | _ -> ()
  
 let check_func btfunc =
@@ -89,7 +89,7 @@ let check_func btfunc =
 
 let analyze program (btmodule) =
 	(* mname doesnt need to be checked  *)
-	List.iter check_func btmodule.funcs;
+	List.iter check_func btmodule.funcs
 
 
 
@@ -108,7 +108,7 @@ let analyze program (btmodule) =
 
 
 
-
+(* 
 let check (btmodule) =
   (* Raise an exception if the given list has a duplicate *)
   let report_duplicate exceptf list =
@@ -133,7 +133,7 @@ let check (btmodule) =
 
   List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
-  report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
+  report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals); *)
 
 
 (* type class_map = {
@@ -260,8 +260,5 @@ and check_unop env op e =
 	|	Datatype(Float_t) 	-> SUnop(op, se, check_num_unop t op)
 	|  	Datatype(Bool_t) 	-> SUnop(op, se, check_bool_unop op)
 	| 	_ -> raise(Exceptions.InvalidUnaryOperation)
-
-
-
 
  *)

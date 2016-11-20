@@ -27,7 +27,7 @@ let _ =
   (* try *)
     let ast = Parser.program Scanner.token lexbuf in
     (* Semant.check ast; *)
-    Analyzer.check ast;
+    Analyzer.analyze ast;
     (* let sast = Analyzer.check_ast ast in
     let past = Pythonizer.generate_past sast in
     let prog = Generator.gen_program ast in *)
