@@ -19,7 +19,7 @@ type env = {
 	env_name      : string;
 	env_cmap 	  : class_map;
 	env_locals    : datatype StringMap.t;
-	env_parameters: Ast.formal StringMap.t;
+	env_parameters: A.formal StringMap.t;
 	env_returnType: datatype;
 	env_in_for    : bool;
 	env_in_while  : bool;
@@ -47,7 +47,7 @@ let get_equality_binop_type type1 type2 se1 se2 op =
 	| 	Datatype(Objecttype(_)), Datatype(Null_t)
 	| 	Datatype(Null_t), Datatype(Objecttype(_))
 	| 	Datatype(Null_t), Arraytype(_, _)
-	| 	Arraytype(_, _), Datatype(Null_t) -> SBinop(se1, op, se2, Datatype(Bool_t))
+	| 	Arraytype(_, _), Datatype(Null_t) -> S.Binop(se1, op, se2, Datatype(Bool_t))
 	| _ ->
 		if type1 = type2 then S.Binop(se1, op, se2, Datatype(Bool_t))
 		else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types, with the exception of Int_t and Char_t")
@@ -91,11 +91,11 @@ and check_assign env e1 e2 =
 	|   _ -> 
 	match type1, type2 with
 		Datatype(Char_t), Datatype(Int_t)
-	| 	Datatype(Int_t), Datatype(Char_t) -> SAssign(se1, se2, type1)
+	| 	Datatype(Int_t), Datatype(Char_t) -> S.Assign(se1, se2, type1)
 	| 	Datatype(Objecttype(d)), Datatype(Objecttype(t)) ->
 		if d = t then S.Assign(se1, se2, type1)
 		else if inherited type1 type2 then
-			S.Assign(se1, SCall("cast", [se2; S.Id("ignore", type1)], type1, 0), type1)  
+			S.Assign(se1, S.Call("cast", [se2; S.Id("ignore", type1)], type1, 0), type1)  
 		else raise (Exceptions.AssignmentTypeMismatch(Utils.string_of_datatype type1, Utils.string_of_datatype type2))
 	| _ -> 
 	if type1 = type2 
