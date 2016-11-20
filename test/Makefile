@@ -8,12 +8,12 @@ all:
 	make
 
 test: build
-	./scanner_test.sh
+	cd scanner; make; ./scanner_test.sh
+	cd analyzer; ./testall.sh
 
 build:
-	cd scanner; make
+	cd ..; make all
 
 .PHONY: clean
 clean:
 	cd scanner; make clean
-

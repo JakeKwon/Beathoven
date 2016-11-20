@@ -5,7 +5,7 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 
 INPUT_FILES="tests/*.in"
-printf "${CYAN} yooo Running Scanner Tests!\n${NC}"
+printf "\n${CYAN}Running Scanner Tests!\n${NC}"
 
 for input_file in $INPUT_FILES; do
     output_file=${input_file/.in/.out}

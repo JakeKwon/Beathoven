@@ -1,6 +1,6 @@
 (* open Printf *)
 
-type action = Compile | Help | Raw | Sast
+type action = Compile | Help | Raw | Sast | None
 
 let get_help =
   "Beathoven Usage: beathoven.sh <flag> [input_file] [output_file]\n" ^
@@ -21,7 +21,7 @@ let _ =
   let action =
     if Array.length Sys.argv > 1 then
       List.assoc Sys.argv.(1)
-        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)]
+        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast); ("", None)]
     else Sast in
   let lexbuf = Lexing.from_channel stdin in
   (* try *)
@@ -41,7 +41,7 @@ let _ =
       let file = open_out output_file
       in fprintf file "%s\n\n%s\n%s\n"
         stdlib prog (Utils.conclude_program ()); close_out file *)
-    | Help -> print_endline get_help
+    | Help -> print_string get_help
   (* with
     (* Must add rule for Analyzer *)
     | Scanner.Illegal_Character(m) ->

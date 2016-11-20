@@ -2,9 +2,6 @@
 
 MYDIR="$(dirname "$(which "$0")")"
 BEAT_FILE="$MYDIR/src/beathoven"
-# LIST_LIB="$MYDIR/src/lib/list.bet"
-# DIST_LIB="$MYDIR/src/lib/dist.bet"
-# C_LIB="$MYDIR/src/lib/core.c"
 
 if [ ! -f $BEAT_FILE ]; then
     printf "ERROR: not yet compiled, run 'make' first.\n" 1>&2
@@ -33,8 +30,11 @@ fi
 
 # beathoven.sh -h
 if [ "$#" -eq 1 ] && [ "$1" == "-h" ]; then
-    $BEAT_FILE -h
-    exit 0
+    printf """Beathoven Usage: beathoven.sh <flag> [input_file] [output_file]\n"
+    printf "  -c\tCompile beathoven input_file to c code in output_file with stdlib\n"
+    printf "  -h\tDisplay this list of options\n"
+    printf "  -r\tCompile beathoven input_file into raw c output_file \n"
+    exit 1
 fi
 
 printf "ERROR: invalid arguments. Run $0 -h for usage instructions\n" 1>&2

@@ -165,7 +165,7 @@ LLIFail() {
 
 # which "$LLI" >> $globallog || LLIFail
 
-
+printf "\n\n${CYAN}Running Analyzer Tests!\n${NC}"
 if [ $# -ge 1 ]
 then
     files=$@

@@ -7,17 +7,17 @@ RED='\033[0;31m'
 # Tests specific outputs we should be generating
 # Add the code to test/compiler/pass
 
-INPUTS="scanner/*.in"
+INPUTS="pass/*.bt"
 TMP_FILE=$(mktemp "compiled.XXXXX")
-printf "${CYAN} Running compiler pass Tests!${NC}"
+printf "\n\n${CYAN} Running Compiler pass Tests!${NC}"
 
 for infile in $INPUTS; do
-    outfile=${infile/.in/.out}
-    # llvm_file=${infile/.bet/.ll}
+    outfile=${infile/.bt/.out}
+    # llvm_file=${infile/.bt/.ll}
 
     # compile odds program to temp python file
     # will not work because we haven't compiled into raw LL yet
-    ../beathoven.sh -r $infile $TMP_FILE
+    ../../beathoven.sh -r $infile $TMP_FILE
 
     # # if ll file exists compare
     # if [ -e "$llvm_file" ]; then
