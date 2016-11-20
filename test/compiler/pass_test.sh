@@ -18,7 +18,7 @@ ulimit -t 30
 
 globallog=testall.log
 rm -f $globallog
-rm -f lli.*
+rm -f ll.*
 rm -f out.*
 error=0
 globalerror=0
@@ -95,8 +95,8 @@ do
   # TMP_LLI_FILE=$(mktemp "lli.XXXXX")
   # TMP_OUT_FILE=$(mktemp "out.XXXXX")
 
-  TMP_LLI_FILE=$file.lli
-  TMP_OUT_FILE=$file.out
+  TMP_LLI_FILE= ll.$file
+  TMP_OUT_FILE= out.$file
 
   Check $file 2>> $globallog
 done
