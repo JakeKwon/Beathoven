@@ -11,7 +11,7 @@ INPUTS="pass/*.bt"
 LLI="lli"
 BEAT="../../beathoven.sh -c "
 
-printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
+printf "\n\n${CYAN} Running Compiler pass Tests!${NC}"
 
 # Set time limit for all operations
 ulimit -t 30
@@ -22,34 +22,14 @@ rm -f ll.*
 rm -f out.*
 error=0
 globalerror=0
-totalfiles=0
-totalerrors=0
-one=1
 
 keep=0
-
-Usage() {
-    echo "Usage: pass_test.sh [options] [.bt files]"
-    echo "-k    Keep intermediate files"
-    echo "-h    Print this help"
-    exit 1
-}
 
 LLIFail() {
   echo "Could not find the LLVM interpreter \"$LLI\"."
   echo "Check your LLVM installation and/or modify the LLI variable in testall.sh"
   exit 1
 }
-
-SignalError() {
-    if [ $error -eq 0 ] ; then
-  printf "${RED}FAILURE${NC}"
-  error=1
-  totalerrors=$(($totalerrors + $one))
-    fi
-    echo "  $1"
-}
-
 
 which "$LLI" >> $globallog || LLIFail
 
@@ -77,7 +57,7 @@ Check(){
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Test: $basename ${NC}\n"
+    echo -n "$basename..."
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
@@ -85,7 +65,7 @@ Check(){
     generatedfiles=""
 
     generatedfiles="$generatedfiles ${basename}.ll ${basename}.out" &&
-    printf "../../beathoven.sh -c $1 $TMP_LLI_FILE > $TMP_LLI_FILE\n"
+    printf "../../beathoven.sh -c $infile $TMP_LLI_FILE > $TMP_LLI_FILE"
     # to llvm
     ../../beathoven.sh -c $1 $TMP_LLI_FILE > $TMP_LLI_FILE
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
@@ -100,7 +80,7 @@ Check(){
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}OK${NC}\n"
+  echo "OK"
   echo "###### SUCCESS" 1>&2
     else
   echo "###### FAILED" 1>&2
@@ -108,33 +88,18 @@ Check(){
     fi
 }
 
-files="pass/*.bt"
-
-# while getopts kdpsh c; do
-#     case $c in
-#   k) # Keep intermediate files
-#       keep=1
-#       ;;
-#   h) # Help
-#       Usage
-#       ;;
-#     esac
-# done
+files="pass/*.bt fail/*.bt"
 
 for file in $files
 do
-  totalfiles=$(($totalfiles + $one))
-  TMP_LLI_FILE=$(mktemp "ll.XXXXX")
-  TMP_OUT_FILE=$(mktemp "out.XXXXX")
+  # TMP_LLI_FILE=$(mktemp "lli.XXXXX")
+  # TMP_OUT_FILE=$(mktemp "out.XXXXX")
 
-  # TMP_LLI_FILE= $(mktemp "ll.XXXX")
-  # TMP_OUT_FILE= $(mktemp "out.XXXX")
+  TMP_LLI_FILE= ll.$file
+  TMP_OUT_FILE= out.$file
 
   Check $file 2>> $globallog
 done
-printf "You have $totalerrors out of $totalfiles errors!"
-printf "\n\n${CYAN}####  End of Compiler Pass Tests!  ####${NC}"
-
 
 # for infile in $INPUTS; do
 #     outfile=${infile/.bt/.out}
