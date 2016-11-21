@@ -17,7 +17,7 @@ for infile in $INPUTS; do
 
     # compile odds program to temp python file
     # will not work because we haven't compiled into raw LL yet
-    ../beathoven.sh -r $infile $TMP_FILE
+    ../beathoven.sh -c $infile $TMP_FILE
 
     # # if ll file exists compare
     # if [ -e "$llvm_file" ]; then
