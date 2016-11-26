@@ -3,3 +3,5 @@ exception LLVMFunctionNotFound of string
 exception ReturntypeNotMatch of string
 exception VariableDeclarationNotMatch of string
 exception UndefinedID of string
+
+exception ShouldNotHappenIfCompilerHasNoBug

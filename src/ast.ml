@@ -49,7 +49,6 @@ type func_decl = {
   formals : bind list;
   returnType : datatype;
   body : stmt list;
-  (* TODO?: separate vars from stmt list *)
 }
 
 type btmodule = {
@@ -58,7 +57,7 @@ type btmodule = {
   funcs : func_decl list;
 }
 
-type program = btmodule (* * btmodule list *)
+type program = btmodule list
 
 
 (* --------------------------------------- *)

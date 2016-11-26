@@ -43,9 +43,10 @@
 %%
 
 program:
-  main_module EOF { $1 }
+  main_module EOF { [$1] }
   /*main_module btmodule_list EOF { $1, $2 }*/ /* rev?? */
 
+/*type fname = Constructor | FName of string*/
 
 btmodule_list:
     /* nothing */ { [] }

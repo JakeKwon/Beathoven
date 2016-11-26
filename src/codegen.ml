@@ -131,18 +131,23 @@ let codegen_func func =
   if func.returnType = Datatype(Unit) then ignore(L.build_ret_void llbuilder)
   else ()
 
-let codegen_main (btmodule) =
+let codegen_btmodule btmodule =
   codegen_builtin_funcs ();
   List.iter codegen_def_func btmodule.funcs;
   List.iter codegen_func btmodule.funcs;
-
   (* Declare each global variable; remember its value in map global_vars *)
   (* let _ =
     let add_global_var (datatype, var_name) =
       ignore (allocate datatype var_name llbuilder) in
     List.iter add_global_var globals
   in *)
+  ()
+
+let codegen_main program =
+  List.iter codegen_btmodule program;
   the_module
+
+
 
 
 (* Batteries  *)

@@ -15,6 +15,7 @@ module SS = Set.Make (
 
 type btmodule_env = {
   func_map : A.func_decl StringMap.t;
+  (* main_func : A.func_decl; *)
   decl : A.btmodule;
   (* field_map : A.datatype StringMap.t; *)
 }

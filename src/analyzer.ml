@@ -1,4 +1,7 @@
-open Sast
+open Ast
+module A = Ast
+module S = Sast
+
 open Environment
 open Pprint
 
@@ -48,7 +51,7 @@ let get_arithmetic_binop_type se1 se2 op = function
  *)
 
 let analyze_binop env e1 op e2 =
-  env, Noexpr (* env, Binop (e1,op,e2,_) *)
+  env, S.Noexpr (* env, Binop (e1,op,e2,_) *)
   (*
   let se1, env = expr_to_sexpr env e1 in
   let se2, env = expr_to_sexpr env e2 in
@@ -63,7 +66,7 @@ let analyze_binop env e1 op e2 =
  *)
 
 and analyze_unop env op e =
-  env, Noexpr (* env, Uniop (op,e,_) *)
+  env, S.Noexpr (* env, Uniop (op,e,_) *)
 (*
   let check_num_unop t = function
       Sub -> t
@@ -83,7 +86,7 @@ and analyze_unop env op e =
 *)
 
 and analyze_assign env e1 e2 =
-  env, Noexpr(* env, Assign (e1,e2,_) *)
+  env, S.Noexpr(* env, Assign (e1,e2,_) *)
 (*
   let se1, env = expr_to_sexpr env e1 in
   let se2, env = expr_to_sexpr env e2 in
@@ -108,22 +111,22 @@ and analyze_assign env e1 e2 =
  *)
 
 and analyze_call env s el =
-  env, Noexpr(* env, FuncCall (s,el,_) *)
+  env, S.Noexpr(* env, FuncCall (s,el,_) *)
 
 (* convert Ast expr to Sast expr *)
 let to_sast_expr env = function
-    A.Id(s) -> env, Id(s, get_ID_type env s)
-  | A.LitBool(b) -> env, LitBool(b)
-  | A.LitInt(i) -> env, LitInt(i)
-  | A.LitDouble(f) -> env, LitDouble(f)
-  | A.LitStr(s) -> env, LitStr(s)
+    A.Id(s) -> env, S.Id(s, get_ID_type env s)
+  | A.LitBool(b) -> env, S.LitBool(b)
+  | A.LitInt(i) -> env, S.LitInt(i)
+  | A.LitDouble(f) -> env, S.LitDouble(f)
+  | A.LitStr(s) -> env, S.LitStr(s)
   | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2 (* env, Binop (e1,op,e2,_) *)
   | A.Uniop(op,e) -> analyze_unop env op e (* env, Uniop (op,e,_) *)
   | A.Assign(e1,e2) -> analyze_assign env e1 e2 (* env, Assign (e1,e2,_) *)
   | A.FuncCall(s,el) -> analyze_call env s el (* env, FuncCall (s,el,_) *)
   (* | Call(s, el) -> check_call_type env false env s el, env *)
-  | A.Noexpr -> env, Noexpr
-  | A.Null -> env, Null
+  | A.Noexpr -> env, S.Noexpr
+  | A.Null -> env, S.Null
 
 
 (* let check_stmt_list (stmt : Ast.func_decl.body) = *)
@@ -135,17 +138,17 @@ let to_sast_expr env = function
 
 (* SAST TYPE CONVERSIONS *)
 let get_type_from_expr = function
-    Id (_,d) -> d
-  | LitBool(_) -> A.Datatype(Bool)
-  | LitInt(_) -> A.Datatype(Int)
-  | LitDouble(_) -> A.Datatype(Double)
-  | LitStr(_) -> A.Datatype(String)
-  | Null -> A.Datatype(Unit)
-  | Binop (_,_,_,d) -> A.Datatype(d)
-  | Uniop (_,_,d) -> A.Datatype(d)
-  | Assign (_,_,d) -> A.Datatype(d)
-  | FuncCall (_,_,d)-> A.Datatype(d) (* ??? *)
-  | Noexpr -> A.Datatype(Unit)
+    S.Id (_,d) -> d
+  | S.LitBool(_) -> A.Datatype(Bool)
+  | S.LitInt(_) -> A.Datatype(Int)
+  | S.LitDouble(_) -> A.Datatype(Double)
+  | S.LitStr(_) -> A.Datatype(String)
+  | S.Null -> A.Datatype(Unit)
+  | S.Binop (_,_,_,d) -> A.Datatype(d)
+  | S.Uniop (_,_,d) -> A.Datatype(d)
+  | S.Assign (_,_,d) -> A.Datatype(d)
+  | S.FuncCall (_,_,d)-> A.Datatype(d) (* ??? *)
+  | S.Noexpr -> A.Datatype(Unit)
 (*
   | S.Null -> Datatype(Null_t)
    | S.Noexpr -> Datatype(Void_t)
@@ -195,23 +198,84 @@ let to_ast_expr = function
 
 let rec check_stmt returnType statement =
   match statement with
-    Block sl -> List.iter (check_stmt returnType) sl
+    S.Block sl -> List.iter (check_stmt returnType) sl
   (* | Expr e -> check_expr e *)
   (* | If (e, s, s) -> *)
   (* | While of expr * stmt *)
-  | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
+  | S.Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
   (* | Break -> () *)
   (* | Continue -> () *)
-  | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
+  | S.VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
   | _ -> ()
 
 let check_func btfunc =
   (* List.iter check_bind func.formals; *)
-  List.iter (check_stmt btfunc.returnType) btfunc.body
+  List.iter (check_stmt btfunc.S.returnType) btfunc.S.body
 
 let analyze program (btmodule) =
-  List.iter check_func btmodule.funcs
+  List.iter check_func btmodule.S.funcs
 
+
+(* ------------------- build sast from ast --------------------- *)
+
+
+(* build_class_maps: Generate list of all classes to be used for semantic checking *)
+let build_btmodule_map (btmodule_list:A.btmodule list) =
+  (* reserved/default module?? *)
+  let build_btmodule_env map btmodule =
+    let get_global_func_name func =
+      btmodule.A.mname ^ "." ^ func.A.fname (* module.main *)
+      (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
+    in
+    let build_func map func =
+      (* Exceptions.CannotUseReservedFuncName *)
+      (* Exceptions.DuplicateFunction *)
+      StringMap.add (get_global_func_name func) func map
+    in
+    StringMap.add btmodule.A.mname
+      {
+        func_map = List.fold_left build_func StringMap.empty btmodule.A.funcs;
+        decl = btmodule;
+      }
+      map
+  in
+  List.fold_left build_btmodule_env StringMap.empty btmodule_list
+
+
+let build_sast_stmt_list stmt_list = []
+
+let build_sast btmodule_map btmodule_list =
+  let build_sast_func_decl func =
+    {
+      S.fname = func.A.fname;
+      formals = func.A.formals;
+      returnType = func.A.returnType;
+      body = build_sast_stmt_list func.A.body;
+    }
+  in
+  let build_sast_btmodule btmodule =
+    {
+      S.mname = btmodule.A.mname;
+      (* main_func *)
+      S.funcs = List.map build_sast_func_decl btmodule.A.funcs;
+    }
+  in
+  let sast_btmodule_list = List.map build_sast_btmodule btmodule_list in
+  match sast_btmodule_list with
+    [] -> raise Exceptions.ShouldNotHappenIfCompilerHasNoBug
+  | head::tail ->
+    {
+      S.main_module = head;
+      S.btmodules = tail;
+      (* user_type ?? *)
+    }
+
+let analyze_ast (btmodule_list) =
+  let btmodule_map = build_btmodule_map btmodule_list in
+  let sast = build_sast btmodule_map btmodule_list in
+  sast
+(* = function *)
+(* A.Program(includes, classes) -> *)
 
 (* ------------------------------------------------ *)
 

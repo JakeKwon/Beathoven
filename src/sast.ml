@@ -1,4 +1,3 @@
-(* open Ast *)
 module A = Ast
 
 type expr =
@@ -37,30 +36,24 @@ type stmt =
 	|   SLocal of datatype * string * sexpr *)
 
 
-type bind = A.datatype * string
-
-
-(* corresponds to ast lines 46-60*)
 type func_decl = {
-  sfname : string;
-  sformals : bind list;
+  fname : string;
+  formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
+  (* TODO?: separate vars from stmt list *)
 }
 
 type btmodule = {
   mname : string;
+  (* main_func *)
   funcs : func_decl list;
 }
 
-
-(* Class Declarations | All method declarations | Main entry method *)
-(*
-type sprogram =  {
-	classes : sclass_decl list;
-  (* main module *)
-	functions : sfunc_decl list;
-	main : sfunc_decl;
+type program = {
+  main_module : btmodule;
+  btmodules : btmodule list;
   (* user_type ?? *)
 }
- *)
+
+(* Class Declarations | All method declarations | Main entry method *)
