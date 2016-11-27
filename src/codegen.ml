@@ -3,12 +3,10 @@ open Hashtbl
 open Llvm.MemoryBuffer
 open Llvm_bitreader *)
 module L = Llvm (* LLVM VMCore interface library *)
-open Ast
+open Sast
 (* open Log *)
 
 module StringMap = Map.Make(String)
-
-exception Error of string
 
 let context = L.global_context () (* global data container *)
 let the_module = L.create_module context "Beathoven Codegen" (* container *)
@@ -25,11 +23,11 @@ let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 (* cannot use map since StringMap.add returns a new map.  *)
 
 let lltype_of_datatype = function
-    Datatype(Unit) -> unit_t
-  | Datatype(Int) -> i32_t
-  | Datatype(Double) -> double_t
-  | Datatype(String) -> str_t
-  | Datatype(Bool) -> i1_t
+    A.Datatype(Unit) -> unit_t
+  | A.Datatype(Int) -> i32_t
+  | A.Datatype(Double) -> double_t
+  | A.Datatype(String) -> str_t
+  | A.Datatype(Bool) -> i1_t
 
 (* Declare variable; remember its llvalue in a map; returns () *)
 let allocate typ var_name builder =
@@ -62,25 +60,25 @@ let rec codegen_print expr_list builder =
   L.build_call (lookup_func "printf") actuals "tmp" builder
 
 and codegen_assign lhs rhs builder =
-  let lhs = match lhs with Id s -> lookup s in
+  let lhs = match lhs with Id(s, _) -> lookup s in
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
 
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
-    Id s -> L.build_load (lookup s) s builder
+    Id(s, _) -> L.build_load (lookup s) s builder
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
-  | Assign (e1, e2) -> codegen_assign e1 e2 builder
-  | FuncCall (f, el) ->
+  | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
+  | FuncCall(f, el, _) ->
     (match f with
-      "print" -> codegen_print el builder
+      "printf" -> codegen_print el builder
     | _ -> raise (Exceptions.LLVMFunctionNotFound f)) (* not implemented *)
-  | Binop (e1, op, e2) ->
+  | Binop(e1, op, e2, _) ->
     let e1' = codegen_expr builder e1
     and e2' = codegen_expr builder e2 in
     (match op with
@@ -101,11 +99,12 @@ and codegen_expr builder = function
 
 let rec codegen_stmt builder = function (*rec??*)
     Block sl -> List.fold_left codegen_stmt builder sl
-  | Expr e -> ignore(codegen_expr builder e); builder
-  | VarDecl (t, s, e) ->
+  | Expr(e, _) -> ignore(codegen_expr builder e); builder
+  | VarDecl(t, s, e) ->
     allocate t s builder;
-    if e <> Noexpr then ignore(codegen_assign (Id(s)) e builder);
+    if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
     builder
+
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
@@ -114,40 +113,49 @@ let codegen_builtin_funcs () =
   ()
 
 let codegen_def_func func =
-  let formals = List.map (fun (t, _) -> lltype_of_datatype t) func.formals in
-  let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals) in
+  let formals_lltype = List.map (fun (t, _) -> lltype_of_datatype t) func.formals in
+  let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
-  (* Hashtbl.clear named_values;
+(*
+  Hashtbl.clear named_values;
   Hashtbl.clear named_params;
-  let _ = init_params f func.formals in *)
+  let _ = init_params f func.formals in
+ *)
   let llfunc = lookup_func func.fname in
   (* An instance of the IRBuilder class used in generating LLVM instructions *)
   let llbuilder = L.builder_at_end context (L.entry_block llfunc) in
   let _ = codegen_stmt llbuilder (Block(func.body)) in
   (* Finish off the function. *)
-  (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
-  if func.returnType = Datatype(Unit) then ignore(L.build_ret_void llbuilder)
+  if func.returnType = Datatype(Unit)
+  then ignore(L.build_ret_void llbuilder)
   else ()
+  (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
-let codegen_btmodule btmodule =
+
+let codegen_program program =
+  (* maybe we don't need a separate main_module *)
+  let btmodules = program.main_module :: program.btmodules in
+  let helper_def_func btmodule =
+    List.iter codegen_def_func btmodule.funcs
+  in
+  let helper_func btmodule =
+    List.iter codegen_func btmodule.funcs
+  in
   codegen_builtin_funcs ();
-  List.iter codegen_def_func btmodule.funcs;
-  List.iter codegen_func btmodule.funcs;
+  List.iter helper_def_func btmodules;
+  List.iter helper_func btmodules; (* main ?? *)
+  the_module
+
+
+
   (* Declare each global variable; remember its value in map global_vars *)
   (* let _ =
     let add_global_var (datatype, var_name) =
       ignore (allocate datatype var_name llbuilder) in
     List.iter add_global_var globals
   in *)
-  ()
-
-let codegen_main program =
-  List.iter codegen_btmodule program;
-  the_module
-
-
 
 
 (* Batteries  *)

@@ -34,8 +34,37 @@ let string_of_op =
   | Or -> "||"
 
 let string_of_uop = function
-   A.Neg -> "-"
+    A.Neg -> "-"
   | A.Not -> "!"
+
+(* let string_of_expr = function 
+  Id (_,d) -> d
+| LitBool(_) -> A.Datatype(Bool)
+| LitInt(_) -> A.Datatype(Int)
+| LitDouble(_) -> A.Datatype(Double)
+| LitStr(_) -> A.Datatype(String)
+| Null -> A.Datatype(Unit)
+| Binop (_,_,_,d) -> d
+| Uniop (_,_,d) -> d
+| Assign (_,_,d) -> d
+| FuncCall (_,_,d)-> d
+| Noexpr -> A.Datatype(Unit)
+
+    Int_Lit(i) -> string_of_int i
+  | Boolean_Lit(b) -> if b then "true" else "false"
+  | Float_Lit(f) -> string_of_float f
+  | String_Lit(s) -> "\"" ^ (String.escaped s) ^ "\""
+  | Char_Lit(c) -> Char.escaped c
+  | This -> "this"
+  | Id(s) -> s
+  | Binop(e1, o, e2) -> (string_of_expr e1) ^ " " ^ (string_of_op o) ^ " " ^ (string_of_expr e2)
+  | Assign(e1, e2) -> (string_of_expr e1) ^ " = " ^ (string_of_expr e2)
+  | Noexpr -> ""
+  | ObjAccess(e1, e2) -> (string_of_expr e1) ^ "." ^ (string_of_expr e2)
+  | Call(f, el) -> f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | ArrayPrimitive(el) -> "|" ^ (string_of_array_primitive el) ^ "|"
+  |   Unop(op, e) -> (string_of_op op) ^ "(" ^ string_of_expr e ^ ")"
+  | Null -> "null" *)
 
 
 (* Print SAST tree representation *)
@@ -44,47 +73,47 @@ let tuple_of_datatype d = ("datatype", `String (string_of_datatype d))
 
 let rec json_of_expr expr =
   let (expr_json : Yojson.Basic.json)  =
-  match expr with
-    Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
-  | LitBool(b) -> `Assoc [("bool", `Assoc [("val", `Bool b);])]
-  | LitInt(i) -> `Assoc [("int", `Assoc [("val", `Int i);])]
-  | LitDouble(d) -> `Assoc [("double", `Assoc [("val", `Float d);])]
-  | LitStr(s) -> `Assoc [("string", `Assoc [("val", `String s);])]
-  | Binop(e1, op, e2, d) -> `Assoc [("binop",
-                                     `Assoc [
-                                       ("lhs", (json_of_expr e1));
-                                       ("op", `String (string_of_op op));
-                                       ("rhs", (json_of_expr e2));
-                                       tuple_of_datatype d;
-                                     ]);]
-  | Uniop(op, e, d) -> `Assoc [("uniop",
-                                `Assoc [
-                                  ("op", `String (string_of_uop op));
-                                  ("operand", (json_of_expr e));
-                                  tuple_of_datatype d
-                                ])]
-  | Assign(e1, e2, d)  -> `Assoc [("assign",
-                                   `Assoc [
-                                     ("lhs", (json_of_expr e1));
-                                     ("rhs", (json_of_expr e2));
-                                     tuple_of_datatype d
-                                   ])]
-  | FuncCall(f, el, d)-> `Assoc [("funccall",
+    match expr with
+      Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
+    | LitBool(b) -> `Assoc [("bool", `Assoc [("val", `Bool b);])]
+    | LitInt(i) -> `Assoc [("int", `Assoc [("val", `Int i);])]
+    | LitDouble(d) -> `Assoc [("double", `Assoc [("val", `Float d);])]
+    | LitStr(s) -> `Assoc [("string", `Assoc [("val", `String s);])]
+    | Binop(e1, op, e2, d) -> `Assoc [("binop",
+                                       `Assoc [
+                                         ("lhs", (json_of_expr e1));
+                                         ("op", `String (string_of_op op));
+                                         ("rhs", (json_of_expr e2));
+                                         tuple_of_datatype d;
+                                       ]);]
+    | Uniop(op, e, d) -> `Assoc [("uniop",
                                   `Assoc [
-                                    ("name", `String f);
-                                    ("params", `List (List.map json_of_expr el));
+                                    ("op", `String (string_of_uop op));
+                                    ("operand", (json_of_expr e));
                                     tuple_of_datatype d
                                   ])]
-  | Noexpr -> `String "noexpr"
-  | Null -> `String "null"
+    | Assign(e1, e2, d)  -> `Assoc [("assign",
+                                     `Assoc [
+                                       ("lhs", (json_of_expr e1));
+                                       ("rhs", (json_of_expr e2));
+                                       tuple_of_datatype d
+                                     ])]
+    | FuncCall(f, el, d)-> `Assoc [("funccall",
+                                    `Assoc [
+                                      ("name", `String f);
+                                      ("params", `List (List.map json_of_expr el));
+                                      tuple_of_datatype d
+                                    ])]
+    | Noexpr -> `String "noexpr"
+    | Null -> `String "null"
   in expr_json
 
 let rec json_of_stmt stmt =
-  let (stmt_json : Yojson.Basic.json)  =
-  match stmt with
-    Block sl -> `Assoc [("block", `List (List.map json_of_stmt sl))]
-  | Expr(e, d) -> `Assoc [("expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
-  | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
+  let (stmt_json : Yojson.Basic.json) = (* OCaml cannot infer data type as I wish *)
+    match stmt with
+      Block sl -> `Assoc [("block", `List (List.map json_of_stmt sl))]
+    | Expr(e, d) -> `Assoc [("expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
+    | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
   (*
     | If (e, s1, s2) -> `Assoc [("sif", `Assoc [("cond", map_sexpr_to_json e); ("ifbody", map_sstmt_to_json s1)]); ("selse", map_sstmt_to_json s2)]
     | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])]
@@ -92,8 +121,8 @@ let rec json_of_stmt stmt =
     | Break -> `String "sbreak"
     | Continue -> `String "scontinue"
     *)
-  | VarDecl(d, s, e) -> `Assoc [("vardecl",
-                                 `Assoc [tuple_of_datatype d; ("name", `String s); ("val", json_of_expr e)])]
+    | VarDecl(d, s, e) -> `Assoc [("vardecl",
+                                   `Assoc [tuple_of_datatype d; ("name", `String s); ("val", json_of_expr e)])]
   in stmt_json
 
 

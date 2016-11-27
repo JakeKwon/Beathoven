@@ -37,13 +37,13 @@ type stmt =
 
 
 type func_decl = {
-  fname : string;
+  fname : string; (* global name *)
   formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
   (* btmodule  *)
   (* functype *)
-  (* TODO?: separate vars from stmt list *)
+  (* TODO?: separate vars from stmt list in analyzer *)
 }
 
 type btmodule = {
@@ -53,7 +53,7 @@ type btmodule = {
 }
 
 type program = {
-  main_module : btmodule;
+  main_module : btmodule; (* still not sure if need main_module *)
   btmodules : btmodule list;
   (* functions : sfunc_decl list; (* All method declarations *) *)
   (* user_type ?? *)

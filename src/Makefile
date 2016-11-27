@@ -5,7 +5,7 @@
 # eval `opam config env`
 
 # The Caml compilers
-OCAMLBUILD = ocamlbuild
+OCAMLBUILD = corebuild
 OCAMLC = ocamlc
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc

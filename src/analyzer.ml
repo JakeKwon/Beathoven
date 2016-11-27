@@ -7,6 +7,7 @@ open Pprint
 
 
 
+
 (* BINARY TYPES *)
 (*
 let get_equality_binop_type type1 type2 se1 se2 op =
@@ -50,68 +51,6 @@ let get_arithmetic_binop_type se1 se2 op = function
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
  *)
 
-let analyze_binop env e1 op e2 =
-  env, S.Noexpr (* env, Binop (e1,op,e2,_) *)
-  (*
-  let se1, env = expr_to_sexpr env e1 in
-  let se2, env = expr_to_sexpr env e2 in
-  let type1 = get_type_from_sexpr se1 in
-  let type2 = get_type_from_sexpr se2 in
-  match op with
-    Equal | Neq -> get_equality_binop_type type1 type2 se1 se2 op
-  | And | Or -> get_logical_binop_type se1 se2 op (type1, type2)
-  | Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
-  | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
-  | _ -> raise (Exceptions.InvalidBinopExpression ((Utils.string_of_op op) ^ " is not a supported binary op"))
- *)
-
-and analyze_unop env op e =
-  env, S.Noexpr (* env, Uniop (op,e,_) *)
-(*
-  let check_num_unop t = function
-      Sub -> t
-    | _ -> raise(Exceptions.InvalidUnaryOperation)
-  in
-  let check_bool_unop = function
-      Not -> Datatype(Bool_t)
-    | _ -> raise(Exceptions.InvalidUnaryOperation)
-  in
-  let se, env = expr_to_sexpr env e in
-  let t = get_type_from_sexpr se in
-  match t with
-    Datatype(Int_t)
-  | Datatype(Float_t) -> S.Unop(op, se, check_num_unop t op)
-  | Datatype(Bool_t) -> S.Unop(op, se, check_bool_unop op)
-  | _ -> raise(Exceptions.InvalidUnaryOperation)
-*)
-
-and analyze_assign env e1 e2 =
-  env, S.Noexpr(* env, Assign (e1,e2,_) *)
-(*
-  let se1, env = expr_to_sexpr env e1 in
-  let se2, env = expr_to_sexpr env e2 in
-  let type1 = get_type_from_sexpr se1 in
-  let type2 = get_type_from_sexpr se2 in
-  match (type1, se2) with
-    Datatype(Objecttype(_)), S.Null
-  | Arraytype(_, _), S.Null -> S.Assign(se1, se2, type1) (*don't have arraytype supported yet*)
-  | _ ->
-    match type1, type2 with
-      Datatype(Char_t), Datatype(Int_t)
-    | Datatype(Int_t), Datatype(Char_t) -> S.Assign(se1, se2, type1)
-    | Datatype(Objecttype(d)), Datatype(Objecttype(t)) ->
-      if d = t then S.Assign(se1, se2, type1)
-      else if inherited type1 type2 then
-        S.Assign(se1, S.Call("cast", [se2; S.Id("ignore", type1)], type1, 0), type1)
-      else raise (Exceptions.AssignmentTypeMismatch(Utils.string_of_datatype type1, Utils.string_of_datatype type2))
-    | _ ->
-      if type1 = type2
-      then S.Assign(se1, se2, type1)
-      else raise (Exceptions.AssignmentTypeMismatch(Utils.string_of_datatype type1, Utils.string_of_datatype type2))
- *)
-
-and analyze_call env s el =
-  env, S.Noexpr(* env, FuncCall (s,el,_) *)
 
 
 (* let check_stmt_list (stmt : Ast.func_decl.body) = *)
@@ -199,6 +138,12 @@ let check_vardecl_type d sast_expr =
   true
 (* TODO: let t = get_type_from_expr sast_expr in  *)
 
+(* ------------------- debug ------------------- *)
+
+
+let get_map_size map =
+  StringMap.fold (fun k v i -> i + 1) map 0
+
 (* ------------------- build sast from ast ------------------- *)
 
 let get_global_func_name mname (func:A.func_decl) =
@@ -207,20 +152,104 @@ let get_global_func_name mname (func:A.func_decl) =
   else mname ^ "." ^ func.fname (* module.main *)
 (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
+(* Initialize builtin_funcs *)
+let builtin_funcs =
+  let map = StringMap.empty in
+  let map = StringMap.add "print"
+      {
+        S.fname = "printf";
+        S.formals = [];
+        S.returnType = A.Datatype(A.Int);
+        S.body = [];
+      }
+      map in
+  map
 
-let build_sast_expr env = function
+
+let rec build_sast_expr env = function
     A.Id(s) -> env, S.Id(s, get_ID_type env s)
   | A.LitBool(b) -> env, S.LitBool(b)
   | A.LitInt(i) -> env, S.LitInt(i)
   | A.LitDouble(f) -> env, S.LitDouble(f)
   | A.LitStr(s) -> env, S.LitStr(s)
-  | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2 (* env, Binop (e1,op,e2,_) *)
-  | A.Uniop(op,e) -> analyze_unop env op e (* env, Uniop (op,e,_) *)
-  | A.Assign(e1,e2) -> analyze_assign env e1 e2 (* env, Assign (e1,e2,_) *)
-  | A.FuncCall(s,el) -> analyze_call env s el (* env, FuncCall (s,el,_) *)
-  (* | Call(s, el) -> check_call_type env false env s el, env *)
+  | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2
+  | A.Uniop(op,e) -> analyze_unop env op e
+  | A.Assign(e1,e2) -> analyze_assign env e1 e2
+  | A.FuncCall(s,el) -> (* Chord::func() ?? *)
+    analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | A.Noexpr -> env, S.Noexpr
   | A.Null -> env, S.Null
+
+and build_sast_expr_list env (expr_list:A.expr list) =
+  let helper_expr expr = snd (build_sast_expr env expr) in
+  let sast_expr_list = List.map helper_expr expr_list in
+  (* print_int (get_map_size env.var_map); *)
+  env, sast_expr_list
+
+(* --- Analyze expressions --- *)
+
+and analyze_binop env e1 op e2 =
+  env, S.Noexpr (* env, Binop (e1,op,e2,_) *)
+    (*
+    let se1, env = expr_to_sexpr env e1 in
+    let se2, env = expr_to_sexpr env e2 in
+    let type1 = get_type_from_sexpr se1 in
+    let type2 = get_type_from_sexpr se2 in
+    match op with
+      Equal | Neq -> get_equality_binop_type type1 type2 se1 se2 op
+    | And | Or -> get_logical_binop_type se1 se2 op (type1, type2)
+    | Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
+    | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
+    | _ -> raise (Exceptions.InvalidBinopExpression ((Utils.string_of_op op) ^ " is not a supported binary op"))
+   *)
+
+and analyze_unop env op e =
+  env, S.Noexpr (* env, Uniop (op,e,_) *)
+  (*
+    let check_num_unop t = function
+        Sub -> t
+      | _ -> raise(Exceptions.InvalidUnaryOperation)
+    in
+    let check_bool_unop = function
+        Not -> Datatype(Bool_t)
+      | _ -> raise(Exceptions.InvalidUnaryOperation)
+    in
+    let se, env = expr_to_sexpr env e in
+    let t = get_type_from_sexpr se in
+    match t with
+      Datatype(Int_t)
+    | Datatype(Float_t) -> S.Unop(op, se, check_num_unop t op)
+    | Datatype(Bool_t) -> S.Unop(op, se, check_bool_unop op)
+    | _ -> raise(Exceptions.InvalidUnaryOperation)
+  *)
+
+and analyze_assign env e1 e2 =
+  let _, se1 = build_sast_expr env e1 in
+  let _, se2 = build_sast_expr env e2 in
+  let t1 = get_type_from_expr se1 in
+  let t2 = get_type_from_expr se2 in
+  (* TODO: check type *)
+  env, S.Assign(se1, se2, t1)
+
+and analyze_funccall env s el =
+  (* TODO: check func call *)
+  let _, sast_el = build_sast_expr_list env el in
+  try
+    let func = StringMap.find s env.builtin_funcs in
+    env, S.FuncCall(func.fname, sast_el, func.returnType)
+  with | Not_found ->
+  try
+    let fname = env.name ^ "." ^ s in
+    let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
+    env, S.FuncCall(fname, sast_el, func.returnType)
+  with | Not_found -> raise (Exceptions.FuncNotFound (env.name, s))
+  (*
+  let actuals = handle_params func.sformals sel in
+  let actuals = handle_params f.formals sel in
+  SCall(fname, actuals, func.sreturnType, 0)
+  SCall(sfname, actuals, f.returnType, index)
+  *)
+
 
 let build_sast_vardecl env d s e =
   (* TODO: if StringMap.mem s env.env_locals
@@ -231,6 +260,7 @@ let build_sast_vardecl env d s e =
   then
     (* TODO: check if t is Unit *)
     env.var_map <- StringMap.add s d env.var_map;
+  (* print_int (get_map_size env.var_map); *)
   env, S.VarDecl(d, s, sast_expr)
 (* TODO: if the user-defined type being declared is not in global classes map, it is an undefined class *)
 
@@ -254,8 +284,12 @@ and build_sast_stmt env = function
   | A.VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
-  let helper_stmt stmt = snd (build_sast_stmt env stmt) in
-  let sast_stmt_list = List.map helper_stmt stmt_list in (* I think env' will be updated *)
+  let helper_stmt stmt =
+    let sast_stmt = snd (build_sast_stmt env stmt) in
+    sast_stmt (* env will be updated *)
+  in
+  let sast_stmt_list = List.map helper_stmt stmt_list in
+  (* print_int (get_map_size env.var_map); *)
   env, sast_stmt_list
 
 
@@ -267,21 +301,23 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
       in
       List.fold_left helper_formal StringMap.empty func.formals
     in
+    (* initialize environment per func ?? *)
     {
+      builtin_funcs = builtin_funcs;
       name = mname; (* current module *)
       var_map = StringMap.empty; (* why empty, fields? *)
       formal_map = formal_map; (* current func *)
-      btmodule = btmodule_env;
+      btmodule = btmodule_env; (* current module *)
       btmodule_map = btmodule_map;
     }
   in
-  let _, fbody = build_sast_stmt_list env func.A.body in
+  let _, fbody = build_sast_stmt_list env func.body in
   (* TODO: check_fbody *)
   {
     S.fname = get_global_func_name mname func;
-    formals = func.A.formals;
-    returnType = func.A.returnType; (*??*)
-    body = fbody;
+    S.formals = func.formals;
+    S.returnType = func.returnType; (*??*)
+    S.body = fbody;
   }
 
 
@@ -294,10 +330,10 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       in
       List.map helper_func_decl btmodule.funcs
     in
-      {
-        S.mname = btmodule.mname;
-        funcs = sast_funcs;
-      }
+    {
+      S.mname = btmodule.mname;
+      S.funcs = sast_funcs;
+    }
   in
   let sast_btmodule_list = List.map build_sast_btmodule btmodule_list in
   match sast_btmodule_list with
@@ -305,12 +341,12 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   | head::tail ->
     {
       S.main_module = head;
-      btmodules = tail;
+      S.btmodules = tail;
       (* user_type ?? *)
     }
 
 
-(* build_class_maps: Generate list of all classes to be used for semantic checking *)
+(* ref: build_class_maps - Generate list of all classes to be used for semantic checking *)
 let build_btmodule_map (btmodule_list : A.btmodule list) =
   (* reserved/default module?? *)
   let build_btmodule_env map btmodule =
@@ -319,9 +355,9 @@ let build_btmodule_map (btmodule_list : A.btmodule list) =
       (* Exceptions.DuplicateFunction *)
       StringMap.add (get_global_func_name btmodule.mname func) func map
     in
-    StringMap.add btmodule.A.mname
+    StringMap.add btmodule.mname
       {
-        func_map = List.fold_left helper_func StringMap.empty btmodule.A.funcs;
+        func_map = List.fold_left helper_func StringMap.empty btmodule.funcs;
         (* decl = btmodule; *)
         (* fields hashtbl ?? *)
       }
@@ -334,8 +370,6 @@ let analyze_ast (btmodule_list) =
   let btmodule_map = build_btmodule_map btmodule_list in
   let sast = build_sast btmodule_map btmodule_list in
   sast
-(* = function *)
-(* A.Program(includes, classes) -> *)
 
 (* typed_ast.ml *)
 

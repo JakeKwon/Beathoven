@@ -14,18 +14,19 @@ module SS = Set.Make (
  *)
 
 type btmodule_env = {
-  func_map : A.func_decl StringMap.t;
+  func_map : A.func_decl StringMap.t; (* global name *)
   (* main_func : A.func_decl; *)
   (* decl : A.btmodule; *)
   (* field_map : A.datatype StringMap.t; *)
 }
 
 type env = {
-  name : string;
-  mutable var_map : A.datatype StringMap.t;
-  formal_map : A.bind StringMap.t;
-  btmodule : btmodule_env;
+  builtin_funcs : func_decl StringMap.t;
   btmodule_map : btmodule_env StringMap.t;
+  name : string; (* current module name *)
+  btmodule : btmodule_env; (* current module *)
+  formal_map : A.bind StringMap.t;
+  mutable var_map : A.datatype StringMap.t;
   (* env_returnType: datatype;
      env_in_for : bool;
      env_in_while : bool; *)
@@ -42,7 +43,7 @@ type environment = {
 
 (* Environment Utilities *)
 
-let rec get_ID_type env s =
+let get_ID_type env s =
   try StringMap.find s env.var_map
   with | Not_found ->
   try
