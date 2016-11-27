@@ -41,19 +41,22 @@ type func_decl = {
   formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
+  (* btmodule  *)
+  (* functype *)
   (* TODO?: separate vars from stmt list *)
 }
 
 type btmodule = {
   mname : string;
-  (* main_func *)
+  main_func : func_decl;
   funcs : func_decl list;
 }
 
 type program = {
   main_module : btmodule;
   btmodules : btmodule list;
+  (* functions : sfunc_decl list; (* All method declarations *) *)
   (* user_type ?? *)
 }
 
-(* Class Declarations | All method declarations | Main entry method *)
+(* Class Declarations |  | Main entry method *)

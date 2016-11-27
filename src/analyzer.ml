@@ -113,21 +113,6 @@ and analyze_assign env e1 e2 =
 and analyze_call env s el =
   env, S.Noexpr(* env, FuncCall (s,el,_) *)
 
-(* convert Ast expr to Sast expr *)
-let to_sast_expr env = function
-    A.Id(s) -> env, S.Id(s, get_ID_type env s)
-  | A.LitBool(b) -> env, S.LitBool(b)
-  | A.LitInt(i) -> env, S.LitInt(i)
-  | A.LitDouble(f) -> env, S.LitDouble(f)
-  | A.LitStr(s) -> env, S.LitStr(s)
-  | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2 (* env, Binop (e1,op,e2,_) *)
-  | A.Uniop(op,e) -> analyze_unop env op e (* env, Uniop (op,e,_) *)
-  | A.Assign(e1,e2) -> analyze_assign env e1 e2 (* env, Assign (e1,e2,_) *)
-  | A.FuncCall(s,el) -> analyze_call env s el (* env, FuncCall (s,el,_) *)
-  (* | Call(s, el) -> check_call_type env false env s el, env *)
-  | A.Noexpr -> env, S.Noexpr
-  | A.Null -> env, S.Null
-
 
 (* let check_stmt_list (stmt : Ast.func_decl.body) = *)
 
@@ -136,7 +121,7 @@ let to_sast_expr env = function
 (* let check_bind bind = *)
 
 
-(* SAST TYPE CONVERSIONS *)
+(* ------------------- SAST Utilities ------------------- *)
 let get_type_from_expr = function
     S.Id (_,d) -> d
   | S.LitBool(_) -> A.Datatype(Bool)
@@ -156,6 +141,10 @@ let get_type_from_expr = function
    | S.Unop(_, _, d) -> d
    | S.Binop(_, _, _, d) -> d *)
 
+let get_stmt_from_expr e =
+  let t = get_type_from_expr e in
+  S.Expr(e, t)
+
 
 
 (*
@@ -168,18 +157,6 @@ let rec check_expr e =
  | FuncCall of string * expr list
  | _ -> ();
  *)
-
-
-(* type stmt =
-   Block of stmt list
-   | Expr of expr
-   | If of expr * stmt * stmt
-   | While of expr * stmt
-   | Return of expr
-   | Break
-   | Continue
-   | VarDecl of datatype * string * expr
-*)
 
 (*
 let to_ast_expr = function
@@ -216,57 +193,139 @@ let analyze program (btmodule) =
   List.iter check_func btmodule.S.funcs
 
 
-(* ------------------- build sast from ast --------------------- *)
+(* ------------------- check sast ------------------- *)
 
+let check_vardecl_type d sast_expr =
+  true
+(* TODO: let t = get_type_from_expr sast_expr in  *)
+
+(* ------------------- build sast from ast ------------------- *)
+
+let get_global_func_name mname (func:A.func_decl) =
+  mname ^ "." ^ func.fname (* module.main *)
+(* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
 (* build_class_maps: Generate list of all classes to be used for semantic checking *)
 let build_btmodule_map (btmodule_list:A.btmodule list) =
   (* reserved/default module?? *)
   let build_btmodule_env map btmodule =
-    let get_global_func_name func =
-      btmodule.A.mname ^ "." ^ func.A.fname (* module.main *)
-      (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
-    in
-    let build_func map func =
+    let helper_func map func =
       (* Exceptions.CannotUseReservedFuncName *)
       (* Exceptions.DuplicateFunction *)
-      StringMap.add (get_global_func_name func) func map
+      StringMap.add (get_global_func_name btmodule.mname func) func map
     in
     StringMap.add btmodule.A.mname
       {
-        func_map = List.fold_left build_func StringMap.empty btmodule.A.funcs;
-        decl = btmodule;
+        func_map = List.fold_left helper_func StringMap.empty btmodule.A.funcs;
+        (* decl = btmodule; *)
+        (* fields hashtbl ?? *)
       }
       map
   in
   List.fold_left build_btmodule_env StringMap.empty btmodule_list
 
+let build_sast_expr env = function
+    A.Id(s) -> env, S.Id(s, get_ID_type env s)
+  | A.LitBool(b) -> env, S.LitBool(b)
+  | A.LitInt(i) -> env, S.LitInt(i)
+  | A.LitDouble(f) -> env, S.LitDouble(f)
+  | A.LitStr(s) -> env, S.LitStr(s)
+  | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2 (* env, Binop (e1,op,e2,_) *)
+  | A.Uniop(op,e) -> analyze_unop env op e (* env, Uniop (op,e,_) *)
+  | A.Assign(e1,e2) -> analyze_assign env e1 e2 (* env, Assign (e1,e2,_) *)
+  | A.FuncCall(s,el) -> analyze_call env s el (* env, FuncCall (s,el,_) *)
+  (* | Call(s, el) -> check_call_type env false env s el, env *)
+  | A.Noexpr -> env, S.Noexpr
+  | A.Null -> env, S.Null
 
-let build_sast_stmt_list stmt_list = []
+let build_sast_vardecl env d s e =
+  (* TODO: if StringMap.mem s env.env_locals
+     then raise (Exceptions.DuplicateLocal s)
+     else *)
+  let _, sast_expr = build_sast_expr env e in
+  if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
+  then
+    (* TODO: check if t is Unit *)
+    env.var_map <- StringMap.add s d env.var_map;
+  env, S.VarDecl(d, s, sast_expr)
+(* TODO: if the user-defined type being declared is not in global classes map, it is an undefined class *)
 
-let build_sast btmodule_map btmodule_list =
-  let build_sast_func_decl func =
+
+let rec build_sast_block env = function
+    [] -> env, S.Block([])
+  | _ as l ->
+    let _, sl = build_sast_stmt_list env l in env, S.Block(sl) (* is env updated? *)
+
+and build_sast_stmt env = function
+    A.Block sl -> build_sast_block env sl
+  | A.Expr e ->
+    let _, se = build_sast_expr env e in
+    env, get_stmt_from_expr se
+  (* | A.Return e -> check_return e env
+     | A.If(e, s1, s2) -> check_if e s1 s2	env
+     | A.For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env
+     | A.While(e, s) -> check_while e s env
+     | A.Break -> check_break env (* TODO: Need to check if in right context *)
+     | A.Continue -> check_continue env (* TODO: Need to check if in right context *) *)
+  | A.VarDecl(d, s, e) -> build_sast_vardecl env d s e
+
+and build_sast_stmt_list env (stmt_list:A.stmt list) =
+  let helper_stmt stmt = snd (build_sast_stmt env stmt) in
+  let sast_stmt_list = List.map helper_stmt stmt_list in (* I think env' will be updated *)
+  env, sast_stmt_list
+
+
+let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
+  let env =
+    let formal_map =
+      let helper_formal map formal =
+        StringMap.add (snd formal) formal map
+      in
+      List.fold_left helper_formal StringMap.empty func.formals
+    in
     {
-      S.fname = func.A.fname;
-      formals = func.A.formals;
-      returnType = func.A.returnType;
-      body = build_sast_stmt_list func.A.body;
+      name = mname; (* current module *)
+      var_map = StringMap.empty; (* why empty, fields? *)
+      formal_map = formal_map; (* current func *)
+      btmodule = btmodule_env;
+      btmodule_map = btmodule_map;
     }
   in
+  let _, fbody = build_sast_stmt_list env func.A.body in
+  (* TODO: check_fbody *)
+  {
+    S.fname = get_global_func_name mname func;
+    formals = func.A.formals;
+    returnType = func.A.returnType; (*??*)
+    body = fbody;
+  }
+
+
+let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   let build_sast_btmodule btmodule =
-    {
-      S.mname = btmodule.A.mname;
-      (* main_func *)
-      S.funcs = List.map build_sast_func_decl btmodule.A.funcs;
-    }
+    let btmodule_env = StringMap.find btmodule.mname btmodule_map in
+    let sast_funcs =
+      let helper_func_decl func =
+        build_sast_func_decl btmodule_map btmodule_env btmodule.mname func
+      in
+      List.map helper_func_decl btmodule.A.funcs
+    in
+    match sast_funcs with
+      [] -> raise (Exceptions.ShouldNotHappenUnlessCompilerHasBug "no main func")
+    | head::tail ->
+      {
+        S.mname = btmodule.A.mname;
+        main_func = head;
+        funcs = tail;
+      }
   in
   let sast_btmodule_list = List.map build_sast_btmodule btmodule_list in
   match sast_btmodule_list with
-    [] -> raise Exceptions.ShouldNotHappenIfCompilerHasNoBug
+    [] -> raise (Exceptions.ShouldNotHappenUnlessCompilerHasBug "no default module")
   | head::tail ->
     {
       S.main_module = head;
-      S.btmodules = tail;
+      btmodules = tail;
       (* user_type ?? *)
     }
 
@@ -276,6 +335,8 @@ let analyze_ast (btmodule_list) =
   sast
 (* = function *)
 (* A.Program(includes, classes) -> *)
+
+(* typed_ast.ml *)
 
 (* ------------------------------------------------ *)
 

@@ -29,8 +29,7 @@ let _ =
     (* Semant.check ast; *)
     (* Analyzer.analyze ast; *)
     let sast = Analyzer.analyze_ast ast in
-    (*let past = Pythonizer.generate_past sast in
-    let prog = Generator.gen_program ast in *)
+    (*let prog = Generator.gen_program ast in *)
     match action with
       Sast -> () (* print_string (Ast.string_of_program ast) *)
     | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)

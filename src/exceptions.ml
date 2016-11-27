@@ -4,4 +4,4 @@ exception ReturntypeNotMatch of string
 exception VariableDeclarationNotMatch of string
 exception UndefinedID of string
 
-exception ShouldNotHappenIfCompilerHasNoBug
+exception ShouldNotHappenUnlessCompilerHasBug of string
