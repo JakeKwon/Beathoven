@@ -61,7 +61,7 @@ btmodule:
 main_module:
   mbody
   {
-    { mname = "~beathoven"; funcs = $1 }
+    { mname = default_mname; funcs = $1 }
   }
 
 mbody:
@@ -71,9 +71,8 @@ mbody:
 main_func:
   stmt_list
   {
-    { fname = "main"; formals = []; returnType = Datatype(Unit); body = List.rev $1 }
+    { fname = default_fname; formals = []; returnType = Datatype(Unit); body = List.rev $1 }
   }
-  /* TODO: codegen, rename mname+fname */
 
 
 var_decl:

@@ -31,9 +31,9 @@ let _ =
     let sast = Analyzer.analyze_ast ast in
     (*let prog = Generator.gen_program ast in *)
     match action with
-      Sast -> () (* print_string (Ast.string_of_program ast) *)
+      Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
     | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)
-    | Compile -> let m = Codegen.codegen_main ast in
+    | Compile -> let m = Codegen.codegen_program ast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)
       (* let output_file = Sys.argv.(2) and stdlib_file = Sys.argv.(3) in

@@ -7,10 +7,10 @@ type expr =
   | LitDouble of float
   | LitStr of string
   | Null
-  | Binop of expr * A.binary_operator * expr * A.primi
-  | Uniop of A.unary_operator * expr * A.primi
-  | Assign of expr * expr * A.primi
-  | FuncCall of string * expr list * A.primi (* datatype at end? *)
+  | Binop of expr * A.binary_operator * expr * A.datatype
+  | Uniop of A.unary_operator * expr * A.datatype
+  | Assign of expr * expr * A.datatype
+  | FuncCall of string * expr list * A.datatype
   | Noexpr
 
  (*
@@ -48,7 +48,7 @@ type func_decl = {
 
 type btmodule = {
   mname : string;
-  main_func : func_decl;
+  (* main_func : func_decl; *)
   funcs : func_decl list;
 }
 

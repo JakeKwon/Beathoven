@@ -129,10 +129,10 @@ let get_type_from_expr = function
   | S.LitDouble(_) -> A.Datatype(Double)
   | S.LitStr(_) -> A.Datatype(String)
   | S.Null -> A.Datatype(Unit)
-  | S.Binop (_,_,_,d) -> A.Datatype(d)
-  | S.Uniop (_,_,d) -> A.Datatype(d)
-  | S.Assign (_,_,d) -> A.Datatype(d)
-  | S.FuncCall (_,_,d)-> A.Datatype(d) (* ??? *)
+  | S.Binop (_,_,_,d) -> d
+  | S.Uniop (_,_,d) -> d
+  | S.Assign (_,_,d) -> d
+  | S.FuncCall (_,_,d)-> d
   | S.Noexpr -> A.Datatype(Unit)
 (*
   | S.Null -> Datatype(Null_t)
@@ -202,27 +202,11 @@ let check_vardecl_type d sast_expr =
 (* ------------------- build sast from ast ------------------- *)
 
 let get_global_func_name mname (func:A.func_decl) =
-  mname ^ "." ^ func.fname (* module.main *)
+  if mname = A.default_mname && func.fname = A.default_fname
+  then "main"
+  else mname ^ "." ^ func.fname (* module.main *)
 (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
-(* build_class_maps: Generate list of all classes to be used for semantic checking *)
-let build_btmodule_map (btmodule_list:A.btmodule list) =
-  (* reserved/default module?? *)
-  let build_btmodule_env map btmodule =
-    let helper_func map func =
-      (* Exceptions.CannotUseReservedFuncName *)
-      (* Exceptions.DuplicateFunction *)
-      StringMap.add (get_global_func_name btmodule.mname func) func map
-    in
-    StringMap.add btmodule.A.mname
-      {
-        func_map = List.fold_left helper_func StringMap.empty btmodule.A.funcs;
-        (* decl = btmodule; *)
-        (* fields hashtbl ?? *)
-      }
-      map
-  in
-  List.fold_left build_btmodule_env StringMap.empty btmodule_list
 
 let build_sast_expr env = function
     A.Id(s) -> env, S.Id(s, get_ID_type env s)
@@ -308,15 +292,11 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       let helper_func_decl func =
         build_sast_func_decl btmodule_map btmodule_env btmodule.mname func
       in
-      List.map helper_func_decl btmodule.A.funcs
+      List.map helper_func_decl btmodule.funcs
     in
-    match sast_funcs with
-      [] -> raise (Exceptions.ShouldNotHappenUnlessCompilerHasBug "no main func")
-    | head::tail ->
       {
-        S.mname = btmodule.A.mname;
-        main_func = head;
-        funcs = tail;
+        S.mname = btmodule.mname;
+        funcs = sast_funcs;
       }
   in
   let sast_btmodule_list = List.map build_sast_btmodule btmodule_list in
@@ -328,6 +308,27 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       btmodules = tail;
       (* user_type ?? *)
     }
+
+
+(* build_class_maps: Generate list of all classes to be used for semantic checking *)
+let build_btmodule_map (btmodule_list : A.btmodule list) =
+  (* reserved/default module?? *)
+  let build_btmodule_env map btmodule =
+    let helper_func map func =
+      (* Exceptions.CannotUseReservedFuncName *)
+      (* Exceptions.DuplicateFunction *)
+      StringMap.add (get_global_func_name btmodule.mname func) func map
+    in
+    StringMap.add btmodule.A.mname
+      {
+        func_map = List.fold_left helper_func StringMap.empty btmodule.A.funcs;
+        (* decl = btmodule; *)
+        (* fields hashtbl ?? *)
+      }
+      map
+  in
+  List.fold_left build_btmodule_env StringMap.empty btmodule_list
+
 
 let analyze_ast (btmodule_list) =
   let btmodule_map = build_btmodule_map btmodule_list in
