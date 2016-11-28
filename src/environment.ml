@@ -23,7 +23,7 @@ type btmodule_env = {
 type env = {
   builtin_funcs : func_decl StringMap.t;
   btmodule_map : btmodule_env StringMap.t;
-  name : string; (* current module name *)
+  name : string; 
   btmodule : btmodule_env; (* current module *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;

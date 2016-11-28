@@ -61,24 +61,25 @@ let get_arithmetic_binop_type se1 se2 op = function
 
 
 (* ------------------- SAST Utilities ------------------- *)
-let get_type_from_expr = function
-    S.Id (_,d) -> d
-  | S.LitBool(_) -> A.Datatype(Bool)
-  | S.LitInt(_) -> A.Datatype(Int)
-  | S.LitDouble(_) -> A.Datatype(Double)
-  | S.LitStr(_) -> A.Datatype(String)
-  | S.Null -> A.Datatype(Unit)
-  | S.Binop (_,_,_,d) -> d
-  | S.Uniop (_,_,d) -> d
-  | S.Assign (_,_,d) -> d
-  | S.FuncCall (_,_,d)-> d
-  | S.Noexpr -> A.Datatype(Unit)
+let get_type_from_expr (expr : S.expr) =
+  match expr with
+    Id (_,d) -> d
+  | LitBool(_) -> A.Datatype(Bool)
+  | LitInt(_) -> A.Datatype(Int)
+  | LitDouble(_) -> A.Datatype(Double)
+  | LitStr(_) -> A.Datatype(String)
+  | Null -> A.Datatype(Unit)
+  | Binop (_,_,_,d) -> d
+  | Uniop (_,_,d) -> d
+  | Assign (_,_,d) -> d
+  | FuncCall (_,_,d)-> d
+  | Noexpr -> A.Datatype(Unit)
 (*
-  | S.Null -> Datatype(Null_t)
-   | S.Noexpr -> Datatype(Void_t)
-   | S.Assign(_, _, d) -> d
-   | S.Unop(_, _, d) -> d
-   | S.Binop(_, _, _, d) -> d *)
+  | Null -> Datatype(Null_t)
+   | Noexpr -> Datatype(Void_t)
+   | Assign(_, _, d) -> d
+   | Unop(_, _, d) -> d
+   | Binop(_, _, _, d) -> d *)
 
 let get_stmt_from_expr e =
   let t = get_type_from_expr e in
@@ -112,24 +113,24 @@ let to_ast_expr = function
   | Null -> A.Null
  *)
 
-let rec check_stmt returnType statement =
-  match statement with
-    S.Block sl -> List.iter (check_stmt returnType) sl
+let rec check_stmt returnType (stmt : S.stmt) =
+  match stmt with
+    Block sl -> List.iter (check_stmt returnType) sl
   (* | Expr e -> check_expr e *)
   (* | If (e, s, s) -> *)
   (* | While of expr * stmt *)
-  | S.Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
+  | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
   (* | Break -> () *)
   (* | Continue -> () *)
-  | S.VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
+  | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
   | _ -> ()
 
-let check_func btfunc =
+let check_func (btfunc : S.func_decl) =
   (* List.iter check_bind func.formals; *)
-  List.iter (check_stmt btfunc.S.returnType) btfunc.S.body
+  List.iter (check_stmt btfunc.returnType) btfunc.body
 
-let analyze program (btmodule) =
-  List.iter check_func btmodule.S.funcs
+let analyze program (btmodule : S.btmodule) =
+  List.iter check_func btmodule.funcs
 
 
 (* ------------------- check sast ------------------- *)
@@ -166,19 +167,20 @@ let builtin_funcs =
   map
 
 
-let rec build_sast_expr env = function
-    A.Id(s) -> env, S.Id(s, get_ID_type env s)
-  | A.LitBool(b) -> env, S.LitBool(b)
-  | A.LitInt(i) -> env, S.LitInt(i)
-  | A.LitDouble(f) -> env, S.LitDouble(f)
-  | A.LitStr(s) -> env, S.LitStr(s)
-  | A.Binop(e1,op,e2) -> analyze_binop env e1 op e2
-  | A.Uniop(op,e) -> analyze_unop env op e
-  | A.Assign(e1,e2) -> analyze_assign env e1 e2
-  | A.FuncCall(s,el) -> (* Chord::func() ?? *)
+let rec build_sast_expr env (expr : A.expr) =
+  match expr with
+    Id(s) -> env, S.Id(s, get_ID_type env s)
+  | LitBool(b) -> env, S.LitBool(b)
+  | LitInt(i) -> env, S.LitInt(i)
+  | LitDouble(f) -> env, S.LitDouble(f)
+  | LitStr(s) -> env, S.LitStr(s)
+  | Binop(e1,op,e2) -> analyze_binop env e1 op e2
+  | Uniop(op,e) -> analyze_unop env op e
+  | Assign(e1,e2) -> analyze_assign env e1 e2
+  | FuncCall(s,el) -> (* Chord::func() ?? *)
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
-  | A.Noexpr -> env, S.Noexpr
-  | A.Null -> env, S.Null
+  | Noexpr -> env, S.Noexpr
+  | Null -> env, S.Null
 
 and build_sast_expr_list env (expr_list:A.expr list) =
   let helper_expr expr = snd (build_sast_expr env expr) in
@@ -270,18 +272,19 @@ let rec build_sast_block env = function
   | _ as l ->
     let _, sl = build_sast_stmt_list env l in env, S.Block(sl) (* is env updated? *)
 
-and build_sast_stmt env = function
-    A.Block sl -> build_sast_block env sl
-  | A.Expr e ->
+and build_sast_stmt env (stmt : A.stmt) =
+  match stmt with
+    Block sl -> build_sast_block env sl
+  | Expr e ->
     let _, se = build_sast_expr env e in
     env, get_stmt_from_expr se
-  (* | A.Return e -> check_return e env
-     | A.If(e, s1, s2) -> check_if e s1 s2	env
-     | A.For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env
-     | A.While(e, s) -> check_while e s env
-     | A.Break -> check_break env (* TODO: Need to check if in right context *)
-     | A.Continue -> check_continue env (* TODO: Need to check if in right context *) *)
-  | A.VarDecl(d, s, e) -> build_sast_vardecl env d s e
+  (* | Return e -> check_return e env
+     | If(e, s1, s2) -> check_if e s1 s2	env
+     | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env
+     | While(e, s) -> check_while e s env
+     | Break -> check_break env (* TODO: Need to check if in right context *)
+     | Continue -> check_continue env (* TODO: Need to check if in right context *) *)
+  | VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
   let helper_stmt stmt =

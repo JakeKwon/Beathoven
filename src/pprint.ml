@@ -7,18 +7,16 @@ open Yojson
 
 
 
-let string_of_datatype =
-  let open Ast in
-  function
+let string_of_datatype (t : A.datatype) =
+  match t with
     Datatype(Int) -> "int"
   | Datatype(Bool) -> "bool"
   | Datatype(Unit) -> "unit"
 (* | Primitive(Double) -> "double"
    | Primitive(String) -> "string" *)
 
-let string_of_op =
-  let open Ast in
-  function
+let string_of_op (op : A.binary_operator) =
+  match op with
     Add -> "+"
   | Sub -> "-"
   | Mult -> "*"
@@ -33,10 +31,10 @@ let string_of_op =
   | Mod -> "%"
   | Or -> "||"
 
-let string_of_uop =
-  function
-    A.Neg -> "-"
-  | A.Not -> "!"
+let string_of_uop (uop : A.unary_operator) =
+  match uop with
+    Neg -> "-"
+  | Not -> "!"
 
 (* let string_of_expr = function
   Id (_,d) -> d
