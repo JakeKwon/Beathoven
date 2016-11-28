@@ -17,3 +17,6 @@ parser.mli
 *.cmx
 *.cmxs
 *.cmxa
+
+out.*
+lli.*
