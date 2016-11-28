@@ -1,6 +1,6 @@
 (* open Printf *)
 
-type action = Compile | Help | Raw | Sast | None
+type action = Compile | Help | Raw | Sast
 
 let get_help =
   "Beathoven Usage: beathoven.sh <flag> [input_file] [output_file]\n" ^
@@ -21,8 +21,8 @@ let _ =
   let action =
     if Array.length Sys.argv > 1 then
       List.assoc Sys.argv.(1)
-        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast); ("", None)]
-    else Sast in
+        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)]
+    else Compile in
   let lexbuf = Lexing.from_channel stdin in
   (* try *)
     let ast = Parser.program Scanner.token lexbuf in

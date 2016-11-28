@@ -7,7 +7,6 @@ RED='\033[0;31m'
 # Tests specific outputs we should be generating
 # Add the code to test/compiler/pass
 
-<<<<<<< HEAD
 INPUTS="pass/*.bt"
 LLI="lli"
 BEAT="../../beathoven.sh -c "
@@ -54,12 +53,15 @@ SignalError() {
 
 which "$LLI" >> $globallog || LLIFail
 
+# Run <args>
+# Report the command, run it, and report any errors
 Run() {
     echo $* 1>&2
-    eval $* || {
-        SignalError "$1 failed on $*"
-        return 1
-    }
+    eval $*
+    # || {
+    #     SignalError "$1 failed on $*"
+    #     return 1
+    # }
 }
 
 Compare() {
@@ -86,10 +88,10 @@ Check(){
     generatedfiles=""
 
     generatedfiles="$generatedfiles ${basename}.ll ${basename}.out" &&
-    printf "../../beathoven.sh -c $1 $TMP_LLI_FILE > $TMP_LLI_FILE\n"
+    printf "../../beathoven.sh -c $1 $TMP_LLI_FILE \n"
     # to llvm
-    ../../beathoven.sh -c $1 $TMP_LLI_FILE > $TMP_LLI_FILE
-    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
+    Run ../../beathoven.sh -c $1 $TMP_LLI_FILE &&
+    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE" &&
     # Run "$BEAT" "<" $1 ${basename}.ll ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
     Compare "$TMP_OUT_FILE" ${reffile}.out ${basename}.diff

@@ -11,7 +11,7 @@ fi
 # beathoven.sh (-c | -r) <BEAT_FILE> <output_file>
 if [ "$#" -eq 3 ]; then
     if [ "$1" == "-c" ]; then
-        cat $LIST_LIB $DIST_LIB $2 | $BEAT_FILE $1 $3 $PY_LIB
+        cat $LIST_LIB $DIST_LIB $2 | $BEAT_FILE $1 > $3 
         exit 0
     elif [ "$1" == "-r" ]; then
         $BEAT_FILE $1 $3 < $2
