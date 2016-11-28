@@ -19,4 +19,4 @@ parser.mli
 *.cmxa
 
 out.*
-lli.*
+ll.*

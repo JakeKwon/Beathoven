@@ -5,11 +5,11 @@
 # eval `opam config env`
 
 # The Caml compilers
-OCAMLBUILD = ocamlbuild
+OCAMLBUILD = corebuild
 OCAMLC = ocamlc
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
-OCAMLFLAGS = -use-ocamlfind -pkgs llvm
+OCAMLFLAGS = -use-ocamlfind -pkgs llvm,yojson
 FLAGS = $(OCAMLFLAGS) -cflags -w,+a-4
 
 # OBJS = utils.cmo parser.cmo scanner.cmo analyzer.cmo printer.cmo pythonizer.cmo generator.cmo beathoven.cmo

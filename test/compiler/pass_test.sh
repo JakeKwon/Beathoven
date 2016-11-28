@@ -7,6 +7,7 @@ RED='\033[0;31m'
 # Tests specific outputs we should be generating
 # Add the code to test/compiler/pass
 
+<<<<<<< HEAD
 INPUTS="pass/*.bt"
 LLI="lli"
 BEAT="../../beathoven.sh -c "
