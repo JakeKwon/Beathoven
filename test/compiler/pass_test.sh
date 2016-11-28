@@ -87,11 +87,11 @@ Check(){
 
     generatedfiles=""
 
-    generatedfiles="$generatedfiles ${basename}.ll ${basename}.out" &&
+    generatedfiles="$generatedfiles ${basename}.ll ${basename}.out"
     printf "../../beathoven.sh -c $1 $TMP_LLI_FILE \n"
     # to llvm
     Run ../../beathoven.sh -c $1 $TMP_LLI_FILE &&
-    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE" &&
+    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # Run "$BEAT" "<" $1 ${basename}.ll ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
     Compare "$TMP_OUT_FILE" ${reffile}.out ${basename}.diff

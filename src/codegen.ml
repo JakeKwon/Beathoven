@@ -24,7 +24,10 @@ let str_t = L.pointer_type i8_t
 let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
-
+(*
+let struct_types:(string, lltype) Hashtbl.t = Hashtbl.create 10
+let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
+ *)
 
 (* ------------------- Utils ------------------- *)
 
@@ -52,19 +55,35 @@ and lookup_func fname =
 
 
 let rec codegen_print expr_list builder =
-  let lit_list = List.map (codegen_expr builder) expr_list in
-  let printtype_of_expr = function
-    (* str_t -> "%s" *)
-    (* | double_t -> "%lf" *)
-    | i32_t -> "%d"
-    | i1_t -> "%s" (* ?? *)
-    (* TODO: other types *)
+  let (llval_expr_list : L.llvalue list) = List.map (codegen_expr builder) expr_list in
+  let llstrfmt =
+    let idx = ref (-1) in
+    let llval_and_fmt_of_expr expr = (* -> fmt : string *)
+      incr idx;
+      let print_fmt_of_datatype (t : A.datatype) =
+        match t with
+          Datatype(Int) -> "%d"
+        | Datatype(String) -> "%s"
+        | Datatype(Bool) ->
+          (* print_endline (L.string_of_llvalue (List.nth llval_expr_list !idx)); *)
+          "%d" (* TODO: print "true" or "false" *)
+        | Datatype(Double) -> "%lf"
+        | _ -> raise (Exceptions.InvalidTypePassedToPrintf)
+      in
+      print_fmt_of_datatype (Analyzer.get_type_from_expr expr)
+    in
+    let fmt_list = List.map llval_and_fmt_of_expr expr_list in
+    let fmt_str = String.concat " " fmt_list in
+    L.build_global_stringptr fmt_str "fmt" builder
   in
-  let type_list = List.map printtype_of_expr lit_list in
-  let fmt_str = String.concat " " type_list in
-  let format_str = L.build_global_stringptr fmt_str "fmt" builder in
-  let actuals = Array.of_list (format_str :: lit_list) in
+  let actuals = Array.of_list (llstrfmt :: llval_expr_list) in
+  (* actuals.(0) <- llstrfmt; *)
   L.build_call (lookup_func "printf") actuals "tmp" builder
+(*
+let zero = const_int i32_t 0 in
+let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
+build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
+ *)
 
 and codegen_assign lhs rhs builder =
   let lhs = match lhs with Id(s, _) -> lookup s in

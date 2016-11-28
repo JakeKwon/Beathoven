@@ -8,3 +8,4 @@ exception FuncNotFound of string * string
 
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
+exception InvalidTypePassedToPrintf
