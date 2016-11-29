@@ -1,21 +1,21 @@
 let default_mname = "~beathoven"
 let default_fname = "~main"
 
-type primi =
+type primitive =
     Unit
   | Int
   | Double
   | String
   | Bool
 
+(* Primitive(primi) *)
+type datatype = Datatype of primitive
+
 type binary_operator =
     Add | Sub | Mult | Div | Equal | Neq
   | Less | Leq | Greater | Geq | And | Mod | Or
 
 type unary_operator = Neg | Not
-
-(* Primitive(primi) *)
-type datatype = Datatype of primi
 
 type bind = datatype * string
 (* type formal = Formal of bind | Many of datatype *)
@@ -38,12 +38,12 @@ type expr =
 type stmt =
     Block of stmt list
   | Expr of expr
+  | VarDecl of datatype * string * expr
   | If of expr * stmt * stmt
   | While of expr * stmt
   | Return of expr
   | Break
   | Continue
-  | VarDecl of datatype * string * expr
 
 
 type func_decl = {

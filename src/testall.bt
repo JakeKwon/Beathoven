@@ -1,0 +1,11 @@
+int a;
+
+a = 0;
+int b = a;
+print(b);
+
+func foo() -> unit {
+    int a = 1;
+}
+/*
+*/

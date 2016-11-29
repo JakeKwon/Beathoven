@@ -42,107 +42,17 @@
 
 %%
 
-program:
-  main_module EOF { [$1] }
-  /*main_module btmodule_list EOF { $1, $2 }*/ /* rev?? */
-
-/*type fname = Constructor | FName of string*/
-
-btmodule_list:
-    /* nothing */ { [] }
-  | btmodule btmodule_list { $1::$2 } /* rev?? */
-
-btmodule:
-  MODULE ID LBRACE mbody RBRACE
-  {
-    { mname = $2; funcs = $4 }
-  }
-
-main_module:
-  mbody
-  {
-    { mname = default_mname; funcs = $1 }
-  }
-
-mbody:
-  main_func { [$1] }
-  /*main_func func_list { $1, $2 }*/
-
-main_func:
-  stmt_list
-  {
-    { fname = default_fname; formals = []; returnType = Datatype(Unit); body = List.rev $1 }
-  }
-
-
-var_decl:
-    typ ID SEP { VarDecl(Datatype($1), $2, Noexpr) }  /* ?? */
-  | typ ID ASSIGN expr SEP { VarDecl(Datatype($1), $2, $4) }
-
-/****
-formals, parameters, variables, actuals (reference Dice)
-****/
-
-formals_opt:
-    /* nothing */ { [] }
-  | formal_list   { List.rev $1 }
-
-formal_list:
-    typ ID                   { [( Datatype($1),$2)] }
-  | formal_list COMMA typ ID { (Datatype($3),$4) :: $1 }
-
-actuals_opt:
-    /* nothing */ { [] }
-  |   actuals_list  { List.rev $1 }
-
-actuals_list:
-    expr                    { [$1] }
-  |   actuals_list COMMA expr { $3 :: $1 }
-
-/***
-expressions
-***/
-stmt_list:
-    /* nothing */ { [] }
-  | stmt_list stmt { $2::$1 }
-
-typ:
+primitive:
     TYPE_UNIT { Unit }
   | TYPE_INT { Int }
   | TYPE_DOUBLE { Double }
   | TYPE_STR { String }
   | TYPE_BOOL { Bool }
 
-literals:
-    ID { Id($1) }
-  | NULL { Null }
-  | LIT_BOOL { LitBool($1) }
-  | LIT_INT { LitInt($1) }
-  | LIT_DOUBLE { LitDouble($1) }
-  | LIT_STR { LitStr($1) }
-  /* | lit_array        { $1 } */
-  /*
-  lit_array:
-  | LBRACE stmt_list_plus RBRACE { Arr((List.rev $2), None) }
-  | LBRACK stmt_list_plus RBRACK { ArrMusic((List.rev $2)) }
-  | typename   BRACES  { Arr([], Some($1)) }
-  */
+datatype:
+    primitive { Datatype($1) }
 
-stmt:
-    expr SEP { Expr($1) }
-  | var_decl { $1 }
-  | RETURN expr SEP { Return($2) }
-  | RETURN SEP { Return(Noexpr) }
-  | LBRACE stmt_list RBRACE { Block(List.rev $2) }
-  | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
-  | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
-  /*
-  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
-   { For($3, $5, $7, $9) }
-  */
-  | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
-  | BREAK SEP { Break }
-  | CONTINUE SEP { Continue }
+/* ------------------- Expressions ------------------- */
 
 expr:
     literals            { $1 }
@@ -153,7 +63,7 @@ expr:
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD    expr { Binop($1, Mod, $3) }
   | expr ASSIGN expr { Assign($1, $3) }
-  | ID LPAREN actuals_opt RPAREN { FuncCall($1, $3)}
+  | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
   /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
@@ -170,15 +80,119 @@ expr:
   | ID LPAREN func_args RPAREN { Call($1, $3) }
 */
 
+formal_list: /* bind list */
+    /* nothing */ { [] }
+  | formal_rev_list { List.rev $1 }
+
+formal_rev_list:
+    datatype ID { [($1, $2)] }
+  | formal_rev_list COMMA datatype ID { ($3, $4) :: $1 }
+
+expr_list:
+    /* nothing */ { [] }
+  | expr_rev_list { List.rev $1 }
+
+expr_rev_list:
+    expr { [$1] }
+  | expr_rev_list COMMA expr { $3 :: $1 }
+
+/* ------------------- Statements ------------------- */
+
+stmt:
+    expr SEP { Expr($1) }
+  | var_decl { $1 }
+  | RETURN expr SEP { Return($2) }
+  | RETURN SEP { Return(Noexpr) }
+  | LBRACE stmt_list RBRACE { Block($2) }
+  | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
+  | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
+  /*
+  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
+   { For($3, $5, $7, $9) }
+  */
+  | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
+  | BREAK SEP { Break }
+  | CONTINUE SEP { Continue }
+
+stmt_list:
+  | stmt_rev_list { List.rev $1 }
+
+stmt_rev_list:
+    /* nothing */ { [] }
+  | stmt_rev_list stmt { $2 :: $1 }
+  /*| stmt stmt_rev_list { $1 :: $2 }*/
+
+
+/* ------------------- Functions ------------------- */
+
+func_decl:
+  FUNC ID LPAREN formal_list RPAREN RARROW datatype LBRACE stmt_list RBRACE
+  {
+    { fname = $2; formals = $4; returnType = $7; body = $9 }
+  }
+
+main_func:
+    stmt_list
+  {
+    { fname = default_fname; formals = []; returnType = Datatype(Unit); body = $1 }
+  }
+
+func_decl_rev_list:
+    func_decl { [$1] }
+  | func_decl_rev_list func_decl { $2 :: $1 }
+
+mbody:
+    main_func { [$1] }
+  | main_func func_decl_rev_list { $1 :: List.rev $2 }
+
+/* ------------------- Modules ------------------- */
+
+main_module:
+  mbody
+  {
+    { mname = default_mname; funcs = $1 }
+  }
+
+btmodule:
+  MODULE ID LBRACE mbody RBRACE
+  {
+    { mname = $2; funcs = $4 }
+  }
+
+btmodule_list:
+    /* nothing */ { [] }
+  | btmodule btmodule_list { $1::$2 } /* rev?? */
+
+
+program:
+  main_module EOF { [$1] }
+  /*main_module btmodule_list EOF { $1, $2 }*/ /* rev?? */
+
+/*type fname = Constructor | FName of string*/
+
+
+
+literals:
+    ID { Id($1) }
+  | NULL { Null }
+  | LIT_BOOL { LitBool($1) }
+  | LIT_INT { LitInt($1) }
+  | LIT_DOUBLE { LitDouble($1) }
+  | LIT_STR { LitStr($1) }
+  /* | lit_array        { $1 } */
+  /*
+  lit_array:
+  | LBRACE stmt_list_plus RBRACE { Arr(($2), None) }
+  | LBRACK stmt_list_plus RBRACK { ArrMusic(($2)) }
+  | typename   BRACES  { Arr([], Some($1)) }
+  */
+
 /*----------------------------------------*/
 
+var_decl:
+    datatype ID SEP { VarDecl($1, $2, Noexpr) }  /* ?? */
+  | datatype ID ASSIGN expr SEP { VarDecl($1, $2, $4) }
 
-fdecl:
-   typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
-     { { returnType = Datatype($1);
-   fname = $2;
-   formals = $4;
-   body = List.rev $7 } }
 
 vdecl_list:
     /* nothing */    { [] }

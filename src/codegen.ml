@@ -90,7 +90,7 @@ and codegen_assign lhs rhs builder =
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
 
-and codegen_binop e1 (op : A.binary_operator) e2 builder =
+and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
   and e2' = codegen_expr builder e2 in
   (match op with
@@ -157,7 +157,7 @@ let codegen_func func =
   let llbuilder = L.builder_at_end context (L.entry_block llfunc) in
   let _ = codegen_stmt llbuilder (Block(func.body)) in
   (* Finish off the function. *)
-  if func.returnType = Datatype(Unit)
+  if func.returnType = A.Datatype(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
