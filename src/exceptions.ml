@@ -5,6 +5,8 @@ exception VariableDeclarationNotMatch of string
 exception UndefinedID of string
 exception ShouldNotHappenUnlessCompilerHasBug of string
 exception FuncNotFound of string * string
+exception DuplicateLocal of string
+exception VarDeclCheckFail of string
 
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string

@@ -134,10 +134,12 @@ let analyze program (btmodule : S.btmodule) =
 
 
 (* ------------------- check sast ------------------- *)
-
+(* DONE *)
 let check_vardecl_type d sast_expr =
-  true
-(* TODO: let t = get_type_from_expr sast_expr in  *)
+  let t = get_type_from_expr sast_expr in
+  if d = t
+  then true
+  else false
 
 (* ------------------- debug ------------------- *)
 
@@ -230,20 +232,32 @@ and analyze_assign env e1 e2 =
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
-  (* TODO: check type *)
-  env, S.Assign(se1, se2, t1)
+  (* DONE: check type *)
+  if t1 = t2(* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
+  then 
+    env, S.Assign(se1, se2, t1)
+  else
+    raise (Exceptions.VarDeclCheckFail "type check fail")
 
 and analyze_funccall env s el =
-  (* TODO: check func call *)
   let _, sast_el = build_sast_expr_list env el in
   try
     let func = StringMap.find s env.builtin_funcs in
     env, S.FuncCall(func.fname, sast_el, func.returnType)
+    (* TODO: check builtin funcs *)
   with | Not_found ->
   try
     let fname = env.name ^ "." ^ s in
     let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
-    env, S.FuncCall(fname, sast_el, func.returnType)
+    (* check if actuals match formals *)
+    (* number and types *)
+    let foo (actuals : S.expr list) (formals : A.bind list) = 
+      (**)
+
+      true 
+    in 
+    if foo sast_el func.formals then env, S.FuncCall(fname, sast_el, func.returnType)
+    else raise (Exceptions.FuncNotFound (env.name, s))
   with | Not_found -> raise (Exceptions.FuncNotFound (env.name, s))
   (*
   let actuals = handle_params func.sformals sel in
@@ -254,17 +268,19 @@ and analyze_funccall env s el =
 
 
 let build_sast_vardecl env d s e =
-  (* TODO: if StringMap.mem s env.env_locals
-     then raise (Exceptions.DuplicateLocal s)
-     else *)
-  let _, sast_expr = build_sast_expr env e in
-  if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
-  then
-    (* TODO: check if t is Unit *)
-    env.var_map <- StringMap.add s d env.var_map;
-  (* print_int (get_map_size env.var_map); *)
-  env, S.VarDecl(d, s, sast_expr)
-(* TODO: if the user-defined type being declared is not in global classes map, it is an undefined class *)
+  if StringMap.mem s env.var_map 
+  then 
+    raise (Exceptions.DuplicateLocal s)
+  else
+    let _, sast_expr = build_sast_expr env e in
+    if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
+    then
+      (* TODO: check if t is Unit jakeQ*)
+
+      env.var_map <- StringMap.add s d env.var_map;
+    (* print_int (get_map_size env.var_map); *)
+    env, S.VarDecl(d, s, sast_expr)
+(* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
 
 
 let rec build_sast_block env = function
@@ -404,29 +420,8 @@ let check (btmodule) =
 
  List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
- report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals); *)
-
-
-(*
-
-   let get_type_from_sexpr = function
-   SInt_Lit(_) -> Datatype(Int_t)
-   | SBoolean_Lit(_) -> Datatype(Bool_t)
-   | SFloat_Lit(_) -> Datatype(Float_t)
-   | SString_Lit(_) -> Arraytype(Char_t, 1)
-   | SChar_Lit(_) -> Datatype(Char_t)
-   | SId(_, d) -> d
-   | SBinop(_, _, _, d) -> d
-   | SAssign(_, _, d) -> d
-   | SNoexpr -> Datatype(Void_t)
-   | SArrayCreate(_, _, d) -> d
-   | SArrayAccess(_, _, d) -> d
-   | SObjAccess(_, _, d) -> d
-   | SCall(_, _, d, _) -> d
-   | SObjectCreate(_, _, d) -> d
-   | SArrayPrimitive(_, d) -> d
-   | SUnop(_, _, d) -> d
-   | SNull -> Datatype(Null_t)
-   | SDelete _ -> Datatype(Void_t)
-
+ report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals); 
 *)
+
+
+
