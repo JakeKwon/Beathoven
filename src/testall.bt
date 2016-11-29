@@ -1,11 +1,18 @@
+func bar() -> unit {
+    int a = 1;
+}
+
+print("hello");
+
 int a;
 
 a = 0;
-int b = a;
-print(b);
+print(a);
 
 func foo() -> unit {
     int a = 1;
 }
-/*
-*/
+
+int b = a;
+
+print(a);
