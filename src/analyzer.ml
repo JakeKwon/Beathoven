@@ -249,15 +249,19 @@ and analyze_funccall env s el =
   try
     let fname = env.name ^ "." ^ s in
     let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
-    (* check if actuals match formals *)
-    (* number and types *)
     let foo (actuals : S.expr list) (formals : A.bind list) = 
-      (**)
-
-      true 
+      (* todo: type checks as well ?list.iter typecheck each returntype? *)
+      if List.length actuals = List.length formals (* && *)
+      then
+        true 
+      else
+        false
     in 
-    if foo sast_el func.formals then env, S.FuncCall(fname, sast_el, func.returnType)
-    else raise (Exceptions.FuncNotFound (env.name, s))
+    if foo sast_el func.formals 
+    then 
+      env, S.FuncCall(fname, sast_el, func.returnType)
+    else 
+      raise (Exceptions.FuncCallCheckFail "funccall check failed")
   with | Not_found -> raise (Exceptions.FuncNotFound (env.name, s))
   (*
   let actuals = handle_params func.sformals sel in
@@ -276,7 +280,8 @@ let build_sast_vardecl env d s e =
     if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
     then
       (* TODO: check if t is Unit jakeQ*)
-
+      (* semant.ml's handle_expr_statement *)
+      (* dice, analyzer's local_handler *)
       env.var_map <- StringMap.add s d env.var_map;
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
@@ -332,12 +337,16 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   in
   let _, fbody = build_sast_stmt_list env func.body in
   (* TODO: check_fbody *)
-  {
-    S.fname = get_global_func_name mname func;
-    S.formals = func.formals;
-    S.returnType = func.returnType; (*??*)
-    S.body = fbody;
-  }
+  if true (* here *)
+  then
+    {
+      S.fname = get_global_func_name mname func;
+      S.formals = func.formals;
+      S.returnType = func.returnType; (*??*)
+      S.body = fbody;
+    }
+  else 
+    raise (Exceptions.CheckFbodyFail "check_fbody fail")
 
 
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =
