@@ -27,29 +27,35 @@ opam install llvm.3.8
 ```
 sudo ln -s /usr/local/opt/llvm38/bin/lli-3.8 /usr/bin/lli
 ```
+7. Install ocamlbuild
+```
+opam install core
+```
+8. Install yojson
+```
+opam install yojson
+```
 
 ### Run Tests (All)
 To make sure everything is working, navigate to the root directory of QL and run the following command:
 ```bash
-make
-cd test
-make
+make test
 ```
 The outputs should be generated.
 
-#### Run Scanner Tests
+#### Run Pass Tests
+```bash
+cd test; make
+./pass_test.sh
+```
+
+#### Run Scanner Tests - in progress
 ```bash
 cd test
 ./scanner_test.sh
 ```
 
-#### Run Pass Tests
-```bash
-cd test
-./pass_test.sh
-```
-
-#### Run Fail Tests
+#### Run Fail Tests - in progress
 ```bash
 cd test
 ./fail_test.sh

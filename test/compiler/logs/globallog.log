@@ -1,0 +1,294 @@
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Exceptions.InvalidTypePassedToPrintf
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+lli logs/math.bt.ll > logs/math.bt.out
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+lli logs/math.bt.ll > logs/math.bt.out
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+lli logs/math.bt.ll > logs/math.bt.out
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+###### SUCCESS
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printInt
+../../beathoven.sh -c pass/printInt.bt logs/printInt.bt.ll
+Fatal error: exception Exceptions.VarDeclCheckFail("type check fail")
+lli logs/printInt.bt.ll > logs/printInt.bt.out
+'main' function not found in module.
+diff -b logs/printInt.bt.out pass/printInt.out > logs/printInt.diff
+FAILED logs/printInt.bt.out differs from pass/printInt.out
+###### FAILED
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+Fatal error: exception Parsing.Parse_error
+lli logs/math.bt.ll > logs/math.bt.out
+'main' function not found in module.
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+FAILED logs/math.bt.out differs from pass/math.out
+###### FAILED
+
+###### Testing printStr
+../../beathoven.sh -c pass/printStr.bt logs/printStr.bt.ll
+lli logs/printStr.bt.ll > logs/printStr.bt.out
+diff -b logs/printStr.bt.out pass/printStr.out > logs/printStr.diff
+###### SUCCESS
+/usr/bin/lli
+
+###### Testing bool
+../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
+lli logs/bool.bt.ll > logs/bool.bt.out
+diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
+###### SUCCESS
+
+###### Testing helloworld
+../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
+lli logs/helloworld.bt.ll > logs/helloworld.bt.out
+diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
+###### SUCCESS
+
+###### Testing math
+../../beathoven.sh -c pass/math.bt logs/math.bt.ll
+lli logs/math.bt.ll > logs/math.bt.out
+diff -b logs/math.bt.out pass/math.out > logs/math.diff
+###### SUCCESS
+
+###### Testing printStr
+../../beathoven.sh -c pass/printStr.bt logs/printStr.bt.ll
+lli logs/printStr.bt.ll > logs/printStr.bt.out
+diff -b logs/printStr.bt.out pass/printStr.out > logs/printStr.diff
+###### SUCCESS

@@ -16,10 +16,10 @@ printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 # Set time limit for all operations
 ulimit -t 30
 
-globallog=testall.log
-rm -f $globallog
-rm -f ll.*
-rm -f out.*
+globallog=logs/globallog.log
+rm -f logs/$globallog
+rm -f logs/*.ll
+rm -f logs/*.out
 error=0
 globalerror=0
 totalfiles=0
@@ -37,7 +37,7 @@ Usage() {
 
 LLIFail() {
   echo "Could not find the LLVM interpreter \"$LLI\"."
-  echo "Check your LLVM installation and/or modify the LLI variable in testall.sh"
+  echo "Check your LLVM installation and/or modify the LLI variable in pass_test.sh"
   exit 1
 }
 
@@ -58,7 +58,6 @@ which "$LLI" >> $globallog || LLIFail
 Run() {
     echo $* 1>&2
     eval $*
-    # || {
     #     SignalError "$1 failed on $*"
     #     return 1
     # }
@@ -68,7 +67,7 @@ Compare() {
     generatedfiles="$generatedfiles $3"
     echo diff -b $1 $2 ">" $3 1>&2
     diff -b "$1" "$2" > "$3" 2>&1 || {
-        SignalError "$1 differs"
+        SignalError "$1 differs. See globallog.log file for breakdown."
         echo "FAILED $1 differs from $2" 1>&2
     }
 }
@@ -94,7 +93,7 @@ Check(){
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # Run "$BEAT" "<" $1 ${basename}.ll ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
-    Compare "$TMP_OUT_FILE" ${reffile}.out ${basename}.diff
+    Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
     # printf "\nRunning $BEAT < $1 ${basename}.ll > ${basename}.ll\n"
 
     # Report the status and clean up the generated files
@@ -123,12 +122,13 @@ files="pass/*.bt"
 #       ;;
 #     esac
 # done
-
+$(mktemp -d "logs")
 for file in $files
 do
+  # printf ${file:5}
   totalfiles=$(($totalfiles + $one))
-  TMP_LLI_FILE=$(mktemp "ll.XXXXX")
-  TMP_OUT_FILE=$(mktemp "out.XXXXX")
+  TMP_LLI_FILE=$(mktemp "logs/${file:5}.ll")
+  TMP_OUT_FILE=$(mktemp "logs/${file:5}.out")
 
   # TMP_LLI_FILE= $(mktemp "ll.XXXX")
   # TMP_OUT_FILE= $(mktemp "out.XXXX")
