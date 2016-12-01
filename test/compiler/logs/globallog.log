@@ -1,5 +1,11 @@
 /usr/bin/lli
 
+###### Testing all
+../../beathoven.sh -c pass/all.bt logs/all.bt.ll
+lli logs/all.bt.ll > logs/all.bt.out
+diff -b logs/all.bt.out pass/all.out > logs/all.diff
+###### SUCCESS
+
 ###### Testing bool
 ../../beathoven.sh -c pass/bool.bt logs/bool.bt.ll
 lli logs/bool.bt.ll > logs/bool.bt.out
