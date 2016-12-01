@@ -232,10 +232,14 @@ and analyze_assign env e1 e2 =
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
+  let a =  check_vardecl_type t1 se1 in
+  let b =  check_vardecl_type t2 se2 in
+
   (* DONE: check type *)
-  if t1 = t2(* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
-  then 
+  if t1 = t2 || a = b(* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
+  then
     env, S.Assign(se1, se2, t1)
+
   else
     raise (Exceptions.VarDeclCheckFail "type check fail")
 
@@ -249,18 +253,18 @@ and analyze_funccall env s el =
   try
     let fname = env.name ^ "." ^ s in
     let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
-    let foo (actuals : S.expr list) (formals : A.bind list) = 
+    let foo (actuals : S.expr list) (formals : A.bind list) =
       (* todo: type checks as well ?list.iter typecheck each returntype? *)
       if List.length actuals = List.length formals (* && *)
       then
-        true 
+        true
       else
         false
-    in 
-    if foo sast_el func.formals 
-    then 
+    in
+    if foo sast_el func.formals
+    then
       env, S.FuncCall(fname, sast_el, func.returnType)
-    else 
+    else
       raise (Exceptions.FuncCallCheckFail "funccall check failed")
   with | Not_found -> raise (Exceptions.FuncNotFound (env.name, s))
   (*
@@ -272,8 +276,8 @@ and analyze_funccall env s el =
 
 
 let build_sast_vardecl env d s e =
-  if StringMap.mem s env.var_map 
-  then 
+  if StringMap.mem s env.var_map
+  then
     raise (Exceptions.DuplicateLocal s)
   else
     let _, sast_expr = build_sast_expr env e in
@@ -345,7 +349,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
       S.returnType = func.returnType; (*??*)
       S.body = fbody;
     }
-  else 
+  else
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
 
 
@@ -429,7 +433,7 @@ let check (btmodule) =
 
  List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
- report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals); 
+ report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
 *)
 
 
