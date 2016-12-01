@@ -17,9 +17,10 @@ printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 ulimit -t 30
 
 globallog=logs/globallog.log
-rm -f logs/$globallog
+rm -f logs/globallog.log
 rm -f logs/*.ll
 rm -f logs/*.out
+rm -f logs/*.diff
 error=0
 globalerror=0
 totalfiles=0
@@ -122,7 +123,6 @@ files="pass/*.bt"
 #       ;;
 #     esac
 # done
-$(mktemp -d "logs")
 for file in $files
 do
   # printf ${file:5}
