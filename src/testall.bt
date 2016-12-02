@@ -11,8 +11,12 @@ print(a);
 
 func foo() -> unit {
     int a = 1;
+    print("foo works");
 }
 
 int b = a;
 
 print(a);
+
+foo();
+
