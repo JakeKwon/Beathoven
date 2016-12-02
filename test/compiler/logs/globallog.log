@@ -12,6 +12,15 @@ lli logs/bool.bt.ll > logs/bool.bt.out
 diff -b logs/bool.bt.out pass/bool.out > logs/bool.diff
 ###### SUCCESS
 
+###### Testing functions
+../../beathoven.sh -c pass/functions.bt logs/functions.bt.ll
+Fatal error: exception Exceptions.VariableNotDefined("n")
+lli logs/functions.bt.ll > logs/functions.bt.out
+'main' function not found in module.
+diff -b logs/functions.bt.out pass/functions.out > logs/functions.diff
+FAILED logs/functions.bt.out differs from pass/functions.out
+###### FAILED
+
 ###### Testing helloworld
 ../../beathoven.sh -c pass/helloworld.bt logs/helloworld.bt.ll
 lli logs/helloworld.bt.ll > logs/helloworld.bt.out
@@ -20,7 +29,7 @@ diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
 
 ###### Testing if
 ../../beathoven.sh -c pass/if.bt logs/if.bt.ll
-Fatal error: exception File "codegen.ml", line 129, characters 31-36: Pattern matching failed
+Fatal error: exception File "codegen.ml", line 136, characters 31-36: Pattern matching failed
 lli logs/if.bt.ll > logs/if.bt.out
 'main' function not found in module.
 diff -b logs/if.bt.out pass/if.out > logs/if.diff

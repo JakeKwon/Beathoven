@@ -4,6 +4,4 @@ func printhelloworld() -> unit {
   print("hello world");
 }
 
-/*
 printhelloworld();
-*/
