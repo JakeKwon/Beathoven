@@ -11,6 +11,13 @@ module SS = Set.Make(
     type t = datatype
   end )
 
+(* 
+let update_call_stack env in_for in_while = 
+{
+  env_returnType = env.env_returnType;
+  env_in_for     = in_for;
+  env_in_while   = in_while;
+} *)
 
 (* BINARY TYPES *)
 
@@ -302,13 +309,13 @@ and build_sast_stmt env (stmt : A.stmt) =
   match stmt with
     Block sl -> build_sast_block env sl
   | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
-  (* | Return e -> check_return e env *)
-    | If (e, s1, s2) -> check_if e s1 s2 env
+  | Return e -> check_return e env
+  | If (e, s1, s2) -> check_if e s1 s2 env
      (* | If (se, s1, s2) -> check_stmt se s1 env *)
      (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
-     (* | While(e, s) -> check_while e s env *)
-     (* | Break -> check_break env TODO: Need to check if in right context *)
-     (* | Continue -> check_continue env TODO: Need to check if in right context *)
+  | While(e, s) -> check_while e s env
+  | Break -> check_break env TODO: Need to check if in right context
+  | Continue -> check_continue env TODO: Need to check if in right context
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
@@ -321,6 +328,54 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
   env, sast_stmt_list
 
 (* build_sast_expr env e in env, get_stmt_from_expr se *)
+(* and check_if e s1 s2 env =
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  let _, ifbody = build_sast_stmt env s1 in
+  let _, elsebody = build_sast_stmt env s2 in
+  if t = A.Datatype(Bool)
+    then env, S.If(se, ifbody, elsebody)
+    else raise (Exceptions.IfComparisonNotBool "foo") *)
+
+(* and check_while e s env =
+  let old_val = env.env_in_while in
+  let env = update_call_stack env env.env_in_for true in
+
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  let sstmt, _ = parse_stmt env s in 
+  let swhile = 
+    if (t = A.Datatype(Bool) || t = A.Datatype(Unit)) 
+      then S.While(se, sstmt)
+      else raise Exceptions.InvalidWhileStatementType
+  in
+
+  let env = update_call_stack env env.env_in_for old_val in
+  swhile, env *)
+
+
+and check_sblock sl env = match sl with
+    []  -> S.Block([S.Expr(S.Noexpr, A.Datatype(Unit))])
+  | _   -> 
+    let sl, _ = convert_stmt_list_to_sstmt_list env sl in
+    S.Block(sl)
+
+and check_expr_stmt e env = 
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in 
+  env, S.Expr(se, t)
+
+and check_return e env = 
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in 
+  match t, env.env_returnType with 
+    (* A.Datatype(Unit), Datatype(Objecttype(_)) 
+  |   Datatype(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
+  |   _ -> 
+  if t = env.env_returnType 
+    then env, S.Return(se, t)
+    else raise (Exceptions.ReturnTypeMismatch(string_of_datatype t, string_of_datatype env.env_returnType))
+
 and check_if e s1 s2 env =
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
@@ -329,7 +384,79 @@ and check_if e s1 s2 env =
   if t = A.Datatype(Bool)
     then env, S.If(se, ifbody, elsebody)
     else raise (Exceptions.IfComparisonNotBool "foo")
+(* 
+and check_for e1 e2 e3 s env = 
+  let old_val = env.env_in_for in
+  (* let env = update_call_stack env true env.env_in_while in *)
+  env.env_in_for <- true; 
+  let _, se1 = build_sast_expr env e1 in
+  let _, se2 = build_sast_expr env e2 in
+  let _, se3 = build_sast_expr env e3 in
+  let forbody, _ = parse_stmt env s in
+  let conditional = get_type_from_expr se2 in
+  let sfor = 
+    if (conditional = A.Datatype(Bool) || conditional = A.Datatype(Unit))
+      then S.For(se1, se2, se3, forbody)
+      else raise (Exceptions.InvalidForStatementType "foo")
+  in
 
+  (* let env = update_call_stack env old_val env.env_in_while in *)
+  env.env_in_for <- old_val;
+  sfor, env
+ *)
+and check_while e s env =
+  let old_val = env.env_in_while in
+  (* let env = update_call_stack env env.env_in_for true in *)
+  env.env_in_while <- true;
+  
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  let _, sstmt = parse_stmt env s in 
+  let swhile = 
+    if (t = A.Datatype(Bool) || t = A.Datatype(Unit)) 
+      then S.While(se, sstmt)
+      else raise Exceptions.InvalidWhileStatementType
+  in
+
+  (* let env = update_call_stack env env.env_in_for old_val in *)
+  env.env_in_while <- old_val;
+  env, swhile
+
+and check_break env = 
+  if env.env_in_for || env.env_in_while then
+    env, S.Break
+  else
+    raise Exceptions.CannotCallBreakOutsideOfLoop
+
+and check_continue env = 
+  if env.env_in_for || env.env_in_while then
+    env, S.Continue
+  else
+    raise Exceptions.CannotCallContinueOutsideOfLoop
+
+and parse_stmt env = function
+      Block sl            -> env, check_sblock sl env
+  |   Expr e              -> check_expr_stmt e env
+  |   Return e            -> check_return e env
+  |   If(e, s1, s2)       -> check_if e s1 s2 env
+  (* |   For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env   *)
+  |   While(e, s)         -> check_while e s env
+  |   Break               -> check_break env (* Need to check if in right context *)
+  |   Continue            -> check_continue env (* Need to check if in right context *)
+  (* |   Local(d, s, e)      -> local_handler d s e env *)
+
+(* Update this function to return an env object *)
+and convert_stmt_list_to_sstmt_list env stmt_list = 
+  let env_ref = ref(env) in
+  let rec iter = function
+    head::tail ->
+    let env, a_head = parse_stmt !env_ref head in
+    env_ref := env;
+    a_head::(iter tail)
+  | [] -> []
+  in 
+  let sstmt_list = (iter stmt_list), !env_ref in
+  sstmt_list
 
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   let env =
@@ -347,6 +474,9 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
       formal_map = formal_map; (* current func *)
       btmodule = btmodule_env; (* current module *)
       btmodule_map = btmodule_map;
+      env_returnType = func.returnType;
+      env_in_for = false;
+      env_in_while = false;
     }
   in
   let _, fbody = build_sast_stmt_list env func.body in

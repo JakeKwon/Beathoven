@@ -27,9 +27,9 @@ type env = {
   btmodule : btmodule_env; (* current module *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;
-  (* env_returnType: datatype;
-     env_in_for : bool;
-     env_in_while : bool; *)
+  mutable env_returnType: A.datatype;
+  mutable env_in_for : bool;
+  mutable env_in_while : bool;
 }
 
 (*

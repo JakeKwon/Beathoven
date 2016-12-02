@@ -116,7 +116,7 @@ let rec json_of_stmt stmt =
 
     | If (e, s1, s2) -> `Assoc [("sif", `Assoc [("cond", json_of_expr e); ("ifbody", json_of_stmt s1)]); ("selse", json_of_stmt s2)]
     (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)
-    (* | While (e, s) -> `Assoc [("swhile", `Assoc [("cond", map_sexpr_to_json e); ("body", map_sstmt_to_json s)])] *)
+    | While (e, s) -> `Assoc [("swhile", `Assoc [("cond", json_of_expr e); ("body", json_of_stmt s)])]
     | Break -> `String "sbreak"
     | Continue -> `String "scontinue"
 

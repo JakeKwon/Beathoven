@@ -11,8 +11,11 @@ exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
 exception IfComparisonNotBool of string
 exception InvalidBinopExpression of string
-
-
+exception ReturnTypeMismatch of string * string
+exception InvalidForStatementType of string
+exception CannotCallBreakOutsideOfLoop
+exception CannotCallContinueOutsideOfLoop
+exception InvalidWhileStatementType
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrintf
