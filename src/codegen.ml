@@ -146,6 +146,13 @@ let codegen_def_func func =
   let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
+let codegen_funccall fname el d builder = 
+  let f = lookup_func fname in
+  let params = List.map (codegen_expr builder) el in
+  match d with
+  A.Datatype(A.Unit) -> L.build_call f (Array.of_list params) "" builder
+  |   _ ->        L.build_call f (Array.of_list params) "tmp" builder
+
 let codegen_func func =
 (*
   Hashtbl.clear named_values;
