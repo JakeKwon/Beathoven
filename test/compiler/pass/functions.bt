@@ -1,0 +1,7 @@
+
+func printHello() -> unit {
+    print("hello");
+}
+
+printHello();
+printHello();

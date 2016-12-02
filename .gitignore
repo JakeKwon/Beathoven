@@ -6,6 +6,8 @@ scanner.ml
 parser.ml
 parser.mli
 
+*foo.ll
+
 *.cmi
 *.cmo
 
