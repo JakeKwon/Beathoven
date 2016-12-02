@@ -5,51 +5,51 @@ module S = Sast
 open Environment
 open Pprint
 
-
+module SS = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = datatype
+  end )
 
 
 (* BINARY TYPES *)
-(*
+
 let get_equality_binop_type type1 type2 se1 se2 op =
   (* Equality op not supported for float operands. The correct way to test floats
      for equality is to check the difference between the operands in question *)
-  if (type1 = Datatype(Float_t) || type2 = Datatype(Float_t)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Float types")
+  if (type1 = A.Datatype(Double) || type2 = A.Datatype(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
   else
-    match type1, type2 with
-      Datatype(Char_t), Datatype(Int_t)
-    | Datatype(Int_t), Datatype(Char_t)
-    | Datatype(Objecttype(_)), Datatype(Null_t)
-    | Datatype(Null_t), Datatype(Objecttype(_))
-    | Datatype(Null_t), Arraytype(_, _)
-    | Arraytype(_, _), Datatype(Null_t) -> S.Binop(se1, op, se2, Datatype(Bool_t))
+    match type1, type2 with(* 
+      A.Datatype(Char_t), Datatype(Int)
+    | Datatype(Int), Datatype(Char_t) -> env, S.Binop(se1, op, se2, A.Datatype(Bool)) *)
     | _ ->
-      if type1 = type2 then S.Binop(se1, op, se2, Datatype(Bool_t))
-      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types, with the exception of Int_t and Char_t")
+      if type1 = type2 then S.Binop(se1, op, se2, A.Datatype(Bool))
+      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
 
 let get_logical_binop_type se1 se2 op = function
-    (Datatype(Bool_t), Datatype(Bool_t)) -> S.Binop(se1, op, se2, Datatype(Bool_t))
-  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool_t types")
+    (A.Datatype(Bool), A.Datatype(Bool)) -> S.Binop(se1, op, se2, A.Datatype(Bool))
+  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
 
 let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [Datatype(Int_t); Datatype(Char_t); Datatype(Float_t)]
+  let numerics = SS.of_list [A.Datatype(Int); A.Datatype(Double)]
   in
   if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, Datatype(Bool_t))
+  then S.Binop(se1, op, se2, A.Datatype(Bool))
   else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
 
 let get_arithmetic_binop_type se1 se2 op = function
-    (Datatype(Int_t), Datatype(Float_t))
-  | (Datatype(Float_t), Datatype(Int_t))
-  | (Datatype(Float_t), Datatype(Float_t)) -> S.Binop(se1, op, se2, Datatype(Float_t))
+    (A.Datatype(Int), A.Datatype(Double))
+  | (A.Datatype(Double), A.Datatype(Int))
+  | (A.Datatype(Double), A.Datatype(Double)) -> S.Binop(se1, op, se2, A.Datatype(Double))
 
-  | (Datatype(Int_t), Datatype(Char_t))
-  | (Datatype(Char_t), Datatype(Int_t))
-  | (Datatype(Char_t), Datatype(Char_t)) -> S.Binop(se1, op, se2, Datatype(Char_t))
-
-  | (Datatype(Int_t), Datatype(Int_t)) -> S.Binop(se1, op, se2, Datatype(Int_t))
+  (* | (A.Datatype(Int), A.Datatype(Char_t))
+  | (A.Datatype(Char_t), A.Datatype(Int))
+  | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
+ *)
+  | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
- *)
+ 
 
 
 
@@ -117,7 +117,7 @@ let rec check_stmt returnType (stmt : S.stmt) =
   match stmt with
     Block sl -> List.iter (check_stmt returnType) sl
   (* | Expr e -> check_expr e *)
-  (* | If (e, s, s) -> *)
+  | If (e, _, _) -> if get_type_from_expr e != A.Datatype(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
   (* | While of expr * stmt *)
   | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
   (* | Break -> () *)
@@ -128,6 +128,8 @@ let rec check_stmt returnType (stmt : S.stmt) =
 let check_func (btfunc : S.func_decl) =
   (* List.iter check_bind func.formals; *)
   List.iter (check_stmt btfunc.returnType) btfunc.body
+
+(* let check_if () =  *)
 
 let analyze program (btmodule : S.btmodule) =
   List.iter check_func btmodule.funcs
@@ -193,19 +195,20 @@ and build_sast_expr_list env (expr_list:A.expr list) =
 (* --- Analyze expressions --- *)
 
 and analyze_binop env e1 op e2 =
-  env, S.Noexpr (* env, Binop (e1,op,e2,_) *)
-    (*
-    let se1, env = expr_to_sexpr env e1 in
-    let se2, env = expr_to_sexpr env e2 in
-    let type1 = get_type_from_sexpr se1 in
-    let type2 = get_type_from_sexpr se2 in
-    match op with
-      Equal | Neq -> get_equality_binop_type type1 type2 se1 se2 op
-    | And | Or -> get_logical_binop_type se1 se2 op (type1, type2)
-    | Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
-    | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
-    | _ -> raise (Exceptions.InvalidBinopExpression ((Utils.string_of_op op) ^ " is not a supported binary op"))
-   *)
+  (* env, S.Noexpr  *)
+  (* env, Binop (e1,op,e2,_) *)
+  
+  let _, se1 = build_sast_expr env e1 in
+  let _, se2 = build_sast_expr env e2 in
+  let t1 = get_type_from_expr se1 in
+  let t2 = get_type_from_expr se2 in
+  match op with
+    Equal | Neq                     -> env, get_equality_binop_type t1 t2 se1 se2 op
+  | And | Or                        -> env, get_logical_binop_type se1 se2 op (t1, t2)
+  | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
+  | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
+  | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
+ 
 
 and analyze_unop env op e =
   env, S.Noexpr (* env, Uniop (op,e,_) *)
@@ -221,8 +224,8 @@ and analyze_unop env op e =
     let se, env = expr_to_sexpr env e in
     let t = get_type_from_sexpr se in
     match t with
-      Datatype(Int_t)
-    | Datatype(Float_t) -> S.Unop(op, se, check_num_unop t op)
+      Datatype(Int)
+    | Datatype(Double) -> S.Unop(op, se, check_num_unop t op)
     | Datatype(Bool_t) -> S.Unop(op, se, check_bool_unop op)
     | _ -> raise(Exceptions.InvalidUnaryOperation)
   *)
@@ -232,10 +235,12 @@ and analyze_assign env e1 e2 =
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
+
   (* DONE: check type *)
-  if t1 = t2(* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
-  then 
+  if t1 = t2 (* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
+  then
     env, S.Assign(se1, se2, t1)
+
   else
     raise (Exceptions.VarDeclCheckFail "type check fail")
 
@@ -249,18 +254,18 @@ and analyze_funccall env s el =
   try
     let fname = env.name ^ "." ^ s in
     let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
-    let foo (actuals : S.expr list) (formals : A.bind list) = 
+    let foo (actuals : S.expr list) (formals : A.bind list) =
       (* todo: type checks as well ?list.iter typecheck each returntype? *)
       if List.length actuals = List.length formals (* && *)
       then
-        true 
+        true
       else
         false
-    in 
-    if foo sast_el func.formals 
-    then 
+    in
+    if foo sast_el func.formals
+    then
       env, S.FuncCall(fname, sast_el, func.returnType)
-    else 
+    else
       raise (Exceptions.FuncCallCheckFail "funccall check failed")
   with | Not_found -> raise (Exceptions.FuncNotFound (env.name, s))
   (*
@@ -272,8 +277,8 @@ and analyze_funccall env s el =
 
 
 let build_sast_vardecl env d s e =
-  if StringMap.mem s env.var_map 
-  then 
+  if StringMap.mem s env.var_map
+  then
     raise (Exceptions.DuplicateLocal s)
   else
     let _, sast_expr = build_sast_expr env e in
@@ -296,15 +301,14 @@ let rec build_sast_block env = function
 and build_sast_stmt env (stmt : A.stmt) =
   match stmt with
     Block sl -> build_sast_block env sl
-  | Expr e ->
-    let _, se = build_sast_expr env e in
-    env, get_stmt_from_expr se
-  (* | Return e -> check_return e env
-     | If(e, s1, s2) -> check_if e s1 s2	env
-     | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env
-     | While(e, s) -> check_while e s env
-     | Break -> check_break env (* TODO: Need to check if in right context *)
-     | Continue -> check_continue env (* TODO: Need to check if in right context *) *)
+  | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
+  (* | Return e -> check_return e env *)
+    | If (e, s1, s2) -> check_if e s1 s2 env
+     (* | If (se, s1, s2) -> check_stmt se s1 env *)
+     (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
+     (* | While(e, s) -> check_while e s env *)
+     (* | Break -> check_break env TODO: Need to check if in right context *)
+     (* | Continue -> check_continue env TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
@@ -315,6 +319,16 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
   let sast_stmt_list = List.map helper_stmt stmt_list in
   (* print_int (get_map_size env.var_map); *)
   env, sast_stmt_list
+
+(* build_sast_expr env e in env, get_stmt_from_expr se *)
+and check_if e s1 s2 env =
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  let _, ifbody = build_sast_stmt env s1 in
+  let _, elsebody = build_sast_stmt env s2 in
+  if t = A.Datatype(Bool)
+    then env, S.If(se, ifbody, elsebody)
+    else raise (Exceptions.IfComparisonNotBool "foo")
 
 
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
@@ -345,7 +359,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
       S.returnType = func.returnType; (*??*)
       S.body = fbody;
     }
-  else 
+  else
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
 
 
@@ -429,7 +443,7 @@ let check (btmodule) =
 
  List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
 
- report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals); 
+ report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
 *)
 
 
