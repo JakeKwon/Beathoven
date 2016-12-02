@@ -109,6 +109,13 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Or -> L.build_or
   ) e1' e2' "tmp" builder
 
+and codegen_funccall fname el d builder = 
+  let f = lookup_func fname in
+  let params = List.map (codegen_expr builder) el in
+  match d with
+  A.Datatype(A.Unit) -> L.build_call f (Array.of_list params) "" builder
+  |   _ ->        L.build_call f (Array.of_list params) "tmp" builder
+
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
     Id(s, _) -> L.build_load (lookup s) s builder
@@ -119,10 +126,10 @@ and codegen_expr builder = function
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
-  | FuncCall(f, el, _) ->
-    (match f with
+  | FuncCall(fname, el, d) ->
+    (match fname with
        "printf" -> codegen_print el builder
-     | _ -> raise (Exceptions.LLVMFunctionNotFound f)) (* not implemented *)
+       | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
 
 
@@ -145,13 +152,6 @@ let codegen_def_func func =
   let formals_lltype = List.map (fun (t, _) -> lltype_of_datatype t) func.formals in
   let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
-
-let codegen_funccall fname el d builder = 
-  let f = lookup_func fname in
-  let params = List.map (codegen_expr builder) el in
-  match d with
-  A.Datatype(A.Unit) -> L.build_call f (Array.of_list params) "" builder
-  |   _ ->        L.build_call f (Array.of_list params) "tmp" builder
 
 let codegen_func func =
 (*
