@@ -117,7 +117,7 @@ let rec check_stmt returnType (stmt : S.stmt) =
   match stmt with
     Block sl -> List.iter (check_stmt returnType) sl
   (* | Expr e -> check_expr e *)
-  (* | If (e, s, s) -> *)
+  | If (e, _, _) -> if get_type_from_expr e != A.Datatype(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
   (* | While of expr * stmt *)
   | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
   (* | Break -> () *)
@@ -128,6 +128,8 @@ let rec check_stmt returnType (stmt : S.stmt) =
 let check_func (btfunc : S.func_decl) =
   (* List.iter check_bind func.formals; *)
   List.iter (check_stmt btfunc.returnType) btfunc.body
+
+(* let check_if () =  *)
 
 let analyze program (btmodule : S.btmodule) =
   List.iter check_func btmodule.funcs
@@ -232,11 +234,9 @@ and analyze_assign env e1 e2 =
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
-  let a =  check_vardecl_type t1 se1 in
-  let b =  check_vardecl_type t2 se2 in
 
   (* DONE: check type *)
-  if t1 = t2 || a = b(* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
+  if t1 = t2 (* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
   then
     env, S.Assign(se1, se2, t1)
 
@@ -300,15 +300,14 @@ let rec build_sast_block env = function
 and build_sast_stmt env (stmt : A.stmt) =
   match stmt with
     Block sl -> build_sast_block env sl
-  | Expr e ->
-    let _, se = build_sast_expr env e in
-    env, get_stmt_from_expr se
-  (* | Return e -> check_return e env
-     | If(e, s1, s2) -> check_if e s1 s2	env
-     | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env
-     | While(e, s) -> check_while e s env
-     | Break -> check_break env (* TODO: Need to check if in right context *)
-     | Continue -> check_continue env (* TODO: Need to check if in right context *) *)
+  | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
+  (* | Return e -> check_return e env *)
+    | If (e, s1, s2) -> check_if e s1 s2 env
+     (* | If (se, s1, s2) -> check_stmt se s1 env *)
+     (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
+     (* | While(e, s) -> check_while e s env *)
+     (* | Break -> check_break env TODO: Need to check if in right context *)
+     (* | Continue -> check_continue env TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
@@ -319,6 +318,16 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
   let sast_stmt_list = List.map helper_stmt stmt_list in
   (* print_int (get_map_size env.var_map); *)
   env, sast_stmt_list
+
+(* build_sast_expr env e in env, get_stmt_from_expr se *)
+and check_if e s1 s2 env =
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  let _, ifbody = build_sast_stmt env s1 in
+  let _, elsebody = build_sast_stmt env s2 in
+  if t = A.Datatype(Bool)
+    then env, S.If(se, ifbody, elsebody)
+    else raise (Exceptions.IfComparisonNotBool "foo")
 
 
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =

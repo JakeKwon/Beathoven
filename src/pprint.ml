@@ -113,13 +113,13 @@ let rec json_of_stmt stmt =
       Block sl -> `Assoc [("block", `List (List.map json_of_stmt sl))]
     | Expr(e, d) -> `Assoc [("expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
-  (*
-    | If (e, s1, s2) -> `Assoc [("sif", `Assoc [("cond", map_sexpr_to_json e); ("ifbody", map_sstmt_to_json s1)]); ("selse", map_sstmt_to_json s2)]
-    | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])]
-    | While (e, s) -> `Assoc [("swhile", `Assoc [("cond", map_sexpr_to_json e); ("body", map_sstmt_to_json s)])]
+
+    | If (e, s1, s2) -> `Assoc [("sif", `Assoc [("cond", json_of_expr e); ("ifbody", json_of_stmt s1)]); ("selse", json_of_stmt s2)]
+    (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)
+    (* | While (e, s) -> `Assoc [("swhile", `Assoc [("cond", map_sexpr_to_json e); ("body", map_sstmt_to_json s)])] *)
     | Break -> `String "sbreak"
     | Continue -> `String "scontinue"
-    *)
+
     | VarDecl(d, s, e) -> `Assoc [("vardecl",
                                    `Assoc [tuple_of_datatype d; ("name", `String s); ("val", json_of_expr e)])]
   in stmt_json
