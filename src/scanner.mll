@@ -25,6 +25,7 @@ rule token = parse
   | whitespace { token lexbuf }
   | separator { SEP }
   | "/*" { comment lexbuf } (* Comments *)
+  | "//" { comment_oneline lexbuf }
 (* ------------- Scoping ------------- *)
   | '(' { LPAREN }
   | ')' { RPAREN }
@@ -112,6 +113,10 @@ rule token = parse
 and comment = parse
     "*/" { token lexbuf }
   | _ { comment lexbuf }
+
+and comment_oneline = parse
+    (newline | eof) { token lexbuf } 
+  | _ { comment_oneline lexbuf }
 
 
 (*
