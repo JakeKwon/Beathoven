@@ -5,7 +5,11 @@ module S = Sast
 open Environment
 open Pprint
 
-
+module SS = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = datatype
+  end )
 
 
 (* BINARY TYPES *)
@@ -26,14 +30,13 @@ let get_logical_binop_type se1 se2 op = function
     (A.Datatype(Bool), A.Datatype(Bool)) -> S.Binop(se1, op, se2, A.Datatype(Bool))
   | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
 
-(*
 let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [Datatype(Int_t); Datatype(Char_t); Datatype(Float_t)]
+  let numerics = SS.of_list [A.Datatype(Int); A.Datatype(Double)]
   in
   if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, Datatype(Bool_t))
+  then S.Binop(se1, op, se2, A.Datatype(Bool))
   else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
-
+(*
 let get_arithmetic_binop_type se1 se2 op = function
     (Datatype(Int_t), Datatype(Float_t))
   | (Datatype(Float_t), Datatype(Int_t))
@@ -198,10 +201,10 @@ and analyze_binop env e1 op e2 =
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
   match op with
-    Equal | Neq   -> env, get_equality_binop_type t1 t2 se1 se2 op
-  | And | Or      -> env, get_logical_binop_type se1 se2 op (t1, t2)
-  (*| Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
-  | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
+    Equal | Neq                     -> env, get_equality_binop_type t1 t2 se1 se2 op
+  | And | Or                        -> env, get_logical_binop_type se1 se2 op (t1, t2)
+  | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
+  (*| Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
    *)| _ -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
  
 
