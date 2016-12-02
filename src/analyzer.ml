@@ -5,51 +5,51 @@ module S = Sast
 open Environment
 open Pprint
 
-
+module SS = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = datatype
+  end )
 
 
 (* BINARY TYPES *)
-(*
+
 let get_equality_binop_type type1 type2 se1 se2 op =
   (* Equality op not supported for float operands. The correct way to test floats
      for equality is to check the difference between the operands in question *)
-  if (type1 = Datatype(Float_t) || type2 = Datatype(Float_t)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Float types")
+  if (type1 = A.Datatype(Double) || type2 = A.Datatype(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
   else
-    match type1, type2 with
-      Datatype(Char_t), Datatype(Int_t)
-    | Datatype(Int_t), Datatype(Char_t)
-    | Datatype(Objecttype(_)), Datatype(Null_t)
-    | Datatype(Null_t), Datatype(Objecttype(_))
-    | Datatype(Null_t), Arraytype(_, _)
-    | Arraytype(_, _), Datatype(Null_t) -> S.Binop(se1, op, se2, Datatype(Bool_t))
+    match type1, type2 with(* 
+      A.Datatype(Char_t), Datatype(Int)
+    | Datatype(Int), Datatype(Char_t) -> env, S.Binop(se1, op, se2, A.Datatype(Bool)) *)
     | _ ->
-      if type1 = type2 then S.Binop(se1, op, se2, Datatype(Bool_t))
-      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types, with the exception of Int_t and Char_t")
+      if type1 = type2 then S.Binop(se1, op, se2, A.Datatype(Bool))
+      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
 
 let get_logical_binop_type se1 se2 op = function
-    (Datatype(Bool_t), Datatype(Bool_t)) -> S.Binop(se1, op, se2, Datatype(Bool_t))
-  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool_t types")
+    (A.Datatype(Bool), A.Datatype(Bool)) -> S.Binop(se1, op, se2, A.Datatype(Bool))
+  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
 
 let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [Datatype(Int_t); Datatype(Char_t); Datatype(Float_t)]
+  let numerics = SS.of_list [A.Datatype(Int); A.Datatype(Double)]
   in
   if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, Datatype(Bool_t))
+  then S.Binop(se1, op, se2, A.Datatype(Bool))
   else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
 
 let get_arithmetic_binop_type se1 se2 op = function
-    (Datatype(Int_t), Datatype(Float_t))
-  | (Datatype(Float_t), Datatype(Int_t))
-  | (Datatype(Float_t), Datatype(Float_t)) -> S.Binop(se1, op, se2, Datatype(Float_t))
+    (A.Datatype(Int), A.Datatype(Double))
+  | (A.Datatype(Double), A.Datatype(Int))
+  | (A.Datatype(Double), A.Datatype(Double)) -> S.Binop(se1, op, se2, A.Datatype(Double))
 
-  | (Datatype(Int_t), Datatype(Char_t))
-  | (Datatype(Char_t), Datatype(Int_t))
-  | (Datatype(Char_t), Datatype(Char_t)) -> S.Binop(se1, op, se2, Datatype(Char_t))
-
-  | (Datatype(Int_t), Datatype(Int_t)) -> S.Binop(se1, op, se2, Datatype(Int_t))
+  (* | (A.Datatype(Int), A.Datatype(Char_t))
+  | (A.Datatype(Char_t), A.Datatype(Int))
+  | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
+ *)
+  | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
- *)
+ 
 
 
 
@@ -195,19 +195,20 @@ and build_sast_expr_list env (expr_list:A.expr list) =
 (* --- Analyze expressions --- *)
 
 and analyze_binop env e1 op e2 =
-  env, S.Noexpr (* env, Binop (e1,op,e2,_) *)
-    (*
-    let se1, env = expr_to_sexpr env e1 in
-    let se2, env = expr_to_sexpr env e2 in
-    let type1 = get_type_from_sexpr se1 in
-    let type2 = get_type_from_sexpr se2 in
-    match op with
-      Equal | Neq -> get_equality_binop_type type1 type2 se1 se2 op
-    | And | Or -> get_logical_binop_type se1 se2 op (type1, type2)
-    | Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
-    | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
-    | _ -> raise (Exceptions.InvalidBinopExpression ((Utils.string_of_op op) ^ " is not a supported binary op"))
-   *)
+  (* env, S.Noexpr  *)
+  (* env, Binop (e1,op,e2,_) *)
+  
+  let _, se1 = build_sast_expr env e1 in
+  let _, se2 = build_sast_expr env e2 in
+  let t1 = get_type_from_expr se1 in
+  let t2 = get_type_from_expr se2 in
+  match op with
+    Equal | Neq                     -> env, get_equality_binop_type t1 t2 se1 se2 op
+  | And | Or                        -> env, get_logical_binop_type se1 se2 op (t1, t2)
+  | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
+  | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
+  | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
+ 
 
 and analyze_unop env op e =
   env, S.Noexpr (* env, Uniop (op,e,_) *)
@@ -223,8 +224,8 @@ and analyze_unop env op e =
     let se, env = expr_to_sexpr env e in
     let t = get_type_from_sexpr se in
     match t with
-      Datatype(Int_t)
-    | Datatype(Float_t) -> S.Unop(op, se, check_num_unop t op)
+      Datatype(Int)
+    | Datatype(Double) -> S.Unop(op, se, check_num_unop t op)
     | Datatype(Bool_t) -> S.Unop(op, se, check_bool_unop op)
     | _ -> raise(Exceptions.InvalidUnaryOperation)
   *)

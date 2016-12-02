@@ -10,6 +10,8 @@ exception VarDeclCheckFail of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
 exception IfComparisonNotBool of string
+exception InvalidBinopExpression of string
+
 
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
