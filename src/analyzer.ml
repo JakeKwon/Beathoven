@@ -21,11 +21,12 @@ let get_equality_binop_type type1 type2 se1 se2 op =
     | _ ->
       if type1 = type2 then S.Binop(se1, op, se2, A.Datatype(Bool))
       else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
- (*
-let get_logical_binop_type se1 se2 op = function
-    (Datatype(Bool_t), Datatype(Bool_t)) -> S.Binop(se1, op, se2, Datatype(Bool_t))
-  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool_t types")
 
+let get_logical_binop_type se1 se2 op = function
+    (A.Datatype(Bool), A.Datatype(Bool)) -> S.Binop(se1, op, se2, A.Datatype(Bool))
+  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
+
+(*
 let get_comparison_binop_type type1 type2 se1 se2 op =
   let numerics = SS.of_list [Datatype(Int_t); Datatype(Char_t); Datatype(Float_t)]
   in
@@ -197,9 +198,9 @@ and analyze_binop env e1 op e2 =
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
   match op with
-    Equal | Neq -> env, get_equality_binop_type t1 t2 se1 se2 op
-  (* | And | Or -> get_logical_binop_type se1 se2 op (type1, type2)
-  | Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
+    Equal | Neq   -> env, get_equality_binop_type t1 t2 se1 se2 op
+  | And | Or      -> env, get_logical_binop_type se1 se2 op (t1, t2)
+  (*| Less | Leq | Greater | Geq -> get_comparison_binop_type type1 type2 se1 se2 op
   | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (type1, type2)
    *)| _ -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
  
