@@ -311,7 +311,6 @@ and build_sast_stmt env (stmt : A.stmt) =
   | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
   | Return e -> check_return e env
   | If (e, s1, s2) -> check_if e s1 s2 env
-     (* | If (se, s1, s2) -> check_stmt se s1 env *)
      (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
   | While(e, s) -> check_while e s env
   | Break -> check_break env TODO: Need to check if in right context
