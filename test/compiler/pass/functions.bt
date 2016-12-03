@@ -1,6 +1,6 @@
 
 func printHello() -> unit {
-    print("hello");
+    print(5);
 }
 
 printHello();

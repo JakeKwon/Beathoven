@@ -26,7 +26,7 @@ diff -b logs/helloworld.bt.out pass/helloworld.out > logs/helloworld.diff
 
 ###### Testing if
 ../../beathoven.sh -c pass/if.bt logs/if.bt.ll
-Fatal error: exception File "codegen.ml", line 136, characters 31-36: Pattern matching failed
+Fatal error: exception File "codegen.ml", line 143, characters 31-36: Pattern matching failed
 lli logs/if.bt.ll > logs/if.bt.out
 'main' function not found in module.
 diff -b logs/if.bt.out pass/if.out > logs/if.diff
@@ -47,9 +47,6 @@ diff -b logs/printStr.bt.out pass/printStr.out > logs/printStr.diff
 
 ###### Testing while
 ../../beathoven.sh -c pass/while.bt logs/while.bt.ll
-Fatal error: exception File "codegen.ml", line 136, characters 31-36: Pattern matching failed
 lli logs/while.bt.ll > logs/while.bt.out
-'main' function not found in module.
 diff -b logs/while.bt.out pass/while.out > logs/while.diff
-FAILED logs/while.bt.out differs from pass/while.out
-###### FAILED
+###### SUCCESS

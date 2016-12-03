@@ -14,7 +14,7 @@ entry:
   %b = alloca i32
   store i32 4, i32* %b
   %c = alloca i32
-  store i32 4, i32* %c
+  store i32 -2, i32* %c
   %a1 = load i32, i32* %a
   %tmp = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @fmt, i32 0, i32 0), i32 %a1)
   %tmp2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @fmt.1, i32 0, i32 0), i1 false)

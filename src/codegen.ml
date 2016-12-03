@@ -109,12 +109,13 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Or -> L.build_or
   ) e1' e2' "tmp" builder
 
-(* and codegen_unop (op : Sast.A.unary_operator) e1 builder =
+and codegen_unop (op : Sast.A.unary_operator) e1 builder =
   let e1' = codegen_expr builder e1 in
   (match op with
-    | Sub -> L.build_sub) *)
+    | Neg -> L.build_neg
+    | Not     -> L.build_not) e1' "tmp" builder
 
-and codegen_funccall fname el d builder = 
+and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let params = List.map (codegen_expr builder) el in
   match d with
@@ -136,6 +137,7 @@ and codegen_expr builder = function
        "printf" -> codegen_print el builder
        | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
+  | Uniop(op, e1, _) -> codegen_unop op e1 builder
 
 
 let rec codegen_stmt builder = function
