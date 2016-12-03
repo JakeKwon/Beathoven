@@ -5,6 +5,7 @@ test/scanner/tokenize
 scanner.ml
 parser.ml
 parser.mli
+stdlib.bc
 
 *foo.ll
 

@@ -10,8 +10,11 @@ a = 0;
 print(a);
 
 func foo() -> unit {
-    int a = 1;
+    // int a = 1;
     print("foo works");
+    bool c;
+    c = (2 <= 2);
+    c = (2 != 2);
 }
 
 int b = a;
@@ -20,3 +23,4 @@ print(a);
 
 foo();
 
+b = 1 + 2;
