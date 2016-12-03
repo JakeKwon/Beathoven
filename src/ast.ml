@@ -1,5 +1,5 @@
-let default_mname = "~beathoven"
-let default_fname = "~main"
+let default_mname = ".beathoven"
+let default_fname = ".main"
 
 type primitive =
     Unit
@@ -12,7 +12,7 @@ type musictype =
   Pitch
 
 (* Primitive(primi) *)
-type datatype = Datatype of primitive | Musictype of musictype
+type datatype = Datatype of primitive | Musictype of musictype | Struct of string
 
 type binary_operator =
     Add | Sub | Mult | Div | Mod | Equal | Neq
@@ -57,9 +57,15 @@ type func_decl = {
   body : stmt list;
 }
 
+type struct_decl = {
+  sname : string;
+  fields : bind list;
+}
+
 type btmodule = {
   mname : string;
-  (* TODO: usr_type Struct, Enum *)
+  structs: struct_decl list;
+  (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
 

@@ -38,6 +38,12 @@ let lltype_of_datatype (t : A.datatype) =
   | Datatype(Double) -> double_t
   | Datatype(String) -> str_t
   | Datatype(Bool) -> i1_t
+  | Musictype(Pitch) ->
+    let lltype = L.named_struct_type context "struct.mypitch" in
+    let llar = [| i32_t; i1_t
+              (* array_type i8_type 10; vector_type i64_type 10  *)
+              |] in
+    L.struct_set_body lltype llar false; lltype
 
 (* Declare variable and remember its llvalue in local_tbl *)
 let allocate typ var_name builder = (* -> () *)
@@ -114,7 +120,7 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
   (match op with
     | Sub -> L.build_sub) *)
 
-and codegen_funccall fname el d builder = 
+and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let params = List.map (codegen_expr builder) el in
   match d with
@@ -128,6 +134,10 @@ and codegen_expr builder = function
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
+(*
+  | LitPitch(s,o,a) -> L.build_struct_gep parent_expr field_index field llbuilder in
+   llvalue -> int -> string -> llbuilder -> llvalue
+ *)
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -175,6 +185,12 @@ let codegen_func func =
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
 
+let linker filename =
+  (* let llctx = L.global_context () in *)
+  let llmem = L.MemoryBuffer.of_file filename in
+  let llm = Llvm_bitreader.parse_bitcode context llmem in
+  Llvm_linker.link_modules' the_module llm
+
 let codegen_program program =
   (* maybe we don't need a separate main_module *)
   let btmodules = program.main_module :: program.btmodules in
@@ -187,6 +203,7 @@ let codegen_program program =
   codegen_builtin_funcs ();
   List.iter helper_def_func btmodules;
   List.iter helper_func btmodules; (* main ?? *)
+  linker "stdlib.bc";
   the_module
 
 

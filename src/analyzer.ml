@@ -11,8 +11,8 @@ module SS = Set.Make(
     type t = datatype
   end )
 
-(* 
-let update_call_stack env in_for in_while = 
+(*
+let update_call_stack env in_for in_while =
 {
   env_returnType = env.env_returnType;
   env_in_for     = in_for;
@@ -106,20 +106,6 @@ let rec check_expr e =
  | _ -> ();
  *)
 
-(*
-let to_ast_expr = function
-    Id (s,_) -> A.Id(s)
-  | LitBool b -> A.LitBool(b)
-  | LitInt i -> A.LitInt(i)
-  | LitDouble f -> A.LitDouble(f)
-  | LitStr s -> A.LitStr(s)
-  | Binop (e1,op,e2,_) -> A.Binop(e1,op,e2)
-  | Uniop (op,e,_) -> A.Uniop(op,e)
-  | Assign (e1,e2,_) -> A.Assign(e1,e2)
-  | FuncCall (s,el,_) -> A.FuncCall(s,el)
-  | Noexpr -> A.Noexpr
-  | Null -> A.Null
- *)
 
 let rec check_stmt returnType (stmt : S.stmt) =
   match stmt with
@@ -147,9 +133,7 @@ let analyze program (btmodule : S.btmodule) =
 (* DONE *)
 let check_vardecl_type d sast_expr =
   let t = get_type_from_expr sast_expr in
-  if d = t
-  then true
-  else false
+  d = t
 
 (* ------------------- debug ------------------- *)
 
@@ -262,15 +246,14 @@ and analyze_funccall env s el =
   try
     let fname = env.name ^ "." ^ s in
     let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
-    let foo (actuals : S.expr list) (formals : A.bind list) =
-      (* todo: type checks as well ?list.iter typecheck each returntype? *)
+    let check_params (actuals : S.expr list) (formals : A.bind list) =
       if List.length actuals = List.length formals (* && *)
       then
+        (* TODO: type checks as well ?list.iter typecheck each returntype? *)
         true
-      else
-        false
+      else false
     in
-    if foo sast_el func.formals
+    if check_params sast_el func.formals
     then
       env, S.FuncCall(fname, sast_el, func.returnType)
     else
@@ -344,9 +327,9 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
 
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
-  let sstmt, _ = parse_stmt env s in 
-  let swhile = 
-    if (t = A.Datatype(Bool) || t = A.Datatype(Unit)) 
+  let sstmt, _ = parse_stmt env s in
+  let swhile =
+    if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
       then S.While(se, sstmt)
       else raise Exceptions.InvalidWhileStatementType
   in
@@ -357,23 +340,23 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
 
 and check_sblock sl env = match sl with
     []  -> S.Block([S.Expr(S.Noexpr, A.Datatype(Unit))])
-  | _   -> 
+  | _   ->
     let sl, _ = convert_stmt_list_to_sstmt_list env sl in
     S.Block(sl)
 
-and check_expr_stmt e env = 
+and check_expr_stmt e env =
   let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in 
+  let t = get_type_from_expr se in
   env, S.Expr(se, t)
 
-and check_return e env = 
+and check_return e env =
   let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in 
-  match t, env.env_returnType with 
-    (* A.Datatype(Unit), Datatype(Objecttype(_)) 
+  let t = get_type_from_expr se in
+  match t, env.env_returnType with
+    (* A.Datatype(Unit), Datatype(Objecttype(_))
   |   Datatype(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
-  |   _ -> 
-  if t = env.env_returnType 
+  |   _ ->
+  if t = env.env_returnType
     then env, S.Return(se, t)
     else raise (Exceptions.ReturnTypeMismatch(string_of_datatype t, string_of_datatype env.env_returnType))
 
@@ -385,17 +368,17 @@ and check_if e s1 s2 env =
   if t = A.Datatype(Bool)
     then env, S.If(se, ifbody, elsebody)
     else raise (Exceptions.IfComparisonNotBool "foo")
-(* 
-and check_for e1 e2 e3 s env = 
+(*
+and check_for e1 e2 e3 s env =
   let old_val = env.env_in_for in
   (* let env = update_call_stack env true env.env_in_while in *)
-  env.env_in_for <- true; 
+  env.env_in_for <- true;
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let _, se3 = build_sast_expr env e3 in
   let forbody, _ = parse_stmt env s in
   let conditional = get_type_from_expr se2 in
-  let sfor = 
+  let sfor =
     if (conditional = A.Datatype(Bool) || conditional = A.Datatype(Unit))
       then S.For(se1, se2, se3, forbody)
       else raise (Exceptions.InvalidForStatementType "foo")
@@ -409,12 +392,12 @@ and check_while e s env =
   let old_val = env.env_in_while in
   (* let env = update_call_stack env env.env_in_for true in *)
   env.env_in_while <- true;
-  
+
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
-  let _, sstmt = parse_stmt env s in 
-  let swhile = 
-    if (t = A.Datatype(Bool) || t = A.Datatype(Unit)) 
+  let _, sstmt = parse_stmt env s in
+  let swhile =
+    if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
       then S.While(se, sstmt)
       else raise Exceptions.InvalidWhileStatementType
   in
@@ -423,13 +406,13 @@ and check_while e s env =
   env.env_in_while <- old_val;
   env, swhile
 
-and check_break env = 
+and check_break env =
   if env.env_in_for || env.env_in_while then
     env, S.Break
   else
     raise Exceptions.CannotCallBreakOutsideOfLoop
 
-and check_continue env = 
+and check_continue env =
   if env.env_in_for || env.env_in_while then
     env, S.Continue
   else
@@ -447,7 +430,7 @@ and parse_stmt env = function
   (* |   Local(d, s, e)      -> local_handler d s e env *)
 
 (* Update this function to return an env object *)
-and convert_stmt_list_to_sstmt_list env stmt_list = 
+and convert_stmt_list_to_sstmt_list env stmt_list =
   let env_ref = ref(env) in
   let rec iter = function
     head::tail ->
@@ -455,7 +438,7 @@ and convert_stmt_list_to_sstmt_list env stmt_list =
     env_ref := env;
     a_head::(iter tail)
   | [] -> []
-  in 
+  in
   let sstmt_list = (iter stmt_list), !env_ref in
   sstmt_list
 
@@ -470,7 +453,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     (* initialize environment per func ?? *)
     {
       builtin_funcs = builtin_funcs;
-      name = mname; (* current module *)
+      name = mname; (* current module ?? *)
       var_map = StringMap.empty; (* why empty, fields? *)
       formal_map = formal_map; (* current func *)
       btmodule = btmodule_env; (* current module *)
@@ -481,8 +464,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     }
   in
   let _, fbody = build_sast_stmt_list env func.body in
-  (* TODO: check_fbody *)
-  if true (* here *)
+  if true (* TODO: check_fbody *)
   then
     {
       S.fname = get_global_func_name mname func;
@@ -505,6 +487,7 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
     in
     {
       S.mname = btmodule.mname;
+      S.structs = btmodule.structs;
       S.funcs = sast_funcs;
     }
   in
@@ -515,7 +498,6 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
     {
       S.main_module = head;
       S.btmodules = tail;
-      (* user_type ?? *)
     }
 
 

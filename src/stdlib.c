@@ -6,6 +6,11 @@ struct pitch {
     int alter;
 } p;
 
+extern void f(struct pitch p);
+
+void g() {
+    f(p);
+}
 /*
 int main() {
     return 0;
