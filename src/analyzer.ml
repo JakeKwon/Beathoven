@@ -19,7 +19,7 @@ let get_equality_binop_type type1 type2 se1 se2 op =
      for equality is to check the difference between the operands in question *)
   if (type1 = A.Datatype(Double) || type2 = A.Datatype(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
   else
-    match type1, type2 with(* 
+    match type1, type2 with(*
       A.Datatype(Char_t), Datatype(Int)
     | Datatype(Int), Datatype(Char_t) -> env, S.Binop(se1, op, se2, A.Datatype(Bool)) *)
     | _ ->
@@ -49,7 +49,7 @@ let get_arithmetic_binop_type se1 se2 op = function
   | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
- 
+
 
 
 
@@ -68,11 +68,12 @@ let get_type_from_expr (expr : S.expr) =
   | LitInt(_) -> A.Datatype(Int)
   | LitDouble(_) -> A.Datatype(Double)
   | LitStr(_) -> A.Datatype(String)
+  | LitPitch(_,_,_) -> A.Musictype(Pitch)
   | Null -> A.Datatype(Unit)
-  | Binop (_,_,_,d) -> d
-  | Uniop (_,_,d) -> d
-  | Assign (_,_,d) -> d
-  | FuncCall (_,_,d)-> d
+  | Binop(_,_,_,d) -> d
+  | Uniop(_,_,d) -> d
+  | Assign(_,_,d) -> d
+  | FuncCall(_,_,d)-> d
   | Noexpr -> A.Datatype(Unit)
 (*
   | Null -> Datatype(Null_t)
@@ -178,6 +179,7 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
   | LitStr(s) -> env, S.LitStr(s)
+  | LitPitch(s,o,a) -> env, S.LitPitch(s,o,a)
   | Binop(e1,op,e2) -> analyze_binop env e1 op e2
   | Uniop(op,e) -> analyze_unop env op e
   | Assign(e1,e2) -> analyze_assign env e1 e2
@@ -197,7 +199,7 @@ and build_sast_expr_list env (expr_list:A.expr list) =
 and analyze_binop env e1 op e2 =
   (* env, S.Noexpr  *)
   (* env, Binop (e1,op,e2,_) *)
-  
+
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
@@ -208,7 +210,7 @@ and analyze_binop env e1 op e2 =
   | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
   | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
   | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
- 
+
 
 and analyze_unop env op e =
   env, S.Noexpr (* env, Uniop (op,e,_) *)
@@ -445,6 +447,3 @@ let check (btmodule) =
 
  report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
 *)
-
-
-

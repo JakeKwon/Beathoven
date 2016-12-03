@@ -15,8 +15,8 @@ type musictype =
 type datatype = Datatype of primitive | Musictype of musictype
 
 type binary_operator =
-    Add | Sub | Mult | Div | Equal | Neq
-  | Less | Leq | Greater | Geq | And | Mod | Or
+    Add | Sub | Mult | Div | Mod | Equal | Neq
+  | Less | Leq | Greater | Geq | And | Or
 
 type unary_operator = Neg | Not
 
@@ -30,7 +30,7 @@ type expr =
   | LitInt of int
   | LitDouble of float
   | LitStr of string
-  | LitPitch of char * int * int
+  | LitPitch of char * int * int (* step * octave * alter *)
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
