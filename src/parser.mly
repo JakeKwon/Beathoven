@@ -182,13 +182,13 @@ mfuncs:
 main_module:
   mfuncs
   {
-    { mname = default_mname; funcs = $1 }
+    { mname = default_mname; structs = []; funcs = $1 }
   }
 
 btmodule:
   MODULE ID LBRACE mfuncs RBRACE
   {
-    { mname = $2; funcs = $4 }
+    { mname = $2; structs = []; funcs = $4 }
   }
 
 btmodule_list:
