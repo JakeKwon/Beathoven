@@ -8,8 +8,11 @@ type primitive =
   | String
   | Bool
 
+type musictype =
+  Pitch
+
 (* Primitive(primi) *)
-type datatype = Datatype of primitive
+type datatype = Datatype of primitive | Musictype of musictype
 
 type binary_operator =
     Add | Sub | Mult | Div | Equal | Neq
@@ -27,6 +30,7 @@ type expr =
   | LitInt of int
   | LitDouble of float
   | LitStr of string
+  | LitPitch of char * int * int
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr

@@ -8,7 +8,10 @@
 %token <string> LIT_STR
 %token <float> LIT_DOUBLE
 %token <string> ID
+%token <string> LIT_PITCH
 %token NULL TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_DOUBLE TYPE_STR TYPE_STRUCT TYPE_ENUM
+%token TYPE_PITCH
+%token DURATION NOTE CHORD SEQ
 %token ASSIGN
 %token RETURN SEP EOF
 %token LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE
@@ -19,7 +22,6 @@
 %token RARROW
 %token ARRAY
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
-%token PITCH DURATION NOTE CHORD SEQ
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
 %token IF ELSE WHILE FOR IN RANGE BREAK CONTINUE
@@ -49,8 +51,12 @@ primitive:
   | TYPE_STR { String }
   | TYPE_BOOL { Bool }
 
+musictype:
+    TYPE_PITCH { Pitch }
+
 datatype:
     primitive { Datatype($1) }
+  | musictype { Musictype($1) }
 
 /* ------------------- Expressions ------------------- */
 
@@ -103,6 +109,8 @@ literals:
   | LIT_INT { LitInt($1) }
   | LIT_DOUBLE { LitDouble($1) }
   | LIT_STR { LitStr($1) }
+  | LIT_PITCH { LitPitch($1.[0], int_of_char $1.[1] - int_of_char '0',
+      if (String.length $1 = 2) then 0 else if $1.[2] = '#' then 1 else -1) }
   /* | lit_array        { $1 } */
   /*
   lit_array:
