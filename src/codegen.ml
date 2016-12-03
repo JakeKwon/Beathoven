@@ -109,6 +109,11 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Or -> L.build_or
   ) e1' e2' "tmp" builder
 
+(* and codegen_unop (op : Sast.A.unary_operator) e1 builder =
+  let e1' = codegen_expr builder e1 in
+  (match op with
+    | Sub -> L.build_sub) *)
+
 and codegen_funccall fname el d builder = 
   let f = lookup_func fname in
   let params = List.map (codegen_expr builder) el in

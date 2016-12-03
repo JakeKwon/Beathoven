@@ -218,24 +218,23 @@ and analyze_binop env e1 op e2 =
  
 
 and analyze_unop env op e =
-  env, S.Noexpr (* env, Uniop (op,e,_) *)
-  (*
-    let check_num_unop t = function
-        Sub -> t
-      | _ -> raise(Exceptions.InvalidUnaryOperation)
-    in
-    let check_bool_unop = function
-        Not -> Datatype(Bool_t)
-      | _ -> raise(Exceptions.InvalidUnaryOperation)
-    in
-    let se, env = expr_to_sexpr env e in
-    let t = get_type_from_sexpr se in
-    match t with
-      Datatype(Int)
-    | Datatype(Double) -> S.Unop(op, se, check_num_unop t op)
-    | Datatype(Bool_t) -> S.Unop(op, se, check_bool_unop op)
+  (* env, S.Noexpr  *)
+  (* env, Uniop (op,e,_) *)
+  let check_num_unop t = function
+      Neg -> t
     | _ -> raise(Exceptions.InvalidUnaryOperation)
-  *)
+  in
+  let check_bool_unop = function
+      Not -> A.Datatype(Bool)
+    | _ -> raise(Exceptions.InvalidUnaryOperation)
+  in
+  let _, se = build_sast_expr env e in
+  let t = get_type_from_expr se in
+  match t with
+    A.Datatype(Int)
+  | A.Datatype(Double) -> env, S.Uniop(op, se, check_num_unop t op)
+  | A.Datatype(Bool) -> env, S.Uniop(op, se, check_bool_unop op)
+  | _ -> raise(Exceptions.InvalidUnaryOperation)
 
 and analyze_assign env e1 e2 =
   let _, se1 = build_sast_expr env e1 in
@@ -311,10 +310,11 @@ and build_sast_stmt env (stmt : A.stmt) =
   | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
   | Return e -> check_return e env
   | If (e, s1, s2) -> check_if e s1 s2 env
+     (* | If (se, s1, s2) -> check_stmt se s1 env *)
      (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
   | While(e, s) -> check_while e s env
-  | Break -> check_break env TODO: Need to check if in right context
-  | Continue -> check_continue env TODO: Need to check if in right context
+  | Break -> check_break env (* TODO: Need to check if in right context *)
+  | Continue -> check_continue env (* TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =

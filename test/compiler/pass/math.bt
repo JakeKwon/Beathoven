@@ -2,7 +2,10 @@ int a;
 a = 1;
 int b;
 b = 4;
+int c;
+c = 2+2;
 /* int c = a + b; */
 print(a);
 print(false);
 print(b);
+print(c);
