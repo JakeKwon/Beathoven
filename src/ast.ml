@@ -3,10 +3,10 @@ let default_fname = ".main"
 
 type primitive =
     Unit
+  | Bool
   | Int
   | Double
   | String
-  | Bool
 
 type musictype =
   Pitch

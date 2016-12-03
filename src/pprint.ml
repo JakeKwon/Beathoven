@@ -9,11 +9,12 @@ open Yojson
 
 let string_of_datatype (t : A.datatype) =
   match t with
-    Datatype(Int) -> "int"
+    Datatype(Unit) -> "unit"
   | Datatype(Bool) -> "bool"
-  | Datatype(Unit) -> "unit"
-(* | Primitive(Double) -> "double"
-   | Primitive(String) -> "string" *)
+  | Datatype(Int) -> "int"
+  | Datatype(Double) -> "double"
+  | Datatype(String) -> "string"
+  | Musictype(Pitch) -> "pitch"
 
 let string_of_op (op : A.binary_operator) =
   match op with
@@ -37,33 +38,33 @@ let string_of_uop (uop : A.unary_operator) =
   | Not -> "!"
 
 (* let string_of_expr = function
-  Id (_,d) -> d
-| LitBool(_) -> A.Datatype(Bool)
-| LitInt(_) -> A.Datatype(Int)
-| LitDouble(_) -> A.Datatype(Double)
-| LitStr(_) -> A.Datatype(String)
-| Null -> A.Datatype(Unit)
-| Binop (_,_,_,d) -> d
-| Uniop (_,_,d) -> d
-| Assign (_,_,d) -> d
-| FuncCall (_,_,d)-> d
-| Noexpr -> A.Datatype(Unit)
+   Id (_,d) -> d
+   | LitBool(_) -> A.Datatype(Bool)
+   | LitInt(_) -> A.Datatype(Int)
+   | LitDouble(_) -> A.Datatype(Double)
+   | LitStr(_) -> A.Datatype(String)
+   | Null -> A.Datatype(Unit)
+   | Binop (_,_,_,d) -> d
+   | Uniop (_,_,d) -> d
+   | Assign (_,_,d) -> d
+   | FuncCall (_,_,d)-> d
+   | Noexpr -> A.Datatype(Unit)
 
     Int_Lit(i) -> string_of_int i
-  | Boolean_Lit(b) -> if b then "true" else "false"
-  | Float_Lit(f) -> string_of_float f
-  | String_Lit(s) -> "\"" ^ (String.escaped s) ^ "\""
-  | Char_Lit(c) -> Char.escaped c
-  | This -> "this"
-  | Id(s) -> s
-  | Binop(e1, o, e2) -> (string_of_expr e1) ^ " " ^ (string_of_op o) ^ " " ^ (string_of_expr e2)
-  | Assign(e1, e2) -> (string_of_expr e1) ^ " = " ^ (string_of_expr e2)
-  | Noexpr -> ""
-  | ObjAccess(e1, e2) -> (string_of_expr e1) ^ "." ^ (string_of_expr e2)
-  | Call(f, el) -> f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
-  | ArrayPrimitive(el) -> "|" ^ (string_of_array_primitive el) ^ "|"
-  |   Unop(op, e) -> (string_of_op op) ^ "(" ^ string_of_expr e ^ ")"
-  | Null -> "null" *)
+   | Boolean_Lit(b) -> if b then "true" else "false"
+   | Float_Lit(f) -> string_of_float f
+   | String_Lit(s) -> "\"" ^ (String.escaped s) ^ "\""
+   | Char_Lit(c) -> Char.escaped c
+   | This -> "this"
+   | Id(s) -> s
+   | Binop(e1, o, e2) -> (string_of_expr e1) ^ " " ^ (string_of_op o) ^ " " ^ (string_of_expr e2)
+   | Assign(e1, e2) -> (string_of_expr e1) ^ " = " ^ (string_of_expr e2)
+   | Noexpr -> ""
+   | ObjAccess(e1, e2) -> (string_of_expr e1) ^ "." ^ (string_of_expr e2)
+   | Call(f, el) -> f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+   | ArrayPrimitive(el) -> "|" ^ (string_of_array_primitive el) ^ "|"
+   |   Unop(op, e) -> (string_of_op op) ^ "(" ^ string_of_expr e ^ ")"
+   | Null -> "null" *)
 
 
 (* Print SAST tree representation *)
@@ -113,24 +114,26 @@ let rec json_of_stmt stmt =
       Block sl -> `Assoc [("block", `List (List.map json_of_stmt sl))]
     | Expr(e, d) -> `Assoc [("expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
-
-    | If (e, s1, s2) -> `Assoc [("sif", `Assoc [("cond", json_of_expr e); ("ifbody", json_of_stmt s1)]); ("selse", json_of_stmt s2)]
+    | If (e, s1, s2) -> `Assoc [("if", `Assoc [("cond", json_of_expr e); ("then", json_of_stmt s1)]); ("else", json_of_stmt s2)]
     (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)
-    | While (e, s) -> `Assoc [("swhile", `Assoc [("cond", json_of_expr e); ("body", json_of_stmt s)])]
-    | Break -> `String "sbreak"
-    | Continue -> `String "scontinue"
-
+    | While (e, s) -> `Assoc [("while", `Assoc [("cond", json_of_expr e); ("body", json_of_stmt s)])]
+    | Break -> `String "break"
+    | Continue -> `String "continue"
     | VarDecl(d, s, e) -> `Assoc [("vardecl",
                                    `Assoc [tuple_of_datatype d; ("name", `String s); ("val", json_of_expr e)])]
   in stmt_json
 
+let json_of_formals formals =
+  `List (List.map
+           (function (d, s) -> `Assoc [("name", `String s); tuple_of_datatype d;])
+           formals)
 
 let json_of_func (func : func_decl) =
   `Assoc[("func_decl",
           `Assoc[
             ("fname", `String func.fname);
             ("returnType", `String (string_of_datatype func.returnType) );
-            (* ("formals", map_formals_to_json sfdecl.sformals); *)
+            ("formals", json_of_formals func.formals);
             ("body", `List (List.map json_of_stmt func.body));
           ])]
 
