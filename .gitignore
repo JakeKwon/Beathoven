@@ -1,6 +1,8 @@
 src/beathoven
 src/_build
 test/scanner/tokenize
+test/compiler/logs/*
+*.log
 
 scanner.ml
 parser.ml
