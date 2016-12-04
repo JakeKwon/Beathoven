@@ -215,7 +215,6 @@ and analyze_binop env e1 op e2 =
   | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
   | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
   | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
- 
 
 and analyze_unop env op e =
   (* env, S.Noexpr  *)
