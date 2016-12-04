@@ -19,12 +19,16 @@ let hasint = digit+ '.' digit*
 let hasfrac = digit* '.' digit+
 let hasexp = 'e' ('+'? | '-') digit+
 
+let pitch = ['A'-'G'] ['1'-'7'] ('#'|'b')?
+
+
 (* Regex conflicts are resolved by order *)
 rule token = parse
   | newline { token lexbuf }
   | whitespace { token lexbuf }
   | separator { SEP }
   | "/*" { comment lexbuf } (* Comments *)
+  | "//" { comment_oneline lexbuf }
 (* ------------- Scoping ------------- *)
   | '(' { LPAREN }
   | ')' { RPAREN }
@@ -96,12 +100,13 @@ rule token = parse
   | "const" { CONST }
 *)
 (* ------------- Music Keywords ------------- *)
-  | "pitch" { PITCH }
+  | "pitch" { TYPE_PITCH }
   | "duration" { DURATION }
   | "Note" { NOTE }
   | "Chord" { CHORD }
   | "Seq" { SEQ }
 (* ------------- Literals ------------- *)
+  | pitch as lit { LIT_PITCH(lit) }
   | digit+ as lit { LIT_INT(int_of_string lit) }
   | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
@@ -112,6 +117,10 @@ rule token = parse
 and comment = parse
     "*/" { token lexbuf }
   | _ { comment lexbuf }
+
+and comment_oneline = parse
+    (newline | eof) { token lexbuf }
+  | _ { comment_oneline lexbuf }
 
 
 (*

@@ -24,6 +24,7 @@ let str_t = L.pointer_type i8_t
 let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
+
 (*
 let struct_types:(string, lltype) Hashtbl.t = Hashtbl.create 10
 let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
@@ -38,17 +39,50 @@ let lltype_of_datatype (t : A.datatype) =
   | Datatype(Double) -> double_t
   | Datatype(String) -> str_t
   | Datatype(Bool) -> i1_t
+  | Musictype(Pitch) ->
+    let lltype = L.named_struct_type context "struct.mypitch" in
+    let llar = [| i32_t; i1_t
+               (* array_type i8_type 10; vector_type i64_type 10  *)
+               |] in
+    L.struct_set_body lltype llar false; lltype
 
 (* Declare variable and remember its llvalue in local_tbl *)
 let allocate typ var_name builder = (* -> () *)
   let alloca = L.build_alloca (lltype_of_datatype typ) var_name builder in
-  Hashtbl.add local_tbl var_name alloca
+  Hashtbl.add local_tbl var_name alloca;
+  alloca
 
 (* Return the value for a variable or formal argument *)
-let lookup s = try Hashtbl.find local_tbl s
+(* duplicate name in formal will be overwritten by local *)
+let load_id s builder =
+  try
+    let alloca = Hashtbl.find local_tbl s in
+    L.build_load alloca s builder
+  with | Not_found ->
+  try Hashtbl.find formal_tbl s
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
-and lookup_func fname =
+let lookup_id s t builder =
+  try Hashtbl.find local_tbl s
+  with | Not_found ->
+  try
+    let v = Hashtbl.find formal_tbl s in (* formal s found *)
+    (* Make a copy of the formal in the local_tbl  *)
+    let alloca = allocate t s builder in
+    ignore (L.build_store v alloca builder);
+    alloca
+  with Not_found -> raise (Exceptions.VariableNotDefined s)
+
+
+(*
+  let tmp =
+  in
+  print_endline ("--------" ^ (L.string_of_llvalue tmp));
+  tmp
+ *)
+
+
+let lookup_func fname =
   match (L.lookup_function fname the_module) with
     None -> raise (Exceptions.LLVMFunctionNotFound fname)
   | Some f -> f
@@ -85,8 +119,16 @@ let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
 build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
  *)
 
+and codegen_funccall fname el d builder =
+  let f = lookup_func fname in
+  let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
+  match d with
+    A.Datatype(A.Unit) -> L.build_call f actuals "" builder
+  | _ -> L.build_call f actuals "tmp" builder
+
+
 and codegen_assign lhs rhs builder =
-  let lhs = match lhs with Id(s, _) -> lookup s in
+  let lhs = match lhs with Id(s, t) -> lookup_id s t builder in
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
 
@@ -109,40 +151,39 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Or -> L.build_or
   ) e1' e2' "tmp" builder
 
-(* and codegen_unop (op : Sast.A.unary_operator) e1 builder =
+and codegen_unop (op : Sast.A.unary_operator) e1 builder =
   let e1' = codegen_expr builder e1 in
   (match op with
-    | Sub -> L.build_sub) *)
-
-and codegen_funccall fname el d builder = 
-  let f = lookup_func fname in
-  let params = List.map (codegen_expr builder) el in
-  match d with
-  A.Datatype(A.Unit) -> L.build_call f (Array.of_list params) "" builder
-  |   _ ->        L.build_call f (Array.of_list params) "tmp" builder
+    | Neg -> L.build_neg
+    | Not     -> L.build_not) e1' "tmp" builder
 
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
-    Id(s, _) -> L.build_load (lookup s) s builder
+    Id(s, _) -> load_id s builder
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
+(*
+  | LitPitch(s,o,a) -> L.build_struct_gep parent_expr field_index field llbuilder in
+   llvalue -> int -> string -> llbuilder -> llvalue
+ *)
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
        "printf" -> codegen_print el builder
-       | _ -> codegen_funccall fname el d builder )
+     | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
+  | Uniop(op, e1, _) -> codegen_unop op e1 builder
 
 
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
   | VarDecl(t, s, e) ->
-    allocate t s builder;
+    ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
     builder
 
@@ -158,22 +199,35 @@ let codegen_def_func func =
   let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
+
 let codegen_func func =
-(*
-  Hashtbl.clear named_values;
-  Hashtbl.clear named_params;
-  let _ = init_params f func.formals in
- *)
+  let init_params llfunc formals =
+    List.iteri ( fun i formal ->
+        let n = snd formal in
+        let v = L.param llfunc i in
+        L.set_value_name n v;
+        Hashtbl.add formal_tbl n v
+      ) formals
+  in
   let llfunc = lookup_func func.fname in
   (* An instance of the IRBuilder class used in generating LLVM instructions *)
   let llbuilder = L.builder_at_end context (L.entry_block llfunc) in
-  let _ = codegen_stmt llbuilder (Block(func.body)) in
+  Hashtbl.clear formal_tbl;
+  Hashtbl.clear local_tbl;
+  init_params llfunc func.formals;
+  ignore (codegen_stmt llbuilder (Block(func.body)));
   (* Finish off the function. *)
   if func.returnType = A.Datatype(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
+
+let linker filename =
+  (* let llctx = L.global_context () in *)
+  let llmem = L.MemoryBuffer.of_file filename in
+  let llm = Llvm_bitreader.parse_bitcode context llmem in
+  Llvm_linker.link_modules' the_module llm
 
 let codegen_program program =
   (* maybe we don't need a separate main_module *)
@@ -187,6 +241,7 @@ let codegen_program program =
   codegen_builtin_funcs ();
   List.iter helper_def_func btmodules;
   List.iter helper_func btmodules; (* main ?? *)
+  linker "stdlib.bc";
   the_module
 
 

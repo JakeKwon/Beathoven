@@ -5,8 +5,11 @@ all: clean build
 build:
 	cd src; make
 
-test: build
+test: clean
 	cd test; make
+
+tests:
+	cd test; make test-only
 
 .PHONY: clean
 clean:

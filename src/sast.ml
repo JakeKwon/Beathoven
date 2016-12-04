@@ -6,20 +6,13 @@ type expr =
   | LitInt of int
   | LitDouble of float
   | LitStr of string
+  | LitPitch of char * int * int
   | Null
   | Binop of expr * A.binary_operator * expr * A.datatype
   | Uniop of A.unary_operator * expr * A.datatype
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
-
- (*
-	| 	SChar_Lit of char
-	| 	SBinop of sexpr * op * sexpr * datatype
-	| 	SAssign of sexpr * sexpr * datatype
-	| 	SCall of string * sexpr list * datatype * int
-	|  	SUnop of op * sexpr * datatype
-*)
 
 type stmt =
     Block of stmt list
@@ -30,10 +23,8 @@ type stmt =
   | Break
   | Continue
   | VarDecl of A.datatype * string * expr
-
-(*
-	| 	SFor of sexpr * sexpr * sexpr * sstmt
-	|   SLocal of datatype * string * sexpr *)
+(*| SFor of sexpr * sexpr * sexpr * sstmt
+ *)
 
 
 type func_decl = {
@@ -48,8 +39,9 @@ type func_decl = {
 
 type btmodule = {
   mname : string;
+  structs: A.struct_decl list;
   (* main_func : func_decl; *)
-  funcs : func_decl list;
+  funcs : func_decl list; 
 }
 
 type program = {
