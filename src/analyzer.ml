@@ -274,10 +274,12 @@ let build_sast_vardecl env d s e =
     let _, sast_expr = build_sast_expr env e in
     if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
     then
-      (* TODO: check if t is Unit jakeQ*)
+      (* TODO: check if t is Unit *)
+      if  get_type_from_expr sast_expr = A.Datatype(Unit)
+        then raise (Exceptions.UnitTypeError "UnitTypeError")
       (* semant.ml's handle_expr_statement *)
       (* dice, analyzer's local_handler *)
-      env.var_map <- StringMap.add s d env.var_map;
+        else env.var_map <- StringMap.add s d env.var_map;
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
 (* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
