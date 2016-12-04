@@ -162,8 +162,14 @@ let builtin_funcs =
       map in
   map
 
+let rec get_ID_type env s = 
+  try StringMap.find s env.var_map
+  with | Not_found -> 
+  (* try let formal = StringMap.find s env.env_parameters in
+    (function Formal(t, _) -> t | Many t -> t ) formal
+  with | Not_found -> *) raise (Exceptions.UndefinedID s)
 
-let rec build_sast_expr env (expr : A.expr) =
+and build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
   | LitBool(b) -> env, S.LitBool(b)
@@ -283,7 +289,7 @@ let build_sast_vardecl env d s e =
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
 (* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
-
+(* doesnt get_ID_type check this? *)
 
 let rec build_sast_block env = function
     [] -> env, S.Block([])

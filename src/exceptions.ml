@@ -18,6 +18,7 @@ exception CannotCallContinueOutsideOfLoop
 exception InvalidWhileStatementType
 exception InvalidUnaryOperation
 exception UnitTypeError of string
+exception UndefinedID of string
 
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
