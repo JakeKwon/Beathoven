@@ -182,6 +182,8 @@ and codegen_expr builder = function
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
+  | While (e, s) -> ignore(codegen_expr builder e);
+  ignore(codegen_stmt builder s); builder
   | VarDecl(t, s, e) ->
     ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
@@ -223,11 +225,11 @@ let codegen_func func =
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
 
-let linker filename =
+(* let linker filename =
   (* let llctx = L.global_context () in *)
   let llmem = L.MemoryBuffer.of_file filename in
   let llm = Llvm_bitreader.parse_bitcode context llmem in
-  Llvm_linker.link_modules' the_module llm
+  Llvm_linker.link_modules' the_module llm *)
 
 let codegen_program program =
   (* maybe we don't need a separate main_module *)
@@ -241,7 +243,7 @@ let codegen_program program =
   codegen_builtin_funcs ();
   List.iter helper_def_func btmodules;
   List.iter helper_func btmodules; (* main ?? *)
-  linker "stdlib.bc";
+  (* linker "stdlib.bc"; *)
   the_module
 
 
