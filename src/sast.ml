@@ -23,8 +23,8 @@ type stmt =
   | Break
   | Continue
   | VarDecl of A.datatype * string * expr
-(*| SFor of sexpr * sexpr * sexpr * sstmt
- *)
+| For of expr * expr * expr * stmt
+
 
 
 type func_decl = {
@@ -41,7 +41,7 @@ type btmodule = {
   mname : string;
   structs: A.struct_decl list;
   (* main_func : func_decl; *)
-  funcs : func_decl list; 
+  funcs : func_decl list;
 }
 
 type program = {

@@ -21,6 +21,10 @@ and unit_t = L.void_type context
 let str_t = L.pointer_type i8_t
 (* let p_str_t = L.pointer_type str_t  *)
 
+let br_block = ref (L.block_of_value (L.const_int i32_t 0))
+let cont_block = ref (L.block_of_value (L.const_int i32_t 0))
+let is_loop = ref false
+
 let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
@@ -182,8 +186,70 @@ and codegen_expr builder = function
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
-  | While (e, s) -> ignore(codegen_expr builder e);
-  ignore(codegen_stmt builder s); builder
+  (* | While (e, s) -> ignore(codegen_expr builder e); *)
+  (* ignore(codegen_stmt builder s); builder *)
+  (* | For (init_, cond_, inc_, body_) -> *)
+  | For(init_, cond_, inc_, body_) ->
+    let old_val = !is_loop in
+  is_loop := true;
+
+  let the_function = L.block_parent (L.insertion_block builder) in
+
+  (* Emit the start code first, without 'variable' in scope. *)
+  let _ = codegen_expr builder init_ in
+
+  (* Make the new basic block for the loop header, inserting after current
+  * block. *)
+  let loop_bb = L.append_block context "loop" the_function in
+  (* Insert maintenance block *)
+  let inc_bb = L.append_block context "inc" the_function in
+  (* Insert condition block *)
+  let cond_bb = L.append_block context "cond" the_function in
+  (* Create the "after loop" block and insert it. *)
+  let after_bb = L.append_block context "afterloop" the_function in
+
+  let _ = if not old_val then
+  cont_block := inc_bb;
+  br_block := after_bb;
+in
+
+  (* Insert an explicit fall through from the current block to the
+  * loop_bb. *)
+  ignore (L.build_br cond_bb builder);
+
+  (* Start insertion in loop_bb. *)
+  L.position_at_end loop_bb builder;
+
+  (* Emit the body of the loop.  This, like any other expr, can change the
+  * current BB.  Note that we ignore the value computed by the body, but
+* don't allow an error *)
+ignore (codegen_stmt builder body_);
+
+let bb = L.insertion_block builder in
+L.move_block_after bb inc_bb;
+L.move_block_after inc_bb cond_bb;
+L.move_block_after cond_bb after_bb;
+ignore(L.build_br inc_bb builder);
+
+(* Start insertion in loop_bb. *)
+L.position_at_end inc_bb builder;
+(* Emit the step value. *)
+let _ = codegen_expr builder inc_ in
+ignore(L.build_br cond_bb builder);
+
+L.position_at_end cond_bb builder;
+
+let cond_val = codegen_expr builder cond_ in
+ignore (L.build_cond_br cond_val loop_bb after_bb builder);
+
+(* Any new code will be inserted in after_bb. *)
+L.position_at_end after_bb builder;
+
+is_loop := old_val;
+
+(* for expr always returns 0.0. *)
+(* L.const_null f_t *)
+builder
   | VarDecl(t, s, e) ->
     ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
