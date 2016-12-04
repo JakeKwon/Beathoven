@@ -161,8 +161,14 @@ let builtin_funcs =
       }
       map in
   map
-
-
+(*
+let rec get_ID_type env s = 
+  try StringMap.find s env.var_map
+  with | Not_found -> 
+  (* try let formal = StringMap.find s env.env_parameters in
+    (function Formal(t, _) -> t | Many t -> t ) formal
+  with | Not_found -> *) raise (Exceptions.UndefinedID s)
+*)
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
@@ -274,14 +280,15 @@ let build_sast_vardecl env d s e =
     let _, sast_expr = build_sast_expr env e in
     if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
     then
-      (* TODO: check if t is Unit jakeQ*)
+      (* TODO: check if t is Unit *)
+      if  get_type_from_expr sast_expr = A.Datatype(Unit)
+        then raise (Exceptions.UnitTypeError "UnitTypeError")
       (* semant.ml's handle_expr_statement *)
       (* dice, analyzer's local_handler *)
-      env.var_map <- StringMap.add s d env.var_map;
+        else env.var_map <- StringMap.add s d env.var_map;
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
 (* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
-
 
 let rec build_sast_block env = function
     [] -> env, S.Block([])
@@ -441,6 +448,17 @@ and convert_stmt_list_to_sstmt_list env stmt_list =
   let sstmt_list = (iter stmt_list), !env_ref in
   sstmt_list
 
+let check_fbody fbody returnType =
+  let len = List.length fbody in
+  if len = 0 then true else 
+  let final_stmt = List.hd (List.rev fbody) in
+  match returnType, final_stmt with
+    A.Datatype(Unit), _   -> true
+  |   _, S.Return(_, _)   -> true
+  |   _                   -> false
+
+(* let convert_constructor_to_sfdecl class_maps reserved class_map cname constructor = 
+ *)
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   let env =
     let formal_map =
@@ -463,7 +481,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     }
   in
   let _, fbody = build_sast_stmt_list env func.body in
-  if true (* TODO: check_fbody *)
+  if check_fbody fbody func.returnType
   then
     {
       S.fname = get_global_func_name mname func;
@@ -473,7 +491,6 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     }
   else
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
-
 
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   let build_sast_btmodule btmodule =
@@ -499,29 +516,113 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       S.btmodules = tail;
     }
 
+type func_decl = {
+  fname : string; (* global name *)
+  formals : A.bind list;
+  returnType : A.datatype;
+  body : stmt list;
+  (* btmodule  *)
+  (* functype *)
+  (* TODO?: separate vars from stmt list in analyzer *)
+}
+
+let add_reserved_functions = 
+  let reserved_stub name return_type formals = 
+    {
+      (* fname      = FName(name); *)
+      fname      = name;
+      formals    = formals;
+      returnType   = return_type;
+      body       = [];
+    }
+  in
+  let i32_t = A.Datatype(Int) in
+  let void_t = A.Datatype(Unit) in
+  (* let str_t = Arraytype(Char_t, 1) in *)
+  (* let mf t n = A.bind(t, n) in (* Make formal *) *)
+  let reserved = [
+    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
+    (* reserved_stub "malloc"  (str_t)   ([mf i32_t "size"]); *)
+    (* reserved_stub "cast"  (Any)     ([mf Any "in"]); *)
+    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
+    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
+    (* reserved_stub "close"   (i32_t)   ([mf i32_t "fd"]); *)
+    (* reserved_stub "read"  (i32_t)   ([mf i32_t "fd"; mf str_t "buf"; mf i32_t "nbyte"]); *)
+    (* reserved_stub "write"   (i32_t)   ([mf i32_t "fd"; mf str_t "buf"; mf i32_t "nbyte"]); *)
+    (* reserved_stub "lseek"   (i32_t)   ([mf i32_t "fd"; mf i32_t "offset"; mf i32_t "whence"]); *)
+    (* reserved_stub "exit"  (void_t)  ([mf i32_t "status"]); *)
+    reserved_stub "getchar" (i32_t)     ([]);
+    (* reserved_stub "input"   (str_t)   ([]); *)
+  ] in
+  reserved
+
 
 (* ref: build_class_maps - Generate list of all classes to be used for semantic checking *)
-let build_btmodule_map (btmodule_list : A.btmodule list) =
+let build_btmodule_map reserved (btmodule_list : A.btmodule list) =
   (* reserved/default module?? *)
+  let reserved_map = List.fold_left (fun m f -> StringMap.add (f.fname) f m) StringMap.empty reserved in
+  (* f.S.fname? *)
   let build_btmodule_env map btmodule =
     let helper_func map func =
       (* Exceptions.CannotUseReservedFuncName *)
       (* Exceptions.DuplicateFunction *)
-      StringMap.add (get_global_func_name btmodule.mname func) func map
+      if (StringMap.mem (get_global_func_name btmodule.mname func) map) 
+        then raise(Exceptions.DuplicateFunction(get_global_func_name btmodule.mname func)) 
+      else if (StringMap.mem (func.fname) reserved_map)
+        then raise(Exceptions.CannotUseReservedFuncName(func.fname))
+      else StringMap.add (get_global_func_name btmodule.mname func) func map
     in
     StringMap.add btmodule.mname
       {
         func_map = List.fold_left helper_func StringMap.empty btmodule.funcs;
+        
+        (* func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods; *)
+
         (* decl = btmodule; *)
         (* fields hashtbl ?? *)
       }
       map
   in
   List.fold_left build_btmodule_env StringMap.empty btmodule_list
+(* 
+(* Generate list of all classes to be used for semantic checking *)
+let build_class_maps reserved cdecls =
+  let reserved_map = List.fold_left (fun m f -> StringMap.add (Utils.string_of_fname f.sfname) f m) StringMap.empty reserved in
+  let helper m (cdecl:Ast.class_decl) =  
+    let fieldfun = (fun m -> (function Field(s, d, n) -> if (StringMap.mem (n) m) then raise(Exceptions.DuplicateField) else (StringMap.add n (Field(s, d, n)) m))) in
+    let funcname = get_name cdecl.cname in
+    let funcfun m fdecl = 
+      if (StringMap.mem (funcname fdecl) m) 
+        then raise(Exceptions.DuplicateFunction(funcname fdecl)) 
+      else if (StringMap.mem (Utils.string_of_fname fdecl.fname) reserved_map)
+        then raise(Exceptions.CannotUseReservedFuncName(Utils.string_of_fname fdecl.fname))
+      else (StringMap.add (funcname fdecl) fdecl m) 
+    in
+    let constructor_name = get_constructor_name cdecl.cname in
+    let constructorfun m fdecl = 
+      if fdecl.formals = [] then m
+      else if StringMap.mem (constructor_name fdecl) m 
+        then raise(Exceptions.DuplicateConstructor) 
+        else (StringMap.add (constructor_name fdecl) fdecl m)
+    in
+    let default_c = default_c cdecl.cname in
+    let constructor_map = StringMap.add (get_constructor_name cdecl.cname default_c) default_c StringMap.empty in
+    (if (StringMap.mem cdecl.cname m) then raise (Exceptions.DuplicateClassName(cdecl.cname)) else
+      StringMap.add cdecl.cname 
+      {   field_map = List.fold_left fieldfun StringMap.empty cdecl.cbody.fields; 
+        func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods;
+        constructor_map = List.fold_left constructorfun constructor_map cdecl.cbody.constructors; 
+        reserved_map = reserved_map; 
+        cdecl = cdecl } 
+                     m) in
+  List.fold_left helper StringMap.empty cdecls
 
+
+ *)
 
 let analyze_ast (btmodule_list) =
-  let btmodule_map = build_btmodule_map btmodule_list in
+  let reserved = add_reserved_functions in
+  let btmodule_map = build_btmodule_map reserved btmodule_list in
   let sast = build_sast btmodule_map btmodule_list in
   sast
 
