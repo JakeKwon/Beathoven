@@ -441,6 +441,17 @@ and convert_stmt_list_to_sstmt_list env stmt_list =
   let sstmt_list = (iter stmt_list), !env_ref in
   sstmt_list
 
+let check_fbody fbody returnType =
+  let len = List.length fbody in
+  if len = 0 then true else 
+  let final_stmt = List.hd (List.rev fbody) in
+  match returnType, final_stmt with
+    A.Datatype(Unit), _   -> true
+  |   _, S.Return(_, _)   -> true
+  |   _                   -> false
+
+(* let convert_constructor_to_sfdecl class_maps reserved class_map cname constructor = 
+ *)
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   let env =
     let formal_map =
@@ -463,7 +474,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     }
   in
   let _, fbody = build_sast_stmt_list env func.body in
-  if true (* TODO: check_fbody *)
+  if check_fbody fbody func.returnType
   then
     {
       S.fname = get_global_func_name mname func;
@@ -473,7 +484,6 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     }
   else
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
-
 
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   let build_sast_btmodule btmodule =
