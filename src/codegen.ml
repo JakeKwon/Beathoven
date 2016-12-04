@@ -186,7 +186,58 @@ let rec codegen_stmt builder = function
     ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
     builder
+  | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
 
+and codegen_if_stmt exp then_ (else_:stmt) builder =
+  let cond_val = codegen_expr builder exp in
+
+  (* Grab the first block so that we might later add the conditional branch
+   * to it at the end of the function. *)
+  let start_bb = L.insertion_block builder in
+  let the_function = L.block_parent start_bb in
+
+  let then_bb = L.append_block context "then" the_function in
+
+  (* Emit 'then' value. *)
+  L.position_at_end then_bb builder;
+  let _(* then_val *) = codegen_stmt builder then_ in
+
+  (* Codegen of 'then' can change the current block, update then_bb for the
+   * phi. We create a new name because one is used for the phi node, and the
+   * other is used for the conditional branch. *)
+  let new_then_bb = L.insertion_block builder in
+
+  (* Emit 'else' value. *)
+  let else_bb = L.append_block context "else" the_function in
+  L.position_at_end else_bb builder;
+  let _ (* else_val *) = codegen_stmt builder else_ in
+
+  (* Codegen of 'else' can change the current block, update else_bb for the
+   * phi. *)
+  let new_else_bb = L.insertion_block builder in
+
+  
+  let merge_bb = L.append_block context "ifcont" the_function in
+  L.position_at_end merge_bb builder;
+  (* let then_bb_val = value_of_block new_then_bb in *)
+  let else_bb_val = L.value_of_block new_else_bb in
+  (* let incoming = [(then_bb_val, new_then_bb); (else_bb_val, new_else_bb)] in *)
+  (* let phi = build_phi incoming "iftmp" llbuilder in *)
+
+  (* Return to the start block to add the conditional branch. *)
+  L.position_at_end start_bb builder;
+  ignore (L.build_cond_br cond_val then_bb else_bb builder);
+
+  (* Set a unconditional branch at the end of the 'then' block and the
+   * 'else' block to the 'merge' block. *)
+  L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
+  L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
+
+  (* Finally, set the builder to the end of the merge block. *)
+  L.position_at_end merge_bb builder;
+
+  (* else_bb_val *) (* phi *)
+  builder
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
