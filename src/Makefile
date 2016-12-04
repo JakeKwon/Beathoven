@@ -9,16 +9,17 @@ OCAMLBUILD = corebuild
 OCAMLC = ocamlc
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
-OCAMLFLAGS = -use-ocamlfind -pkgs llvm,yojson
+OCAMLFLAGS = -use-ocamlfind -pkgs llvm,llvm.bitreader,llvm.linker,yojson
 FLAGS = $(OCAMLFLAGS) -cflags -w,+a-4
 
 # OBJS = utils.cmo parser.cmo scanner.cmo analyzer.cmo printer.cmo pythonizer.cmo generator.cmo beathoven.cmo
 TARGET = beathoven
-
+CLIB = stdlib
 
 .PHONY : $(TARGET).native
 
 $(TARGET).native :
+	@clang -c -emit-llvm $(CLIB).c # clang-3.8
 	$(OCAMLBUILD) $(FLAGS) $(TARGET).native
 	@mv $(TARGET).native $(TARGET)
 
@@ -26,7 +27,7 @@ $(TARGET).native :
 .PHONY: clean
 clean:
 	$(OCAMLBUILD) -clean
-	rm -f $(TARGET) *.cm[iox] parser.ml parser.mli scanner.ml \
+	rm -f $(TARGET) *.cm[iox] parser.ml parser.mli scanner.ml $(CLIB).bc \
 *.out *.diff *.orig *.output
 
 all:

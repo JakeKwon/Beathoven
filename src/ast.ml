@@ -1,19 +1,22 @@
-let default_mname = "~beathoven"
-let default_fname = "~main"
+let default_mname = ".beathoven"
+let default_fname = ".main"
 
 type primitive =
     Unit
+  | Bool
   | Int
   | Double
   | String
-  | Bool
+
+type musictype =
+  Pitch
 
 (* Primitive(primi) *)
-type datatype = Datatype of primitive
+type datatype = Datatype of primitive | Musictype of musictype | Struct of string
 
 type binary_operator =
-    Add | Sub | Mult | Div | Equal | Neq
-  | Less | Leq | Greater | Geq | And | Mod | Or
+    Add | Sub | Mult | Div | Mod | Equal | Neq
+  | Less | Leq | Greater | Geq | And | Or
 
 type unary_operator = Neg | Not
 
@@ -27,6 +30,7 @@ type expr =
   | LitInt of int
   | LitDouble of float
   | LitStr of string
+  | LitPitch of char * int * int (* step * octave * alter *)
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
@@ -53,9 +57,15 @@ type func_decl = {
   body : stmt list;
 }
 
+type struct_decl = {
+  sname : string;
+  fields : bind list;
+}
+
 type btmodule = {
   mname : string;
-  (* TODO: usr_type Struct, Enum *)
+  structs: struct_decl list;
+  (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
 

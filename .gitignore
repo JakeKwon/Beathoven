@@ -1,10 +1,16 @@
 src/beathoven
 src/_build
 test/scanner/tokenize
+test/compiler/logs/*
+*.log
 
 scanner.ml
 parser.ml
 parser.mli
+stdlib.bc
+
+*foo.bt
+*foo.ll
 
 *.cmi
 *.cmo

@@ -2,6 +2,7 @@
 
 MYDIR="$(dirname "$(which "$0")")"
 BEAT_FILE="$MYDIR/src/beathoven"
+cp $MYDIR/src/stdlib.bc .
 
 if [ ! -f $BEAT_FILE ]; then
     printf "ERROR: not yet compiled, run 'make' first.\n" 1>&2
@@ -11,7 +12,7 @@ fi
 # beathoven.sh (-c | -r) <BEAT_FILE> <output_file>
 if [ "$#" -eq 3 ]; then
     if [ "$1" == "-c" ]; then
-        cat $LIST_LIB $DIST_LIB $2 | $BEAT_FILE $1 > $3 
+        cat $LIST_LIB $DIST_LIB $2 | $BEAT_FILE $1 > $3
         exit 0
     elif [ "$1" == "-r" ]; then
         $BEAT_FILE $1 $3 < $2

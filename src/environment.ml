@@ -2,16 +2,11 @@
 open Sast
 
 (* include ?? *)
+let beathoven_lib = "stdlib.bt"
 
 module StringMap = Map.Make (String)
 module StringSet = Set.Make (String)
-(*
-module SS = Set.Make (
-  struct
-    let compare = Pervasives.compare
-    type t = datatype
-  end )
- *)
+
 
 type btmodule_env = {
   func_map : A.func_decl StringMap.t; (* global name *)
@@ -22,14 +17,15 @@ type btmodule_env = {
 
 type env = {
   builtin_funcs : func_decl StringMap.t;
+  (* builtin_types :  *)
   btmodule_map : btmodule_env StringMap.t;
-  name : string; 
+  name : string;
   btmodule : btmodule_env; (* current module *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;
-  (* env_returnType: datatype;
-     env_in_for : bool;
-     env_in_while : bool; *)
+  mutable env_returnType: A.datatype;
+  mutable env_in_for : bool;
+  mutable env_in_while : bool;
 }
 
 (*

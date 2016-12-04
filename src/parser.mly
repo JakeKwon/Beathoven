@@ -8,7 +8,10 @@
 %token <string> LIT_STR
 %token <float> LIT_DOUBLE
 %token <string> ID
+%token <string> LIT_PITCH
 %token NULL TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_DOUBLE TYPE_STR TYPE_STRUCT TYPE_ENUM
+%token TYPE_PITCH
+%token DURATION NOTE CHORD SEQ
 %token ASSIGN
 %token RETURN SEP EOF
 %token LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE
@@ -19,7 +22,6 @@
 %token RARROW
 %token ARRAY
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
-%token PITCH DURATION NOTE CHORD SEQ
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
 %token IF ELSE WHILE FOR IN RANGE BREAK CONTINUE
@@ -28,19 +30,45 @@
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
-%left NEQ GTE EQ LTE GT
+%left OR
+%left AND
+%left EQ NEQ LT GT LTE GTE
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
+%right NOT
+%right DOT
+%right RBRACK
+%left LBRACK
+/*
 %left COLON
 %left OCTAVE_RAISE OCTAVE_LOWER
 %left DOT
 %left ARRAY
+*/
+
 
 /* AST program start */
 %start program
 %type <Ast.program> program
 
 %%
+
+literals:
+    ID { Id($1) }
+  | NULL { Null }
+  | LIT_BOOL { LitBool($1) }
+  | LIT_INT { LitInt($1) }
+  | LIT_DOUBLE { LitDouble($1) }
+  | LIT_STR { LitStr($1) }
+  | LIT_PITCH { LitPitch($1.[0], int_of_char $1.[1] - int_of_char '0',
+      if (String.length $1 = 2) then 0 else if $1.[2] = '#' then 1 else -1) }
+  /* | lit_array        { $1 } */
+  /*
+  lit_array:
+  | LBRACE stmt_list_plus RBRACE { Arr(($2), None) }
+  | LBRACK stmt_list_plus RBRACK { ArrMusic(($2)) }
+  | typename   BRACES  { Arr([], Some($1)) }
+  */
 
 primitive:
     TYPE_UNIT { Unit }
@@ -49,8 +77,12 @@ primitive:
   | TYPE_STR { String }
   | TYPE_BOOL { Bool }
 
+musictype:
+    TYPE_PITCH { Pitch }
+
 datatype:
     primitive { Datatype($1) }
+  | musictype { Musictype($1) }
 
 /* ------------------- Expressions ------------------- */
 
@@ -64,21 +96,19 @@ expr:
   | expr MOD    expr { Binop($1, Mod, $3) }
   | expr ASSIGN expr { Assign($1, $3) }
   | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
-  /*
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
   | expr LT expr { Binop($1, Less, $3) }
   | expr LTE expr { Binop($1, Leq, $3) }
   | expr GT expr { Binop($1, Greater, $3) }
   | expr GTE expr { Binop($1, Geq, $3) }
+  /*
   | NOT expr { Unop (Not, $2) }
   | expr AND expr { Binop($1, And, $3) }
   | expr OR expr { Binop($1, Or, $3) }
-  | LPAREN expr RPAREN { $2 }*/
-/*
   | expr bracket_args RBRACKET { ArrayAccess($1, List.rev $2) }
-  | ID LPAREN func_args RPAREN { Call($1, $3) }
 */
+  | LPAREN expr RPAREN { $2 }
 
 formal_list: /* bind list */
     /* nothing */ { [] }
@@ -96,20 +126,6 @@ expr_rev_list:
     expr { [$1] }
   | expr_rev_list COMMA expr { $3 :: $1 }
 
-literals:
-    ID { Id($1) }
-  | NULL { Null }
-  | LIT_BOOL { LitBool($1) }
-  | LIT_INT { LitInt($1) }
-  | LIT_DOUBLE { LitDouble($1) }
-  | LIT_STR { LitStr($1) }
-  /* | lit_array        { $1 } */
-  /*
-  lit_array:
-  | LBRACE stmt_list_plus RBRACE { Arr(($2), None) }
-  | LBRACK stmt_list_plus RBRACK { ArrMusic(($2)) }
-  | typename   BRACES  { Arr([], Some($1)) }
-  */
 
 /* ------------------- Statements ------------------- */
 
@@ -166,13 +182,13 @@ mfuncs:
 main_module:
   mfuncs
   {
-    { mname = default_mname; funcs = $1 }
+    { mname = default_mname; structs = []; funcs = $1 }
   }
 
 btmodule:
   MODULE ID LBRACE mfuncs RBRACE
   {
-    { mname = $2; funcs = $4 }
+    { mname = $2; structs = []; funcs = $4 }
   }
 
 btmodule_list:

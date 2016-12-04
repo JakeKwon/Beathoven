@@ -1,0 +1,5 @@
+if (true) {
+  print(true);
+}
+
+print(0);
