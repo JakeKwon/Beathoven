@@ -186,8 +186,7 @@ and codegen_expr builder = function
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
-  (* | While (e, s) -> ignore(codegen_expr builder e); *)
-  (* ignore(codegen_stmt builder s); builder *)
+  (* | While (e, s) -> codegen_while e, s builder *)
   (* | For (e1, e2, e3, s) -> codegen_for e1 e2 e3 s builder *)
   | VarDecl(t, s, e) ->
     ignore(allocate t s builder);
@@ -245,6 +244,18 @@ and codegen_if_stmt exp then_ (else_:stmt) builder =
 
   (* else_bb_val *) (* phi *)
   builder
+
+  (* and codegen_for e1 e2 e3 body builder = *)
+    (* codegen_stmt builder
+      ( Block [Expr e1 ; While (e2, Block [body ; Expr e3]) ] )
+ *)(*     in
+
+    (* Build the code for each statement in the function *)
+    let builder = codegen_stmt builder (Block fdecl.datatype) in
+
+    Add a return if the last block falls off the end
+    add_terminal builder (match fdecl.datatype with
+        Unit -> L.build_ret_void *)
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
