@@ -245,7 +245,6 @@ and codegen_if_stmt exp then_ (else_:stmt) builder =
 
   (* else_bb_val *) (* phi *)
   builder
->>>>>>> 3829f64f5aaa08f5e1081acacdc0c69bfa788970
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
