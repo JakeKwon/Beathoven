@@ -193,68 +193,59 @@ let rec codegen_stmt builder = function
     ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
     builder
+  | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
 
-  (* and codegen_for init_ cond_ inc_ body_ builder =
-    let old_val = !is_loop in
-  is_loop := true;
+and codegen_if_stmt exp then_ (else_:stmt) builder =
+  let cond_val = codegen_expr builder exp in
 
-  let the_function = L.block_parent (L.insertion_block builder) in
+  (* Grab the first block so that we might later add the conditional branch
+   * to it at the end of the function. *)
+  let start_bb = L.insertion_block builder in
+  let the_function = L.block_parent start_bb in
 
-  (* Emit the start code first, without 'variable' in scope. *)
-  let _ = codegen_expr builder init_ in
+  let then_bb = L.append_block context "then" the_function in
 
-  (* Make the new basic block for the loop header, inserting after current
-  * block. *)
-  let loop_bb = L.append_block context "loop" the_function in
-  (* Insert maintenance block *)
-  let inc_bb = L.append_block context "inc" the_function in
-  (* Insert condition block *)
-  let cond_bb = L.append_block context "cond" the_function in
-  (* Create the "after loop" block and insert it. *)
-  let after_bb = L.append_block context "afterloop" the_function in
+  (* Emit 'then' value. *)
+  L.position_at_end then_bb builder;
+  let _(* then_val *) = codegen_stmt builder then_ in
 
-  let _ = if not old_val then
-  cont_block := inc_bb;
-  br_block := after_bb;
-in
+  (* Codegen of 'then' can change the current block, update then_bb for the
+   * phi. We create a new name because one is used for the phi node, and the
+   * other is used for the conditional branch. *)
+  let new_then_bb = L.insertion_block builder in
 
-  (* Insert an explicit fall through from the current block to the
-  * loop_bb. *)
-  ignore (L.build_br cond_bb builder);
+  (* Emit 'else' value. *)
+  let else_bb = L.append_block context "else" the_function in
+  L.position_at_end else_bb builder;
+  let _ (* else_val *) = codegen_stmt builder else_ in
 
-  Start insertion in loop_bb.
-  L.position_at_end loop_bb builder;
+  (* Codegen of 'else' can change the current block, update else_bb for the
+   * phi. *)
+  let new_else_bb = L.insertion_block builder in
 
-  (* Emit the body of the loop.  This, like any other expr, can change the
-  * current BB.  Note that we ignore the value computed by the body, but
-* don't allow an error *)
-ignore (codegen_stmt builder body_);
 
-let bb = L.insertion_block builder in
-L.move_block_after bb inc_bb;
-L.move_block_after inc_bb cond_bb;
-L.move_block_after cond_bb after_bb;
-ignore(L.build_br inc_bb builder);
+  let merge_bb = L.append_block context "ifcont" the_function in
+  L.position_at_end merge_bb builder;
+  (* let then_bb_val = value_of_block new_then_bb in *)
+  let else_bb_val = L.value_of_block new_else_bb in
+  (* let incoming = [(then_bb_val, new_then_bb); (else_bb_val, new_else_bb)] in *)
+  (* let phi = build_phi incoming "iftmp" llbuilder in *)
 
-(* Start insertion in loop_bb. *)
-L.position_at_end inc_bb builder;
-(* Emit the step value. *)
-let _ = codegen_expr builder inc_ in
-ignore(L.build_br cond_bb builder);
+  (* Return to the start block to add the conditional branch. *)
+  L.position_at_end start_bb builder;
+  ignore (L.build_cond_br cond_val then_bb else_bb builder);
 
-L.position_at_end cond_bb builder;
+  (* Set a unconditional branch at the end of the 'then' block and the
+   * 'else' block to the 'merge' block. *)
+  L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
+  L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
 
-let cond_val = codegen_expr builder cond_ in
-ignore (L.build_cond_br cond_val loop_bb after_bb builder);
+  (* Finally, set the builder to the end of the merge block. *)
+  L.position_at_end merge_bb builder;
 
-(* Any new code will be inserted in after_bb. *)
-L.position_at_end after_bb builder;
-
-is_loop := old_val;
-
-(* for expr always returns 0.0. *)
-(* L.const_null f_t *)
-builder *)
+  (* else_bb_val *) (* phi *)
+  builder
+>>>>>>> 3829f64f5aaa08f5e1081acacdc0c69bfa788970
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
