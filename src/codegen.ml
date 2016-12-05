@@ -25,9 +25,9 @@ let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
 
-let (br_block) = ref (L.block_of_value (L.const_int i32_t 0))
+(* let (br_block) = ref (L.block_of_value (L.const_int i32_t 0))
 let (cont_block) = ref (L.block_of_value (L.const_int i32_t 0))
-let is_loop = ref false
+let is_loop = ref false *)
 
 (*
 let struct_types:(string, lltype) Hashtbl.t = Hashtbl.create 10
@@ -188,13 +188,13 @@ let rec codegen_stmt builder = function
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
   (* | While (e, s) -> ignore(codegen_expr builder e); *)
   (* ignore(codegen_stmt builder s); builder *)
-  | For (e1, e2, e3, s) -> codegen_for e1 e2 e3 s builder
+  (* | For (e1, e2, e3, s) -> codegen_for e1 e2 e3 s builder *)
   | VarDecl(t, s, e) ->
     ignore(allocate t s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
     builder
 
-  and codegen_for init_ cond_ inc_ body_ builder =
+  (* and codegen_for init_ cond_ inc_ body_ builder =
     let old_val = !is_loop in
   is_loop := true;
 
@@ -222,7 +222,7 @@ in
   * loop_bb. *)
   ignore (L.build_br cond_bb builder);
 
-  (* Start insertion in loop_bb. *)
+  Start insertion in loop_bb.
   L.position_at_end loop_bb builder;
 
   (* Emit the body of the loop.  This, like any other expr, can change the
@@ -254,7 +254,7 @@ is_loop := old_val;
 
 (* for expr always returns 0.0. *)
 (* L.const_null f_t *)
-builder
+builder *)
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
