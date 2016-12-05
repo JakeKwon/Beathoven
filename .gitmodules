@@ -1,0 +1,3 @@
+[submodule "bet_midi_library"]
+	path = bet_midi_library
+	url = https://github.com/manubete/bet_midi_library
