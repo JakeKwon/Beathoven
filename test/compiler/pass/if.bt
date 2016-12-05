@@ -1,5 +1,12 @@
-if (true) {
-  print(true);
+func if_else_tester(bool flag) -> unit
+{
+	if (flag) {
+		print(true);
+	}
+	else {
+		print(false);
+	}
+	print(0, "\n");
 }
-
-print(0);
+if_else_tester(true);
+if_else_tester(false);
