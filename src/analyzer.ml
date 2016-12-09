@@ -487,7 +487,7 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
     in
     {
       S.mname = btmodule.mname;
-      S.structs = btmodule.structs;
+      S.structs = []; (* btmodule.structs; *)
       S.funcs = sast_funcs;
     }
   in

@@ -85,14 +85,6 @@ datatype:
   | musictype { Musictype($1) }
 
 
-/* ------------------- Structs ------------------- */
-
-struct_decl:
-  TYPE_STRUCT ID LBRACE field_list RBRACE
-  {
-    { sname = $2; fields = $4; }
-  }
-
 /* ------------------- Expressions ------------------- */
 
 expr:
@@ -160,7 +152,6 @@ stmt:
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
   | CONTINUE SEP { Continue }
-  | struct_decl { Struct($1) }
 
 stmt_list:
   | stmt_rev_list { List.rev $1 }
@@ -174,6 +165,18 @@ var_decl:
     datatype ID SEP { VarDecl($1, $2, Noexpr) }
   | datatype ID ASSIGN expr SEP { VarDecl($1, $2, $4) }
 
+/* ------------------- Structs ------------------- */
+
+struct_decl:
+  TYPE_STRUCT ID LBRACE field_list RBRACE
+  {
+    { sname = $2; fields = $4; }
+  }
+
+struct_and_stmt:
+    stmt { $1 }
+  | struct_decl { Struct($1) }
+
 /* ------------------- Functions ------------------- */
 
 func_decl:
@@ -182,9 +185,9 @@ func_decl:
     { fname = $2; formals = $4; returnType = $7; body = $9 }
   }
 
-mfuncs: /* stmt_rev_list (main_func), func_decl_rev_list */
+mfuncs: /* struct_and_stmt_rev_list (main_func), func_decl_rev_list */
     /* nothing */ { [], [] }
-  | mfuncs stmt { ($2 :: fst $1), snd $1 }
+  | mfuncs struct_and_stmt { ($2 :: fst $1), snd $1 }
   | mfuncs func_decl { fst $1, ($2 :: snd $1) }
 
 mbody:
@@ -199,13 +202,13 @@ mbody:
 main_module:
   mbody
   {
-    { mname = default_mname; structs = []; funcs = $1 }
+    { mname = default_mname; funcs = $1 }
   }
 
 btmodule:
   MODULE ID LBRACE mbody RBRACE
   {
-    { mname = $2; structs = []; funcs = $4 }
+    { mname = $2; funcs = $4 }
   }
 
 btmodule_list:

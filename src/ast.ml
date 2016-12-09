@@ -64,7 +64,6 @@ type func_decl = {
 
 type btmodule = {
   mname : string;
-  structs: struct_decl list;
   (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
