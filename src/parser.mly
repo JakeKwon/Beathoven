@@ -84,6 +84,7 @@ datatype:
     primitive { Datatype($1) }
   | musictype { Musictype($1) }
 
+
 /* ------------------- Expressions ------------------- */
 
 expr:
@@ -117,6 +118,13 @@ formal_list: /* bind list */
 formal_rev_list:
     datatype ID { [($1, $2)] }
   | formal_rev_list COMMA datatype ID { ($3, $4) :: $1 }
+
+field_list: /* bind list or var_decl ?? */
+  | field_rev_list { List.rev $1 }
+
+field_rev_list:
+    datatype ID SEP { [($1, $2)] }
+  | field_rev_list datatype ID SEP { ($2, $3) :: $1 }
 
 expr_list:
     /* nothing */ { [] }
@@ -157,6 +165,18 @@ var_decl:
     datatype ID SEP { VarDecl($1, $2, Noexpr) }
   | datatype ID ASSIGN expr SEP { VarDecl($1, $2, $4) }
 
+/* ------------------- Structs ------------------- */
+
+struct_decl:
+  TYPE_STRUCT ID LBRACE field_list RBRACE
+  {
+    { sname = $2; fields = $4; }
+  }
+
+struct_and_stmt:
+    stmt { $1 }
+  | struct_decl { Struct($1) }
+
 /* ------------------- Functions ------------------- */
 
 func_decl:
@@ -165,13 +185,13 @@ func_decl:
     { fname = $2; formals = $4; returnType = $7; body = $9 }
   }
 
-mbody: /* stmt_rev_list (main_func), func_decl_rev_list */
+mfuncs: /* struct_and_stmt_rev_list (main_func), func_decl_rev_list */
     /* nothing */ { [], [] }
-  | mbody stmt { ($2 :: fst $1), snd $1 }
-  | mbody func_decl { fst $1, ($2 :: snd $1) }
+  | mfuncs struct_and_stmt { ($2 :: fst $1), snd $1 }
+  | mfuncs func_decl { fst $1, ($2 :: snd $1) }
 
-mfuncs:
-    mbody
+mbody:
+    mfuncs
   {
     { fname = default_fname; formals = [];
       returnType = Datatype(Unit); body = List.rev (fst $1) } :: (List.rev (snd $1))
@@ -180,15 +200,15 @@ mfuncs:
 /* ------------------- Modules ------------------- */
 
 main_module:
-  mfuncs
+  mbody
   {
-    { mname = default_mname; structs = []; funcs = $1 }
+    { mname = default_mname; funcs = $1 }
   }
 
 btmodule:
-  MODULE ID LBRACE mfuncs RBRACE
+  MODULE ID LBRACE mbody RBRACE
   {
-    { mname = $2; structs = []; funcs = $4 }
+    { mname = $2; funcs = $4 }
   }
 
 btmodule_list:

@@ -50,9 +50,9 @@ let get_arithmetic_binop_type se1 se2 op = function
   | (A.Datatype(Double), A.Datatype(Double)) -> S.Binop(se1, op, se2, A.Datatype(Double))
 
   (* | (A.Datatype(Int), A.Datatype(Char_t))
-  | (A.Datatype(Char_t), A.Datatype(Int))
-  | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
- *)
+     | (A.Datatype(Char_t), A.Datatype(Int))
+     | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
+  *)
   | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
@@ -149,6 +149,9 @@ let get_global_func_name mname (func:A.func_decl) =
   else mname ^ "." ^ func.fname (* module.main *)
 (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
+let get_global_struct_name mname (s : A.struct_decl) =
+  mname ^ "." ^ s.sname
+
 (* Initialize builtin_funcs *)
 let builtin_funcs =
   let map = StringMap.empty in
@@ -161,14 +164,24 @@ let builtin_funcs =
       }
       map in
   map
+
 (*
-let rec get_ID_type env s = 
-  try StringMap.find s env.var_map
-  with | Not_found -> 
-  (* try let formal = StringMap.find s env.env_parameters in
-    (function Formal(t, _) -> t | Many t -> t ) formal
-  with | Not_found -> *) raise (Exceptions.UndefinedID s)
+(* these are builtin_funcs  *)
+let add_reserved_functions =
+  let reserved_stub name return_type formals =
+    {
+      formals    = formals;
+    }
+  in
+    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
+    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
+    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
+    (* reserved_stub "input"   (str_t)   ([]); *)
+  ] in
+  reserved
 *)
+
+
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
@@ -193,10 +206,7 @@ and build_sast_expr_list env (expr_list:A.expr list) =
 
 (* --- Analyze expressions --- *)
 
-and analyze_binop env e1 op e2 =
-  (* env, S.Noexpr  *)
-  (* env, Binop (e1,op,e2,_) *)
-
+and analyze_binop env e1 op e2 = (* -> env, Binop (e1,op,e2,t) *)
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
@@ -208,9 +218,7 @@ and analyze_binop env e1 op e2 =
   | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
   | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
 
-and analyze_unop env op e =
-  (* env, S.Noexpr  *)
-  (* env, Uniop (op,e,_) *)
+and analyze_unop env op e = (* -> env, Uniop (op,e,_) *)
   let check_num_unop t = function
       Neg -> t
     | _ -> raise(Exceptions.InvalidUnaryOperation)
@@ -246,11 +254,11 @@ and analyze_funccall env s el =
   try
     let func = StringMap.find s env.builtin_funcs in
     env, S.FuncCall(func.fname, sast_el, func.returnType)
-    (* TODO: check builtin funcs *)
+  (* TODO: check builtin funcs *)
   with | Not_found ->
   try
     let fname = env.name ^ "." ^ s in
-    let func = StringMap.find fname env.btmodule.func_map in (* ast func *)
+    let func = StringMap.find fname !(env.btmodule).func_map in (* ast func *)
     let check_params (actuals : S.expr list) (formals : A.bind list) =
       if List.length actuals = List.length formals (* && *)
       then
@@ -282,10 +290,10 @@ let build_sast_vardecl env d s e =
     then
       (* TODO: check if t is Unit *)
       if  get_type_from_expr sast_expr = A.Datatype(Unit)
-        then raise (Exceptions.UnitTypeError "UnitTypeError")
+      then raise (Exceptions.UnitTypeError "UnitTypeError")
       (* semant.ml's handle_expr_statement *)
       (* dice, analyzer's local_handler *)
-        else env.var_map <- StringMap.add s d env.var_map;
+      else env.var_map <- StringMap.add s d env.var_map;
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
 (* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
@@ -293,7 +301,7 @@ let build_sast_vardecl env d s e =
 let rec build_sast_block env = function
     [] -> env, S.Block([])
   | _ as l ->
-    let _, sl = build_sast_stmt_list env l in env, S.Block(sl) (* is env updated? *)
+    let _, sl = build_sast_stmt_list env l in env, S.Block(sl)
 
 and build_sast_stmt env (stmt : A.stmt) =
   match stmt with
@@ -301,12 +309,14 @@ and build_sast_stmt env (stmt : A.stmt) =
   | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
   | Return e -> check_return e env
   | If (e, s1, s2) -> check_if e s1 s2 env
-     (* | If (se, s1, s2) -> check_stmt se s1 env *)
-     (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
+  (* | If (se, s1, s2) -> check_stmt se s1 env *)
+  (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
   | While(e, s) -> check_while e s env
   | Break -> check_break env (* TODO: Need to check if in right context *)
   | Continue -> check_continue env (* TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
+  | Struct _ -> env, S.Expr(Noexpr, A.Datatype(Unit)) (* skip structs *)
+
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
   let helper_stmt stmt =
@@ -319,29 +329,29 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
 
 (* build_sast_expr env e in env, get_stmt_from_expr se *)
 (* and check_if e s1 s2 env =
-  let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
-  let _, ifbody = build_sast_stmt env s1 in
-  let _, elsebody = build_sast_stmt env s2 in
-  if t = A.Datatype(Bool)
+   let _, se = build_sast_expr env e in
+   let t = get_type_from_expr se in
+   let _, ifbody = build_sast_stmt env s1 in
+   let _, elsebody = build_sast_stmt env s2 in
+   if t = A.Datatype(Bool)
     then env, S.If(se, ifbody, elsebody)
     else raise (Exceptions.IfComparisonNotBool "foo") *)
 
 (* and check_while e s env =
-  let old_val = env.env_in_while in
-  let env = update_call_stack env env.env_in_for true in
+   let old_val = env.env_in_while in
+   let env = update_call_stack env env.env_in_for true in
 
-  let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
-  let sstmt, _ = parse_stmt env s in
-  let swhile =
+   let _, se = build_sast_expr env e in
+   let t = get_type_from_expr se in
+   let sstmt, _ = parse_stmt env s in
+   let swhile =
     if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
       then S.While(se, sstmt)
       else raise Exceptions.InvalidWhileStatementType
-  in
+   in
 
-  let env = update_call_stack env env.env_in_for old_val in
-  swhile, env *)
+   let env = update_call_stack env env.env_in_for old_val in
+   swhile, env *)
 
 
 and check_sblock sl env = match sl with
@@ -359,10 +369,10 @@ and check_return e env =
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
   match t, env.env_returnType with
-    (* A.Datatype(Unit), Datatype(Objecttype(_))
-  |   Datatype(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
+  (* A.Datatype(Unit), Datatype(Objecttype(_))
+     |   Datatype(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
   |   _ ->
-  if t = env.env_returnType
+    if t = env.env_returnType
     then env, S.Return(se, t)
     else raise (Exceptions.ReturnTypeMismatch(string_of_datatype t, string_of_datatype env.env_returnType))
 
@@ -372,8 +382,8 @@ and check_if e s1 s2 env =
   let _, ifbody = build_sast_stmt env s1 in
   let _, elsebody = build_sast_stmt env s2 in
   if t = A.Datatype(Bool)
-    then env, S.If(se, ifbody, elsebody)
-    else raise (Exceptions.IfComparisonNotBool "foo")
+  then env, S.If(se, ifbody, elsebody)
+  else raise (Exceptions.IfComparisonNotBool "foo")
 (*
 and check_for e1 e2 e3 s env =
   let old_val = env.env_in_for in
@@ -404,8 +414,8 @@ and check_while e s env =
   let _, sstmt = parse_stmt env s in
   let swhile =
     if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
-      then S.While(se, sstmt)
-      else raise Exceptions.InvalidWhileStatementType
+    then S.While(se, sstmt)
+    else raise Exceptions.InvalidWhileStatementType
   in
 
   (* let env = update_call_stack env env.env_in_for old_val in *)
@@ -425,7 +435,7 @@ and check_continue env =
     raise Exceptions.CannotCallContinueOutsideOfLoop
 
 and parse_stmt env = function
-      Block sl            -> env, check_sblock sl env
+    Block sl            -> env, check_sblock sl env
   |   Expr e              -> check_expr_stmt e env
   |   Return e            -> check_return e env
   |   If(e, s1, s2)       -> check_if e s1 s2 env
@@ -433,32 +443,32 @@ and parse_stmt env = function
   |   While(e, s)         -> check_while e s env
   |   Break               -> check_break env (* Need to check if in right context *)
   |   Continue            -> check_continue env (* Need to check if in right context *)
-  (* |   Local(d, s, e)      -> local_handler d s e env *)
+(* |   Local(d, s, e)      -> local_handler d s e env *)
 
 (* Update this function to return an env object *)
 and convert_stmt_list_to_sstmt_list env stmt_list =
   let env_ref = ref(env) in
   let rec iter = function
-    head::tail ->
-    let env, a_head = parse_stmt !env_ref head in
-    env_ref := env;
-    a_head::(iter tail)
-  | [] -> []
+      head::tail ->
+      let env, a_head = parse_stmt !env_ref head in
+      env_ref := env;
+      a_head::(iter tail)
+    | [] -> []
   in
   let sstmt_list = (iter stmt_list), !env_ref in
   sstmt_list
 
 let check_fbody fbody returnType =
   let len = List.length fbody in
-  if len = 0 then true else 
-  let final_stmt = List.hd (List.rev fbody) in
-  match returnType, final_stmt with
-    A.Datatype(Unit), _   -> true
-  |   _, S.Return(_, _)   -> true
-  |   _                   -> false
+  if len = 0 then true else
+    let final_stmt = List.hd (List.rev fbody) in
+    match returnType, final_stmt with
+      A.Datatype(Unit), _   -> true
+    |   _, S.Return(_, _)   -> true
+    |   _                   -> false
 
-(* let convert_constructor_to_sfdecl class_maps reserved class_map cname constructor = 
- *)
+(* let convert_constructor_to_sfdecl class_maps reserved class_map cname constructor =
+*)
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   let env =
     let formal_map =
@@ -467,14 +477,17 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
       in
       List.fold_left helper_formal StringMap.empty func.formals
     in
-    (* initialize environment per func ?? *)
+    (* initialize a new environment for every func *)
     {
+      (* same for all envs *)
       builtin_funcs = builtin_funcs;
-      name = mname; (* current module ?? *)
-      var_map = StringMap.empty; (* why empty, fields? *)
-      formal_map = formal_map; (* current func *)
-      btmodule = btmodule_env; (* current module *)
       btmodule_map = btmodule_map;
+      (* immutable in this env  *)
+      name = mname; (* current module ?? does it change later ?? *)
+      btmodule = btmodule_env; (* current module *)
+      formal_map = formal_map;
+      (* mutable in this env  *)
+      var_map = StringMap.empty; (* why empty, fields? *)
       env_returnType = func.returnType;
       env_in_for = false;
       env_in_while = false;
@@ -486,15 +499,35 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     {
       S.fname = get_global_func_name mname func;
       S.formals = func.formals;
-      S.returnType = func.returnType; (*??*)
+      S.returnType = func.returnType;
       S.body = fbody;
     }
   else
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
 
+let build_sast_struct_decl mname btmodule_env struct_decl =
+  let sname = get_global_struct_name mname struct_decl in
+  (* Exceptions.DuplicateFunction *)
+  !btmodule_env.struct_map <- (StringMap.add sname struct_decl !btmodule_env.struct_map);
+  {
+    sname = sname;
+    fields = struct_decl.fields;
+  }
+
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   let build_sast_btmodule btmodule =
-    let btmodule_env = StringMap.find btmodule.mname btmodule_map in
+    let btmodule_env = ref (StringMap.find btmodule.mname btmodule_map) in
+    let sast_structs =
+      let helper_struct_decl struct_rev_list = function
+          Struct struct_decl ->
+          let sast_struct =
+            build_sast_struct_decl btmodule.mname btmodule_env struct_decl
+          in sast_struct::struct_rev_list
+        | _ -> struct_rev_list
+      in
+      let (main_func : A.func_decl) = List.hd btmodule.funcs in
+      List.rev (List.fold_left helper_struct_decl [] main_func.body)
+    in
     let sast_funcs =
       let helper_func_decl func =
         build_sast_func_decl btmodule_map btmodule_env btmodule.mname func
@@ -503,7 +536,7 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
     in
     {
       S.mname = btmodule.mname;
-      S.structs = btmodule.structs;
+      S.structs = sast_structs;
       S.funcs = sast_funcs;
     }
   in
@@ -526,103 +559,32 @@ type func_decl = {
   (* TODO?: separate vars from stmt list in analyzer *)
 }
 
-let add_reserved_functions = 
-  let reserved_stub name return_type formals = 
-    {
-      (* fname      = FName(name); *)
-      fname      = name;
-      formals    = formals;
-      returnType   = return_type;
-      body       = [];
-    }
-  in
-  let i32_t = A.Datatype(Int) in
-  let void_t = A.Datatype(Unit) in
-  (* let str_t = Arraytype(Char_t, 1) in *)
-  (* let mf t n = A.bind(t, n) in (* Make formal *) *)
-  let reserved = [
-    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
-    (* reserved_stub "malloc"  (str_t)   ([mf i32_t "size"]); *)
-    (* reserved_stub "cast"  (Any)     ([mf Any "in"]); *)
-    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
-    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
-    (* reserved_stub "close"   (i32_t)   ([mf i32_t "fd"]); *)
-    (* reserved_stub "read"  (i32_t)   ([mf i32_t "fd"; mf str_t "buf"; mf i32_t "nbyte"]); *)
-    (* reserved_stub "write"   (i32_t)   ([mf i32_t "fd"; mf str_t "buf"; mf i32_t "nbyte"]); *)
-    (* reserved_stub "lseek"   (i32_t)   ([mf i32_t "fd"; mf i32_t "offset"; mf i32_t "whence"]); *)
-    (* reserved_stub "exit"  (void_t)  ([mf i32_t "status"]); *)
-    reserved_stub "getchar" (i32_t)     ([]);
-    (* reserved_stub "input"   (str_t)   ([]); *)
-  ] in
-  reserved
 
-
-(* ref: build_class_maps - Generate list of all classes to be used for semantic checking *)
-let build_btmodule_map reserved (btmodule_list : A.btmodule list) =
-  (* reserved/default module?? *)
-  let reserved_map = List.fold_left (fun m f -> StringMap.add (f.fname) f m) StringMap.empty reserved in
-  (* f.S.fname? *)
+(* ref: build_class_maps - Generate map of all modules to be used for semantic checking *)
+let build_btmodule_map (btmodule_list : A.btmodule list) =
+  (* default module?? *)
   let build_btmodule_env map btmodule =
     let helper_func map func =
-      (* Exceptions.CannotUseReservedFuncName *)
       (* Exceptions.DuplicateFunction *)
-      if (StringMap.mem (get_global_func_name btmodule.mname func) map) 
-        then raise(Exceptions.DuplicateFunction(get_global_func_name btmodule.mname func)) 
-      else if (StringMap.mem (func.fname) reserved_map)
-        then raise(Exceptions.CannotUseReservedFuncName(func.fname))
+      if (StringMap.mem (get_global_func_name btmodule.mname func) map)
+      then raise(Exceptions.DuplicateFunction(get_global_func_name btmodule.mname func))
+      else if (StringMap.mem (func.fname) builtin_funcs)
+      then raise(Exceptions.CannotUseReservedFuncName(func.fname))
       else StringMap.add (get_global_func_name btmodule.mname func) func map
     in
     StringMap.add btmodule.mname
       {
         func_map = List.fold_left helper_func StringMap.empty btmodule.funcs;
-        
-        (* func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods; *)
-
+        struct_map = StringMap.empty;
         (* decl = btmodule; *)
         (* fields hashtbl ?? *)
       }
       map
   in
   List.fold_left build_btmodule_env StringMap.empty btmodule_list
-(* 
-(* Generate list of all classes to be used for semantic checking *)
-let build_class_maps reserved cdecls =
-  let reserved_map = List.fold_left (fun m f -> StringMap.add (Utils.string_of_fname f.sfname) f m) StringMap.empty reserved in
-  let helper m (cdecl:Ast.class_decl) =  
-    let fieldfun = (fun m -> (function Field(s, d, n) -> if (StringMap.mem (n) m) then raise(Exceptions.DuplicateField) else (StringMap.add n (Field(s, d, n)) m))) in
-    let funcname = get_name cdecl.cname in
-    let funcfun m fdecl = 
-      if (StringMap.mem (funcname fdecl) m) 
-        then raise(Exceptions.DuplicateFunction(funcname fdecl)) 
-      else if (StringMap.mem (Utils.string_of_fname fdecl.fname) reserved_map)
-        then raise(Exceptions.CannotUseReservedFuncName(Utils.string_of_fname fdecl.fname))
-      else (StringMap.add (funcname fdecl) fdecl m) 
-    in
-    let constructor_name = get_constructor_name cdecl.cname in
-    let constructorfun m fdecl = 
-      if fdecl.formals = [] then m
-      else if StringMap.mem (constructor_name fdecl) m 
-        then raise(Exceptions.DuplicateConstructor) 
-        else (StringMap.add (constructor_name fdecl) fdecl m)
-    in
-    let default_c = default_c cdecl.cname in
-    let constructor_map = StringMap.add (get_constructor_name cdecl.cname default_c) default_c StringMap.empty in
-    (if (StringMap.mem cdecl.cname m) then raise (Exceptions.DuplicateClassName(cdecl.cname)) else
-      StringMap.add cdecl.cname 
-      {   field_map = List.fold_left fieldfun StringMap.empty cdecl.cbody.fields; 
-        func_map = List.fold_left funcfun StringMap.empty cdecl.cbody.methods;
-        constructor_map = List.fold_left constructorfun constructor_map cdecl.cbody.constructors; 
-        reserved_map = reserved_map; 
-        cdecl = cdecl } 
-                     m) in
-  List.fold_left helper StringMap.empty cdecls
-
-
- *)
 
 let analyze_ast (btmodule_list) =
-  let reserved = add_reserved_functions in
-  let btmodule_map = build_btmodule_map reserved btmodule_list in
+  let btmodule_map = build_btmodule_map btmodule_list in
   let sast = build_sast btmodule_map btmodule_list in
   sast
 

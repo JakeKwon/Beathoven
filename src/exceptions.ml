@@ -18,7 +18,6 @@ exception CannotCallContinueOutsideOfLoop
 exception InvalidWhileStatementType
 exception InvalidUnaryOperation
 exception UnitTypeError of string
-exception UndefinedID of string
 exception DuplicateFunction of string
 exception CannotUseReservedFuncName of string
 

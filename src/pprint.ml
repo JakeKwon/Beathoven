@@ -123,27 +123,38 @@ let rec json_of_stmt stmt =
                                    `Assoc [tuple_of_datatype d; ("name", `String s); ("val", json_of_expr e)])]
   in stmt_json
 
-let json_of_formals formals =
+let json_of_bind_list bind_list =
   `List (List.map
            (function (d, s) -> `Assoc [("name", `String s); tuple_of_datatype d;])
-           formals)
+           bind_list)
 
 let json_of_func (func : func_decl) =
   `Assoc[("func_decl",
           `Assoc[
             ("fname", `String func.fname);
             ("returnType", `String (string_of_datatype func.returnType) );
-            ("formals", json_of_formals func.formals);
+            ("formals", json_of_bind_list func.formals);
             ("body", `List (List.map json_of_stmt func.body));
           ])]
 
 let json_of_funcs funcs =
   `List(List.map json_of_func funcs)
 
+let json_of_struct (s : A.struct_decl) =
+  `Assoc[("struct_decl",
+          `Assoc[
+            ("sname", `String s.sname);
+            ("fields", json_of_bind_list s.fields);
+          ])]
+
+let json_of_structs structs =
+  `List(List.map json_of_struct structs)
+
 let json_of_module btmodule =
   `Assoc [("btmodule",
            `Assoc[
              ("mname", `String btmodule.mname);
+             ("structs", json_of_structs btmodule.structs);
              ("funcs", json_of_funcs btmodule.funcs);
            ])]
 

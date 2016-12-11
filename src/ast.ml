@@ -12,7 +12,7 @@ type musictype =
   Pitch
 
 (* Primitive(primi) *)
-type datatype = Datatype of primitive | Musictype of musictype | Struct of string
+type datatype = Datatype of primitive | Musictype of musictype | Structtype of string
 
 type binary_operator =
     Add | Sub | Mult | Div | Mod | Equal | Neq
@@ -23,6 +23,10 @@ type unary_operator = Neg | Not
 type bind = datatype * string
 (* type formal = Formal of bind | Many of datatype *)
 
+type struct_decl = {
+  sname : string;
+  fields : bind list;
+}
 
 type expr =
     Id of string
@@ -48,6 +52,7 @@ type stmt =
   | Return of expr
   | Break
   | Continue
+  | Struct of struct_decl
 
 
 type func_decl = {
@@ -57,14 +62,8 @@ type func_decl = {
   body : stmt list;
 }
 
-type struct_decl = {
-  sname : string;
-  fields : bind list;
-}
-
 type btmodule = {
   mname : string;
-  structs: struct_decl list;
   (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
