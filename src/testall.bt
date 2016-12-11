@@ -1,3 +1,7 @@
+Struct sth { /* can only be defined outside funcs */
+    int a;
+}
+
 int a;
 
 a = 0;
