@@ -71,6 +71,7 @@ let get_arithmetic_binop_type se1 se2 op = function
 let get_type_from_expr (expr : S.expr) =
   match expr with
     Id (_,d) -> d
+  | StructField(_,_,d) -> d
   | LitBool(_) -> A.Datatype(Bool)
   | LitInt(_) -> A.Datatype(Int)
   | LitDouble(_) -> A.Datatype(Double)
@@ -85,26 +86,11 @@ let get_type_from_expr (expr : S.expr) =
 (*
   | Null -> Datatype(Null_t)
    | Noexpr -> Datatype(Void_t)
-   | Assign(_, _, d) -> d
-   | Unop(_, _, d) -> d
-   | Binop(_, _, _, d) -> d *)
+  *)
 
 let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
-
-
-
-(*
- **********************************************************
-let rec check_expr e =
- match e with
- Binop of expr * binary_operator * expr
- | Uniop of unary_operator * expr
- | Assign of expr * expr
- | FuncCall of string * expr list
- | _ -> ();
- *)
 
 
 let rec check_stmt returnType (stmt : S.stmt) =
@@ -149,8 +135,8 @@ let get_global_func_name mname (func:A.func_decl) =
   else mname ^ "." ^ func.fname (* module.main *)
 (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
-let get_global_struct_name mname (s : A.struct_decl) =
-  mname ^ "." ^ s.sname
+let get_global_name mname n =
+  mname ^ "." ^ n
 
 (* Initialize builtin_funcs *)
 let builtin_funcs =
@@ -164,7 +150,6 @@ let builtin_funcs =
       }
       map in
   map
-
 (*
 (* these are builtin_funcs  *)
 let add_reserved_functions =
@@ -181,19 +166,38 @@ let add_reserved_functions =
   reserved
 *)
 
+(* ref: Dice/check_obj_access *)
+let analyze_struct env s f =
+  let struct_type = get_ID_type env s in
+  let field_bind =
+    let struct_decl =
+      match struct_type with
+        Structtype n ->
+        try StringMap.find n !(env.btmodule).struct_map
+        with | Not_found -> raise(Exceptions.Impossible)
+             | _ -> raise (Exceptions.CanOnlyAccessStructType)
+    in
+    try List.find (fun field -> (snd field) = f) struct_decl.fields
+    with | Not_found -> raise(Exceptions.StructFieldNotFound(s, f))
+  in
+  let field_id = S.Id(snd field_bind, fst field_bind) in
+  let struct_id = S.Id(s, struct_type) in
+  env, S.StructField(struct_id, field_id, fst field_bind)
+
 
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
+  | StructField(s, f) -> analyze_struct env s f
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
   | LitStr(s) -> env, S.LitStr(s)
-  | LitPitch(s,o,a) -> env, S.LitPitch(s,o,a)
-  | Binop(e1,op,e2) -> analyze_binop env e1 op e2
-  | Uniop(op,e) -> analyze_unop env op e
-  | Assign(e1,e2) -> analyze_assign env e1 e2
-  | FuncCall(s,el) -> (* Chord::func() ?? *)
+  | LitPitch(s, o, a) -> env, S.LitPitch(s,o,a)
+  | Binop(e1, op, e2) -> analyze_binop env e1 op e2
+  | Uniop(op, e) -> analyze_unop env op e
+  | Assign(e1, e2) -> analyze_assign env e1 e2
+  | FuncCall(s, el) -> (* TODO: Chord::func() ?? *)
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
@@ -283,20 +287,34 @@ and analyze_funccall env s el =
 let build_sast_vardecl env d s e =
   if StringMap.mem s env.var_map
   then
-    raise (Exceptions.DuplicateLocal s)
+    raise (Exceptions.DuplicateVariable s)
   else
+    let d =
+      match d with
+        Structtype(sname) -> (* rename Structtype using global name *)
+        let n = get_global_name env.name sname in
+        if not (StringMap.mem n !(env.btmodule).struct_map)
+        then raise (Exceptions.UndefinedStructType n)
+        else Structtype(n)
+      | _ -> d
+    in
     let _, sast_expr = build_sast_expr env e in
     if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
     then
       (* TODO: check if t is Unit *)
+      (*
       if  get_type_from_expr sast_expr = A.Datatype(Unit)
-      then raise (Exceptions.UnitTypeError "UnitTypeError")
+      then
+      raise (Exceptions.UnitTypeError "UnitTypeError")
       (* semant.ml's handle_expr_statement *)
-      (* dice, analyzer's local_handler *)
-      else env.var_map <- StringMap.add s d env.var_map;
+      (* ref: Dice/local_handler *)
+      else
+       *)
+      env.var_map <- StringMap.add s d env.var_map;
     (* print_int (get_map_size env.var_map); *)
     env, S.VarDecl(d, s, sast_expr)
-(* TODO (NOT YET): if the user-defined type being declared is not in global classes map, it is an undefined class *)
+
+
 
 let rec build_sast_block env = function
     [] -> env, S.Block([])
@@ -506,7 +524,7 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     raise (Exceptions.CheckFbodyFail "check_fbody fail")
 
 let build_sast_struct_decl mname btmodule_env struct_decl =
-  let sname = get_global_struct_name mname struct_decl in
+  let sname = get_global_name mname struct_decl.sname in
   (* Exceptions.DuplicateFunction *)
   !btmodule_env.struct_map <- (StringMap.add sname struct_decl !btmodule_env.struct_map);
   {
@@ -548,16 +566,6 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       S.main_module = head;
       S.btmodules = tail;
     }
-
-type func_decl = {
-  fname : string; (* global name *)
-  formals : A.bind list;
-  returnType : A.datatype;
-  body : stmt list;
-  (* btmodule  *)
-  (* functype *)
-  (* TODO?: separate vars from stmt list in analyzer *)
-}
 
 
 (* ref: build_class_maps - Generate map of all modules to be used for semantic checking *)

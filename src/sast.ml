@@ -2,6 +2,7 @@ module A = Ast
 
 type expr =
     Id of string * A.datatype
+  | StructField of expr * expr * A.datatype (* Id * Id * datatype *)
   | LitBool of bool
   | LitInt of int
   | LitDouble of float
@@ -28,7 +29,7 @@ type stmt =
 
 
 type func_decl = {
-  fname : string; (* global name *)
+  fname : string;
   formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
@@ -40,7 +41,7 @@ type func_decl = {
 type btmodule = {
   mname : string;
   structs: A.struct_decl list; (* global name *)
-  funcs : func_decl list;
+  funcs : func_decl list; (* global name *)
 }
 
 type program = {

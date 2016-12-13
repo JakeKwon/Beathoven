@@ -36,9 +36,9 @@
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
 %right NOT
-%right DOT
 %right RBRACK
 %left LBRACK
+%left DOT /* right?? */
 /*
 %left COLON
 %left OCTAVE_RAISE OCTAVE_LOWER
@@ -55,6 +55,7 @@
 
 literals:
     ID { Id($1) }
+  | ID DOT ID { StructField($1, $3) }
   | NULL { Null }
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
@@ -83,12 +84,13 @@ musictype:
 datatype:
     primitive { Datatype($1) }
   | musictype { Musictype($1) }
+  | TYPE_STRUCT ID { Structtype($2) }
 
 
 /* ------------------- Expressions ------------------- */
 
 expr:
-    literals            { $1 }
+    literals { $1 }
   | MINUS expr { Uniop (Neg, $2) }
   | expr PLUS   expr { Binop($1, Add, $3) }
   | expr MINUS  expr { Binop($1, Sub, $3) }

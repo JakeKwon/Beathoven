@@ -15,6 +15,7 @@ let string_of_datatype (t : A.datatype) =
   | Datatype(Double) -> "double"
   | Datatype(String) -> "string"
   | Musictype(Pitch) -> "pitch"
+  | Structtype(s) -> "Struct " ^ s
 
 let string_of_op (op : A.binary_operator) =
   match op with
@@ -75,6 +76,12 @@ let rec json_of_expr expr =
   let (expr_json : Yojson.Basic.json)  =
     match expr with
       Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
+    | StructField(e1, e2, d) -> `Assoc [("StructField",
+                                         `Assoc [
+                                           ("struct", (json_of_expr e1));
+                                           ("field", (json_of_expr e2));
+                                           tuple_of_datatype d;
+                                         ])]
     | LitBool(b) -> `Assoc [("bool", `Assoc [("val", `Bool b);])]
     | LitInt(i) -> `Assoc [("int", `Assoc [("val", `Int i);])]
     | LitDouble(d) -> `Assoc [("double", `Assoc [("val", `Float d);])]

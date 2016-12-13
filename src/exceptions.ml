@@ -2,10 +2,9 @@
 exception VariableNotDefined of string
 exception ReturntypeNotMatch of string
 exception VariableDeclarationNotMatch of string
-exception UndefinedID of string
 exception ShouldNotHappenUnlessCompilerHasBug of string
 exception FuncNotFound of string * string
-exception DuplicateLocal of string
+exception DuplicateVariable of string
 exception VarDeclCheckFail of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
@@ -21,7 +20,14 @@ exception UnitTypeError of string
 exception DuplicateFunction of string
 exception CannotUseReservedFuncName of string
 
-(* ------------------- Codegen ------------------- *)
 exception UndefinedStructType of string
+exception CanOnlyAccessStructType
+exception StructFieldNotFound of string * string
+exception Impossible
+
+(* ------------------- Environment ------------------- *)
+exception UndefinedID of string
+
+(* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
-exception InvalidTypePassedToPrintf
+exception InvalidTypePassedToPrint
