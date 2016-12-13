@@ -39,9 +39,8 @@ type func_decl = {
 
 type btmodule = {
   mname : string;
-  structs: A.struct_decl list;
-  (* main_func : func_decl; *)
-  funcs : func_decl list; 
+  structs: A.struct_decl list; (* global name *)
+  funcs : func_decl list;
 }
 
 type program = {
@@ -50,5 +49,3 @@ type program = {
   (* functions : sfunc_decl list; (* All method declarations *) *)
   (* user_type ?? *)
 }
-
-(* Class Declarations |  | Main entry method *)

@@ -22,5 +22,6 @@ exception DuplicateFunction of string
 exception CannotUseReservedFuncName of string
 
 (* ------------------- Codegen ------------------- *)
+exception UndefinedStructType of string
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrintf

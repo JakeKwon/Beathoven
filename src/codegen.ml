@@ -1,7 +1,16 @@
+
 (*
-open Analyzer
-open Llvm.MemoryBuffer
-open Llvm_bitreader
+Code generation: translate takes a semantically checked AST and produces LLVM IR
+
+LLVM tutorial: Make sure to read the OCaml version of the tutorial
+  http://llvm.org/docs/tutorial/index.html
+
+Detailed documentation on the OCaml LLVM library:
+  http://llvm.moe/
+  http://llvm.moe/ocaml/
+*)
+
+(*
 open Log
 *)
 module L = Llvm (* LLVM VMCore interface library *)
@@ -21,16 +30,22 @@ and unit_t = L.void_type context
 let str_t = L.pointer_type i8_t
 (* let p_str_t = L.pointer_type str_t  *)
 
-let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
+let struct_tbl:(string, L.lltype) Hashtbl.t = Hashtbl.create 10
+let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
+
+let is_struct_packed = false
 
 (*
-let struct_types:(string, lltype) Hashtbl.t = Hashtbl.create 10
-let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
- *)
+let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
+*)
 
 (* ------------------- Utils ------------------- *)
+
+let lookup_struct s =
+  try Hashtbl.find struct_tbl s
+  with | Not_found -> raise(Exceptions.UndefinedStructType s)
 
 let lltype_of_datatype (t : A.datatype) =
   match t with
@@ -39,12 +54,15 @@ let lltype_of_datatype (t : A.datatype) =
   | Datatype(Double) -> double_t
   | Datatype(String) -> str_t
   | Datatype(Bool) -> i1_t
-  | Musictype(Pitch) ->
-    let lltype = L.named_struct_type context "struct.mypitch" in
-    let llar = [| i32_t; i1_t
-               (* array_type i8_type 10; vector_type i64_type 10  *)
-               |] in
-    L.struct_set_body lltype llar false; lltype
+  | Structtype(s) -> L.pointer_type (lookup_struct s)
+(* | Musictype(Pitch) -> *)
+    (*
+    | 	Arraytype(t, i) -> get_ptr_type (Arraytype(t, (i)))
+    | 	d -> raise(Exceptions.InvalidStructType (Utils.string_of_datatype d))
+ *)
+
+let lltype_of_bind_list bind_list =
+  List.map (fun (t, _) -> lltype_of_datatype t) bind_list
 
 (* Declare variable and remember its llvalue in local_tbl *)
 let allocate typ var_name builder = (* -> () *)
@@ -72,14 +90,6 @@ let lookup_id s t builder =
     ignore (L.build_store v alloca builder);
     alloca
   with Not_found -> raise (Exceptions.VariableNotDefined s)
-
-
-(*
-  let tmp =
-  in
-  print_endline ("--------" ^ (L.string_of_llvalue tmp));
-  tmp
- *)
 
 
 let lookup_func fname =
@@ -154,8 +164,8 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
 and codegen_unop (op : Sast.A.unary_operator) e1 builder =
   let e1' = codegen_expr builder e1 in
   (match op with
-    | Neg -> L.build_neg
-    | Not     -> L.build_not) e1' "tmp" builder
+   | Neg -> L.build_neg
+   | Not -> L.build_not) e1' "tmp" builder
 
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
@@ -216,7 +226,7 @@ and codegen_if_stmt exp then_ (else_:stmt) builder =
    * phi. *)
   let new_else_bb = L.insertion_block builder in
 
-  
+
   let merge_bb = L.append_block context "ifcont" the_function in
   L.position_at_end merge_bb builder;
   (* let then_bb_val = value_of_block new_then_bb in *)
@@ -246,10 +256,9 @@ let codegen_builtin_funcs () =
   ()
 
 let codegen_def_func func =
-  let formals_lltype = List.map (fun (t, _) -> lltype_of_datatype t) func.formals in
+  let formals_lltype = lltype_of_bind_list func.formals in
   let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
-
 
 let codegen_func func =
   let init_params llfunc formals =
@@ -273,6 +282,25 @@ let codegen_func func =
   else ()
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
+let codegen_def_struct (s : A.struct_decl) =
+  let struct_t = L.named_struct_type context s.sname in
+  Hashtbl.add struct_tbl s.sname struct_t
+
+let codegen_struct (s : A.struct_decl) =
+  List.iteri (fun i field ->
+      let n = s.sname ^ "." ^ (snd field) in
+      Hashtbl.add struct_field_indexes n i;
+    ) s.fields;
+  let struct_t = lookup_struct s.sname in
+  let type_list = lltype_of_bind_list s.fields in
+  L.struct_set_body struct_t (Array.of_list type_list) is_struct_packed
+(* TODO: test forward declaration  *)
+(*
+  let llar = [| i32_t; i1_t
+             (* array_type i8_type 10; vector_type i64_type 10  *)
+             |] in
+ *)
+
 
 let linker filename =
   (* let llctx = L.global_context () in *)
@@ -281,28 +309,22 @@ let linker filename =
   Llvm_linker.link_modules' the_module llm
 
 let codegen_program program =
-  (* maybe we don't need a separate main_module *)
+  (* TODO: maybe we don't need a separate main_module *)
   let btmodules = program.main_module :: program.btmodules in
-  let helper_def_func btmodule =
+  let def_funcs_and_structs btmodule =
+    List.iter codegen_def_struct btmodule.structs;
     List.iter codegen_def_func btmodule.funcs
   in
-  let helper_func btmodule =
+  let build_funcs_and_structs btmodule =
+    List.iter codegen_struct btmodule.structs;
     List.iter codegen_func btmodule.funcs
   in
   codegen_builtin_funcs ();
-  List.iter helper_def_func btmodules;
-  List.iter helper_func btmodules; (* main ?? *)
+  List.iter def_funcs_and_structs btmodules;
+  List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
   the_module
 
-
-
-(* Declare each global variable; remember its value in map local_tbl *)
-(* let _ =
-   let add_global_var (datatype, var_name) =
-    ignore (allocate datatype var_name llbuilder) in
-   List.iter add_global_var globals
-   in *)
 
 
 (* Batteries  *)
@@ -313,14 +335,3 @@ let codegen_program program =
    match L.block_terminator (L.insertion_block builder) with
     Some _ -> ()
    | None -> ignore (f builder) in *)
-
-(*
-Code generation: translate takes a semantically checked AST and produces LLVM IR
-
-LLVM tutorial: Make sure to read the OCaml version of the tutorial
-  http://llvm.org/docs/tutorial/index.html
-
-Detailed documentation on the OCaml LLVM library:
-  http://llvm.moe/
-  http://llvm.moe/ocaml/
-*)
