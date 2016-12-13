@@ -65,8 +65,12 @@ let lltype_of_bind_list bind_list =
   List.map (fun (t, _) -> lltype_of_datatype t) bind_list
 
 (* Declare variable and remember its llvalue in local_tbl *)
-let allocate typ var_name builder = (* -> () *)
-  let alloca = L.build_alloca (lltype_of_datatype typ) var_name builder in
+let allocate (typ : A.datatype) var_name builder = (* -> () *)
+  let t = match typ with
+      Structtype(s) -> lookup_struct s
+    | _ -> lltype_of_datatype typ
+  in
+  let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
 
@@ -80,22 +84,39 @@ let load_id s builder =
   try Hashtbl.find formal_tbl s
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
-let lookup_id s t builder =
-  try Hashtbl.find local_tbl s
-  with | Not_found ->
-  try
-    let v = Hashtbl.find formal_tbl s in (* formal s found *)
-    (* Make a copy of the formal in the local_tbl  *)
-    let alloca = allocate t s builder in
-    ignore (L.build_store v alloca builder);
-    alloca
-  with Not_found -> raise (Exceptions.VariableNotDefined s)
+let lookup_id id builder = match id with Id(s, d) ->
+try Hashtbl.find local_tbl s
+with | Not_found ->
+try
+  let v = Hashtbl.find formal_tbl s in (* formal s found *)
+  (* Make a copy of the formal in the local_tbl  *)
+  let alloca = allocate d s builder in
+  ignore (L.build_store v alloca builder);
+  alloca
+with Not_found -> raise (Exceptions.VariableNotDefined s)
 
 
 let lookup_func fname =
   match (L.lookup_function fname the_module) with
     None -> raise (Exceptions.LLVMFunctionNotFound fname)
   | Some f -> f
+
+
+let codegen_structfield sid fid builder =
+  let struct_ll = lookup_id sid builder in
+  let f = match fid with Id(f, _) -> f in
+  let field_index =
+    let field =
+      let struct_name =
+        match sid with Id(_, d) -> (
+            match d with Structtype(s) -> s
+          )
+      in
+      struct_name ^ "." ^ f  (* how about changing sast field name to be global ?? *)
+    in
+    Hashtbl.find struct_field_indexes field
+  in
+  L.build_struct_gep struct_ll field_index f builder (* load !! *)
 
 
 let rec codegen_print expr_list builder =
@@ -112,7 +133,7 @@ let rec codegen_print expr_list builder =
           (* print_endline (L.string_of_llvalue (List.nth llval_expr_list !idx)); *)
           "%d" (* TODO: print "true" or "false" *)
         | Datatype(Double) -> "%lf"
-        | _ -> raise (Exceptions.InvalidTypePassedToPrintf)
+        | _ -> raise (Exceptions.InvalidTypePassedToPrint)
       in
       print_fmt_of_datatype (Analyzer.get_type_from_expr expr)
     in
@@ -138,9 +159,23 @@ and codegen_funccall fname el d builder =
 
 
 and codegen_assign lhs rhs builder =
-  let lhs = match lhs with Id(s, t) -> lookup_id s t builder in
+  let lhs = lookup_id lhs builder in
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
+(*
+  let lhs, isObjAccess = match lhs with
+    | 	Sast.SId(id, d) -> codegen_id false false id d llbuilder, false
+    |  	SObjAccess(e1, e2, d) -> codegen_obj_access false e1 e2 d llbuilder, true
+    | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
+    | _ -> raise Exceptions.AssignLHSMustBeAssignable
+  in
+  (* Codegen the rhs. *)
+  let rhs = match rhs with
+    | 	Sast.SId(id, d) -> codegen_id false false id d llbuilder
+    |  	SObjAccess(e1, e2, d) -> codegen_obj_access true e1 e2 d llbuilder
+    | _ -> codegen_sexpr llbuilder rhs
+ *)
+
 
 and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
@@ -170,6 +205,7 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
     Id(s, _) -> load_id s builder
+  | StructField(s, f, _) -> codegen_structfield s f builder
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d

@@ -4,8 +4,12 @@ Struct sth { /* can only be defined outside funcs */
 
 int a;
 
+Struct sth some_struct;
+
 a = 0;
 
+
+/*
 func bar(int i, int j) -> unit {
     i = 3;
     print(i);
@@ -33,4 +37,4 @@ pitch p;
 bool c;
 c = (2 <= 2);
 c = (2 != 2);
-//*/
+*/
