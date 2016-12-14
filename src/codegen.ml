@@ -84,16 +84,17 @@ let load_id s builder =
   try Hashtbl.find formal_tbl s
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
-let lookup_id id builder = match id with Id(s, d) ->
-try Hashtbl.find local_tbl s
-with | Not_found ->
-try
-  let v = Hashtbl.find formal_tbl s in (* formal s found *)
-  (* Make a copy of the formal in the local_tbl  *)
-  let alloca = allocate d s builder in
-  ignore (L.build_store v alloca builder);
-  alloca
-with Not_found -> raise (Exceptions.VariableNotDefined s)
+let lookup_id id builder =
+  match id with Id(s, d) ->
+  try Hashtbl.find local_tbl s
+  with | Not_found ->
+  try
+    let v = Hashtbl.find formal_tbl s in (* formal s found *)
+    (* Make a copy of the formal in the local_tbl  *)
+    let alloca = allocate d s builder in
+    ignore (L.build_store v alloca builder);
+    alloca
+  with Not_found -> raise (Exceptions.VariableNotDefined s)
 
 
 let lookup_func fname =
@@ -102,7 +103,7 @@ let lookup_func fname =
   | Some f -> f
 
 
-let codegen_structfield sid fid builder =
+let codegen_structfield sid fid builder isref =
   let struct_ll = lookup_id sid builder in
   let f = match fid with Id(f, _) -> f in
   let field_index =
@@ -116,7 +117,9 @@ let codegen_structfield sid fid builder =
     in
     Hashtbl.find struct_field_indexes field
   in
-  L.build_struct_gep struct_ll field_index f builder (* load !! *)
+  let p = L.build_struct_gep struct_ll field_index f builder in
+  if isref then p
+  else L.build_load p f builder
 
 
 let rec codegen_print expr_list builder =
@@ -159,15 +162,18 @@ and codegen_funccall fname el d builder =
 
 
 and codegen_assign lhs rhs builder =
-  let lhs = lookup_id lhs builder in
+  let lhs =
+    match lhs with
+      Id(_, _) -> lookup_id lhs builder
+    | StructField(s, f, _) -> codegen_structfield s f builder true
+    (*  | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
+        | _ -> raise Exceptions.AssignLHSMustBeAssignable
+    *)
+  in
   let rhs = codegen_expr builder rhs in
   ignore(L.build_store rhs lhs builder); rhs
 (*
   let lhs, isObjAccess = match lhs with
-    | 	Sast.SId(id, d) -> codegen_id false false id d llbuilder, false
-    |  	SObjAccess(e1, e2, d) -> codegen_obj_access false e1 e2 d llbuilder, true
-    | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
-    | _ -> raise Exceptions.AssignLHSMustBeAssignable
   in
   (* Codegen the rhs. *)
   let rhs = match rhs with
@@ -205,7 +211,7 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
     Id(s, _) -> load_id s builder
-  | StructField(s, f, _) -> codegen_structfield s f builder
+  | StructField(s, f, _) -> codegen_structfield s f builder false
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d

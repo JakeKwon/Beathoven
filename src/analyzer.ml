@@ -188,7 +188,7 @@ let analyze_struct env s f =
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
-  | StructField(s, f) -> analyze_struct env s f
+  | StructField(s, f) -> analyze_struct env s f 
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
@@ -240,15 +240,15 @@ and analyze_unop env op e = (* -> env, Uniop (op,e,_) *)
   | _ -> raise(Exceptions.InvalidUnaryOperation)
 
 and analyze_assign env e1 e2 =
-  let _, se1 = build_sast_expr env e1 in
-  let _, se2 = build_sast_expr env e2 in
-  let t1 = get_type_from_expr se1 in
-  let t2 = get_type_from_expr se2 in
+  let _, lhs = build_sast_expr env e1 in
+  let _, rhs = build_sast_expr env e2 in
+  let t1 = get_type_from_expr lhs in
+  let t2 = get_type_from_expr rhs in
 
   (* DONE: check type *)
-  if t1 = t2 (* check_vardecl_type t1 se1 && check_vardecl_type t2 se2 *)
+  if t1 = t2 (* check_vardecl_type t1 lhs && check_vardecl_type t2 rhs *)
   then
-    env, S.Assign(se1, se2, t1)
+    env, S.Assign(lhs, rhs, t1)
 
   else
     raise (Exceptions.VarDeclCheckFail "type check fail")

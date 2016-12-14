@@ -1,15 +1,20 @@
-Struct sth { /* can only be defined outside funcs */
+// Struct can only be defined outside funcs
+Struct sth {
     int a;
+    string b;
+    int c;
 }
 
+Struct sth s;
+s.a;
+s.b = "struct string\n";
+print(s.b);
+s.c = 0;
+print(s.c, "\n");
+
 int a;
-
-Struct sth some_struct;
-
 a = 0;
 
-
-/*
 func bar(int i, int j) -> unit {
     i = 3;
     print(i);
@@ -32,9 +37,8 @@ bar(a, b);
 
 print(a);
 
-pitch p;
+// pitch p;
 
 bool c;
 c = (2 <= 2);
 c = (2 != 2);
-*/

@@ -55,7 +55,7 @@
 
 literals:
     ID { Id($1) }
-  | ID DOT ID { StructField($1, $3) }
+  | ID DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
   | NULL { Null }
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
