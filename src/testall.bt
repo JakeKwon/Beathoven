@@ -6,11 +6,16 @@ Struct sth {
 }
 
 Struct sth s;
-s.a;
-s.b = "struct string\n";
-print(s.b);
-s.c = 0;
-print(s.c, "\n");
+Struct sth t;
+s.a = 17; // assign field
+s.b = " struct string\n";
+t = s; // copy structs
+//print(t.a, t.b, "\n"); // load field
+print(t.a);
+print(t.b);
+s.b = "changed\n";
+print(t.b);
+
 
 int a;
 a = 0;

@@ -26,8 +26,10 @@ and i64_t = L.i64_type context
 and i32_t = L.i32_type context
 and i8_t = L.i8_type context
 and i1_t = L.i1_type context
-and unit_t = L.void_type context
+and void_t = L.void_type context
 let str_t = L.pointer_type i8_t
+let ptr_t = str_t
+let size_t = L.type_of (L.size_of i8_t)
 (* let p_str_t = L.pointer_type str_t  *)
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
@@ -54,30 +56,33 @@ let lookup_func fname =
     None -> raise (Exceptions.LLVMFunctionNotFound fname)
   | Some f -> f
 
-let lltype_of_datatype (t : A.datatype) =
-  match t with
-    Datatype(Unit) -> unit_t
+let lltype_of_datatype (d : A.datatype) =
+  match d with
+    Datatype(Unit) -> void_t
   | Datatype(Int) -> i32_t
   | Datatype(Double) -> double_t
   | Datatype(String) -> str_t
   | Datatype(Bool) -> i1_t
-  | Structtype(s) -> L.pointer_type (lookup_struct s)
-  | Musictype(Pitch) -> L.pointer_type (lookup_struct "pitch")
+  | Structtype(s) -> lookup_struct s
+  | Musictype(Pitch) -> lookup_struct "pitch"
     (*
     | 	Arraytype(t, i) -> get_ptr_type (Arraytype(t, (i)))
     | 	d -> raise(Exceptions.InvalidStructType (Utils.string_of_datatype d))
  *)
 
-let lltype_of_bind_list bind_list =
-  List.map (fun (t, _) -> lltype_of_datatype t) bind_list
+let get_bind_type d =
+  let lltype = lltype_of_datatype d in
+  match d with
+      Structtype(_) -> L.pointer_type lltype
+    | Musictype(_) -> L.pointer_type lltype
+    | _ -> lltype
+
+let lltype_of_bind_list (bind_list : A.bind list) =
+  List.map (fun (d, _) -> get_bind_type d) bind_list
 
 (* Declare variable and remember its llvalue in local_tbl *)
 let codegen_allocate (typ : A.datatype) var_name builder = (* -> () *)
-  let t = match typ with
-      Structtype(s) -> lookup_struct s
-    | Musictype(Pitch) -> lookup_struct "pitch"
-    | _ -> lltype_of_datatype typ
-  in
+  let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
@@ -104,7 +109,6 @@ let lookup_id id builder =
     alloca
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
-let codegen_sizeof = ()
 
 
 (* -------------------------------------------- *)
@@ -183,7 +187,6 @@ and codegen_funccall fname el d builder =
     A.Datatype(A.Unit) -> L.build_call f actuals "" builder
   | _ -> L.build_call f actuals "tmp" builder
 
-
 and codegen_assign lhs_expr rhs_expr builder =
   let lhs =
     match lhs_expr with
@@ -196,13 +199,32 @@ and codegen_assign lhs_expr rhs_expr builder =
   let rhs =
     let store e =
       let rhs = codegen_expr builder e in
-      ignore(L.build_store rhs lhs builder); rhs
+      ignore(L.build_store rhs lhs builder);
+      rhs
+    in
+    let memcpy e =
+      let rhs = lookup_id e builder in
+      let size_ll =
+        let codegen_sizeof e builder =
+          let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
+          let size_ll = L.size_of lltype in
+          (* (**debug**) print_endline (L.string_of_llvalue size_ll); *)
+          (* L.build_bitcast size_ll size_t "size" builder *)
+          size_ll
+        in
+        codegen_sizeof rhs_expr builder
+      in
+      let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
+      let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+      ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
+      rhs_p
     in
     match rhs_expr with
       Id(_, d) -> (
         match d with
           Datatype(_) -> store rhs_expr
-        | _ -> lookup_id rhs_expr builder)
+        | _ -> memcpy rhs_expr (* memcpy Structtype or Musictype *)
+      )
     | _ -> store rhs_expr
   in
   (*
@@ -210,9 +232,7 @@ and codegen_assign lhs_expr rhs_expr builder =
   (**debug**) print_endline (L.string_of_llvalue rhs); *)
   rhs
 (*
-  let lhs, isObjAccess = match lhs with
-  in
-  (* Codegen the rhs. *)
+LitPitch(k, o, a) -> codegen_pitch k o a builder
   let rhs = match rhs with
     | 	Sast.SId(id, d) -> codegen_id false false id d llbuilder
     |  	SObjAccess(e1, e2, d) -> codegen_obj_access true e1 e2 d llbuilder
@@ -329,11 +349,13 @@ let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
   let printf_t = L.var_arg_function_type i32_t [| str_t |] in
   let _ = L.declare_function "printf" printf_t the_module in
+  let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
+  let _ = L.declare_function "memcpy" memcpy_t the_module in
   ()
 
 let codegen_def_func func =
   let formals_lltype = lltype_of_bind_list func.formals in
-  let func_t = L.function_type (lltype_of_datatype func.returnType) (Array.of_list formals_lltype) in
+  let func_t = L.function_type (get_bind_type func.returnType) (Array.of_list formals_lltype) in
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
