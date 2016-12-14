@@ -217,15 +217,11 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-
-  (* DONE: check type *)
-  if t1 = t2 (* check_vardecl_type t1 lhs && check_vardecl_type t2 rhs *)
-  then
-    env, S.Assign(lhs, rhs, t1)
-
+  if t1 = t2
+  then env, S.Assign(lhs, rhs, t1)
   else
-    raise (Exceptions.VarDeclCheckFail "type check fail")
-
+    raise (Exceptions.AssignmentTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+  
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
   try

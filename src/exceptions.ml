@@ -5,7 +5,6 @@ exception VariableDeclarationNotMatch of string
 exception ShouldNotHappenUnlessCompilerHasBug of string
 exception FuncNotFound of string * string
 exception DuplicateVariable of string
-exception VarDeclCheckFail of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
 exception IfComparisonNotBool of string
@@ -19,6 +18,7 @@ exception InvalidUnaryOperation
 exception UnitTypeError of string
 exception DuplicateFunction of string
 
+exception AssignmentTypeMismatch of string * string
 exception AssignLHSMustBeAssignable
 exception CannotUseBuiltinFuncName of string
 exception UndefinedStructType of string
