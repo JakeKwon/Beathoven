@@ -221,7 +221,7 @@ and analyze_assign env e1 e2 =
   then env, S.Assign(lhs, rhs, t1)
   else
     raise (Exceptions.AssignmentTypeMismatch(string_of_datatype t1, string_of_datatype t2))
-  
+
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
   try

@@ -4,11 +4,12 @@
 /*
 extern struct pitch p;
 
-void pp() {
+void print_p() {
     printf("%d", p.octave);
     printf("%d", p.alter);
 }
 */
+
 /*
 extern void f(struct pitch p);
 

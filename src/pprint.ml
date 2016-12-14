@@ -39,18 +39,6 @@ let string_of_uop (uop : A.unary_operator) =
   | Not -> "!"
 
 (* let string_of_expr = function
-   Id (_,d) -> d
-   | LitBool(_) -> A.Datatype(Bool)
-   | LitInt(_) -> A.Datatype(Int)
-   | LitDouble(_) -> A.Datatype(Double)
-   | LitStr(_) -> A.Datatype(String)
-   | Null -> A.Datatype(Unit)
-   | Binop (_,_,_,d) -> d
-   | Uniop (_,_,d) -> d
-   | Assign (_,_,d) -> d
-   | FuncCall (_,_,d)-> d
-   | Noexpr -> A.Datatype(Unit)
-
     Int_Lit(i) -> string_of_int i
    | Boolean_Lit(b) -> if b then "true" else "false"
    | Float_Lit(f) -> string_of_float f
@@ -82,10 +70,13 @@ let rec json_of_expr expr =
                                            ("field", (json_of_expr e2));
                                            tuple_of_datatype d;
                                          ])]
-    | LitBool(b) -> `Assoc [("bool", `Assoc [("val", `Bool b);])]
-    | LitInt(i) -> `Assoc [("int", `Assoc [("val", `Int i);])]
-    | LitDouble(d) -> `Assoc [("double", `Assoc [("val", `Float d);])]
-    | LitStr(s) -> `Assoc [("string", `Assoc [("val", `String s);])]
+    | LitBool(b) -> `Assoc [("bool", `Bool b)]
+    | LitInt(i) -> `Assoc [("int", `Int i)]
+    | LitDouble(d) -> `Assoc [("double", `Float d)]
+    | LitStr(s) -> `Assoc [("string", `String s)]
+    | LitPitch(k, o, a) ->
+      let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
+      `Assoc [("pitch", `String p)]
     | Binop(e1, op, e2, d) -> `Assoc [("binop",
                                        `Assoc [
                                          ("lhs", (json_of_expr e1));

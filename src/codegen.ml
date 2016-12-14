@@ -34,16 +34,13 @@ let size_t = L.type_of (L.size_of i8_t)
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
+(* let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50 *)
 
 let struct_tbl:(string, L.lltype) Hashtbl.t = Hashtbl.create 10
 let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
 let is_struct_packed = false
 
 let literal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
-
-(*
-let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
-*)
 
 (* ------------------- Utils ------------------- *)
 
@@ -73,19 +70,22 @@ let lltype_of_datatype (d : A.datatype) =
 let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
-      Structtype(_) -> L.pointer_type lltype
-    | Musictype(_) -> L.pointer_type lltype
-    | _ -> lltype
+    Structtype(_) -> L.pointer_type lltype
+  | Musictype(_) -> L.pointer_type lltype
+  | _ -> lltype
 
 let lltype_of_bind_list (bind_list : A.bind list) =
   List.map (fun (d, _) -> get_bind_type d) bind_list
 
-(* Declare variable and remember its llvalue in local_tbl *)
-let codegen_allocate (typ : A.datatype) var_name builder = (* -> () *)
+(* Declare variable and remember its llvalue in tbl *)
+(* still local !! *)
+let codegen_allocate_to_tbl tbl (typ : A.datatype) var_name builder =
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
-  Hashtbl.add local_tbl var_name alloca;
+  Hashtbl.add tbl var_name alloca;
   alloca
+
+let codegen_allocate = codegen_allocate_to_tbl local_tbl
 
 (* Return the value for a variable or formal argument *)
 (* duplicate name in formal will be overwritten by local *)
@@ -98,17 +98,18 @@ let load_id s builder =
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
 let lookup_id id builder =
-  match id with Id(s, d) ->
-  try Hashtbl.find local_tbl s
-  with | Not_found ->
-  try
-    let v = Hashtbl.find formal_tbl s in (* formal s found *)
-    (* Make a copy of the formal in the local_tbl  *)
-    let alloca = codegen_allocate d s builder in
-    ignore (L.build_store v alloca builder);
-    alloca
-  with Not_found -> raise (Exceptions.VariableNotDefined s)
-
+  match id with
+    Id(s, d) -> (
+      try Hashtbl.find local_tbl s
+      with | Not_found ->
+      try
+        let v = Hashtbl.find formal_tbl s in (* formal s found *)
+        (* Make a copy of the formal in the local_tbl  *)
+        let alloca = codegen_allocate d s builder in
+        ignore (L.build_store v alloca builder);
+        alloca
+      with Not_found -> raise (Exceptions.VariableNotDefined s))
+  | _ -> raise (Exceptions.Impossible)
 
 
 (* -------------------------------------------- *)
@@ -136,13 +137,15 @@ let codegen_pitch k o a builder =
   let pitch_ll =
     try Hashtbl.find literal_tbl p
     with | Not_found ->
-      codegen_allocate (A.Musictype(Pitch)) p builder
+      let alloca = codegen_allocate_to_tbl literal_tbl (A.Musictype(Pitch)) p builder in
+      let octave = L.build_struct_gep alloca 1 (p ^ ".octave") builder in
+      let alter = L.build_struct_gep alloca 2 (p ^ ".alter") builder in
+      ignore(L.build_store (L.const_int i32_t o) octave builder);
+      ignore(L.build_store (L.const_int i32_t a) alter builder);
+      alloca
   in
-  let octave = L.build_struct_gep pitch_ll 1 (p ^ ".octave") builder in
-  let alter = L.build_struct_gep pitch_ll 2 (p ^ ".alter") builder in
-  ignore(L.build_store (L.const_int i32_t o) octave builder);
-  ignore(L.build_store (L.const_int i32_t a) alter builder);
   pitch_ll
+  (* TODO: use global constant for pitch  *)
 (* L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
@@ -203,7 +206,11 @@ and codegen_assign lhs_expr rhs_expr builder =
       rhs
     in
     let memcpy e =
-      let rhs = lookup_id e builder in
+      let rhs =
+        match e with
+          LitPitch(k, o, a) -> codegen_pitch k o a builder
+        | _ -> lookup_id e builder
+      in
       let size_ll =
         let codegen_sizeof e builder =
           let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
@@ -219,13 +226,10 @@ and codegen_assign lhs_expr rhs_expr builder =
       ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
       rhs_p
     in
-    match rhs_expr with
-      Id(_, d) -> (
-        match d with
-          Datatype(_) -> store rhs_expr
-        | _ -> memcpy rhs_expr (* memcpy Structtype or Musictype *)
-      )
-    | _ -> store rhs_expr
+    let d = Analyzer.get_type_from_expr rhs_expr in
+    match d with
+      Datatype(_) -> store rhs_expr
+    | _ -> memcpy rhs_expr (* memcpy Structtype or Musictype *)
   in
   (*
   (**debug**) print_endline (L.string_of_llvalue lhs);

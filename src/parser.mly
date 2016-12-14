@@ -60,8 +60,9 @@ literals:
   | LIT_INT { LitInt($1) }
   | LIT_DOUBLE { LitDouble($1) }
   | LIT_STR { LitStr($1) }
-  | LIT_PITCH { LitPitch($1.[0], int_of_char $1.[1] - int_of_char '0',
-      if (String.length $1 = 2) then 0 else if $1.[2] = '#' then 1 else -1) }
+  | LIT_PITCH { LitPitch($1.[0],
+      (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
+      (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
   /* | lit_array        { $1 } */
   /*
   lit_array:
