@@ -101,10 +101,10 @@ rule token = parse
 *)
 (* ------------- Music Keywords ------------- *)
   | "pitch" { TYPE_PITCH }
-  | "duration" { DURATION }
-  | "Note" { NOTE }
-  | "Chord" { CHORD }
-  | "Seq" { SEQ }
+  | "duration" { TYPE_DURATION }
+  | "Note" { TYPE_NOTE }
+  | "Chord" { TYPE_CHORD }
+  | "Seq" { TYPE_SEQ }
 (* ------------- Literals ------------- *)
   | pitch as lit { LIT_PITCH(lit) }
   | digit+ as lit { LIT_INT(int_of_string lit) }

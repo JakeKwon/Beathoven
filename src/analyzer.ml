@@ -11,13 +11,6 @@ module SS = Set.Make(
     type t = datatype
   end )
 
-(*
-let update_call_stack env in_for in_while =
-{
-  env_returnType = env.env_returnType;
-  env_in_for     = in_for;
-  env_in_while   = in_while;
-} *)
 
 (* BINARY TYPES *)
 
@@ -48,7 +41,6 @@ let get_arithmetic_binop_type se1 se2 op = function
     (A.Datatype(Int), A.Datatype(Double))
   | (A.Datatype(Double), A.Datatype(Int))
   | (A.Datatype(Double), A.Datatype(Double)) -> S.Binop(se1, op, se2, A.Datatype(Double))
-
   (* | (A.Datatype(Int), A.Datatype(Char_t))
      | (A.Datatype(Char_t), A.Datatype(Int))
      | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
@@ -56,15 +48,6 @@ let get_arithmetic_binop_type se1 se2 op = function
   | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
-
-
-
-
-(* let check_stmt_list (stmt : Ast.func_decl.body) = *)
-
-(* type bind = datatype * string *)
-
-(* let check_bind bind = *)
 
 
 (* ------------------- SAST Utilities ------------------- *)
@@ -92,31 +75,7 @@ let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
 
-
-let rec check_stmt returnType (stmt : S.stmt) =
-  match stmt with
-    Block sl -> List.iter (check_stmt returnType) sl
-  (* | Expr e -> check_expr e *)
-  | If (e, _, _) -> if get_type_from_expr e != A.Datatype(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
-  (* | While of expr * stmt *)
-  | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
-  (* | Break -> () *)
-  (* | Continue -> () *)
-  | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
-  | _ -> ()
-
-let check_func (btfunc : S.func_decl) =
-  (* List.iter check_bind func.formals; *)
-  List.iter (check_stmt btfunc.returnType) btfunc.body
-
-(* let check_if () =  *)
-
-let analyze program (btmodule : S.btmodule) =
-  List.iter check_func btmodule.funcs
-
-
 (* ------------------- check sast ------------------- *)
-(* DONE *)
 let check_vardecl_type d sast_expr =
   let t = get_type_from_expr sast_expr in
   d = t
@@ -136,7 +95,21 @@ let get_global_func_name mname (func:A.func_decl) =
 (* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
 
 let get_global_name mname n =
-  mname ^ "." ^ n
+  if mname = default_mname then n
+  else mname ^ "." ^ n
+
+(* Initialize builtin_types *)
+let (builtin_types_list : A.struct_decl list) =
+  [{
+    A.sname = "pitch";
+    A.fields = [(A.Datatype(String), "key"); (A.Datatype(Int), "octave"); (A.Datatype(Int), "alter");];
+  };]
+
+let builtin_types =
+  let add_to_map builtin_type map =
+    StringMap.add builtin_type.sname builtin_type map
+  in
+  List.fold_right add_to_map builtin_types_list StringMap.empty
 
 (* Initialize builtin_funcs *)
 let builtin_funcs =
@@ -172,10 +145,10 @@ let analyze_struct env s f =
   let field_bind =
     let struct_decl =
       match struct_type with
-        Structtype n ->
-        try StringMap.find n !(env.btmodule).struct_map
-        with | Not_found -> raise(Exceptions.Impossible)
-             | _ -> raise (Exceptions.CanOnlyAccessStructType)
+        Structtype n -> (
+          try StringMap.find n !(env.btmodule).struct_map
+          with | Not_found -> raise(Exceptions.Impossible))
+      | _ as d -> raise (Exceptions.CanOnlyAccessStructType (string_of_datatype d))
     in
     try List.find (fun field -> (snd field) = f) struct_decl.fields
     with | Not_found -> raise(Exceptions.StructFieldNotFound(s, f))
@@ -188,12 +161,12 @@ let analyze_struct env s f =
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
-  | StructField(s, f) -> analyze_struct env s f 
+  | StructField(s, f) -> analyze_struct env s f
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
   | LitStr(s) -> env, S.LitStr(s)
-  | LitPitch(s, o, a) -> env, S.LitPitch(s,o,a)
+  | LitPitch(k, o, a) -> env, S.LitPitch(k,o,a)
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2
@@ -284,6 +257,13 @@ and analyze_funccall env s el =
   *)
 
 
+let get_sast_structtype env = function
+    Structtype(sname) ->
+    let n = get_global_name env.name sname in
+    if not (StringMap.mem n !(env.btmodule).struct_map)
+    then raise (Exceptions.UndefinedStructType n)
+    else Structtype(n) (* rename Structtype using sast(global) name *)
+
 let build_sast_vardecl env d s e =
   if StringMap.mem s env.var_map
   then
@@ -291,11 +271,7 @@ let build_sast_vardecl env d s e =
   else
     let d =
       match d with
-        Structtype(sname) -> (* rename Structtype using global name *)
-        let n = get_global_name env.name sname in
-        if not (StringMap.mem n !(env.btmodule).struct_map)
-        then raise (Exceptions.UndefinedStructType n)
-        else Structtype(n)
+        Structtype(_) -> get_sast_structtype env d
       | _ -> d
     in
     let _, sast_expr = build_sast_expr env e in
@@ -345,7 +321,6 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
   (* print_int (get_map_size env.var_map); *)
   env, sast_stmt_list
 
-(* build_sast_expr env e in env, get_stmt_from_expr se *)
 (* and check_if e s1 s2 env =
    let _, se = build_sast_expr env e in
    let t = get_type_from_expr se in
@@ -462,6 +437,10 @@ and parse_stmt env = function
   |   Break               -> check_break env (* Need to check if in right context *)
   |   Continue            -> check_continue env (* Need to check if in right context *)
 (* |   Local(d, s, e)      -> local_handler d s e env *)
+(* | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
+   | If (e, _, _) -> if get_type_from_expr e != A.Datatype(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
+   | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
+*)
 
 (* Update this function to return an env object *)
 and convert_stmt_list_to_sstmt_list env stmt_list =
@@ -485,8 +464,9 @@ let check_fbody fbody returnType =
     |   _, S.Return(_, _)   -> true
     |   _                   -> false
 
-(* let convert_constructor_to_sfdecl class_maps reserved class_map cname constructor =
-*)
+
+
+
 let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
   let env =
     let formal_map =
@@ -536,15 +516,19 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
   let build_sast_btmodule btmodule =
     let btmodule_env = ref (StringMap.find btmodule.mname btmodule_map) in
     let sast_structs =
-      let helper_struct_decl struct_rev_list = function
-          Struct struct_decl ->
-          let sast_struct =
-            build_sast_struct_decl btmodule.mname btmodule_env struct_decl
-          in sast_struct::struct_rev_list
-        | _ -> struct_rev_list
+      let sast_structs =
+        let helper_struct_decl struct_rev_list = function
+            Struct struct_decl ->
+            let sast_struct =
+              build_sast_struct_decl btmodule.mname btmodule_env struct_decl
+            in sast_struct::struct_rev_list
+          | _ -> struct_rev_list
+        in
+        let (main_func : A.func_decl) = List.hd btmodule.funcs in
+        List.rev (List.fold_left helper_struct_decl [] main_func.body)
       in
-      let (main_func : A.func_decl) = List.hd btmodule.funcs in
-      List.rev (List.fold_left helper_struct_decl [] main_func.body)
+      if btmodule.mname = default_mname then builtin_types_list @ sast_structs
+      else sast_structs
     in
     let sast_funcs =
       let helper_func_decl func =
@@ -577,15 +561,14 @@ let build_btmodule_map (btmodule_list : A.btmodule list) =
       if (StringMap.mem (get_global_func_name btmodule.mname func) map)
       then raise(Exceptions.DuplicateFunction(get_global_func_name btmodule.mname func))
       else if (StringMap.mem (func.fname) builtin_funcs)
-      then raise(Exceptions.CannotUseReservedFuncName(func.fname))
+      then raise(Exceptions.CannotUseBuiltinFuncName(func.fname))
       else StringMap.add (get_global_func_name btmodule.mname func) func map
     in
     StringMap.add btmodule.mname
       {
         func_map = List.fold_left helper_func StringMap.empty btmodule.funcs;
-        struct_map = StringMap.empty;
-        (* decl = btmodule; *)
-        (* fields hashtbl ?? *)
+        struct_map = if btmodule.mname = default_mname then builtin_types
+          else StringMap.empty;
       }
       map
   in

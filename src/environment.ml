@@ -5,7 +5,6 @@ open Sast
 let beathoven_lib = "stdlib.bt"
 
 module StringMap = Map.Make (String)
-module StringSet = Set.Make (String)
 
 
 type btmodule_env = {
@@ -19,7 +18,6 @@ type btmodule_env = {
 
 type env = {
   builtin_funcs : func_decl StringMap.t;
-  (* builtin_types :  *)
   btmodule_map : btmodule_env StringMap.t;
   name : string;
   btmodule : btmodule_env ref; (* current module *)
@@ -49,23 +47,10 @@ let get_ID_type env s =
   with | Not_found -> raise (Exceptions.UndefinedID s)
 
 
-(* (*
- * QL
- * Manager: Matthew Piccolella
- *)
-
+(*
    module FunctionMap = Map.Make(String);;
    module VariableMap = Map.Make(String);;
    module ArrayTypeMap = Map.Make(String);;
-
-   exception VarAlreadyDeclared;;
-   exception VarNotDeclared;;
-   exception FunctionAlreadyDeclared;;
-   exception FunctionNotDeclared;;
-   exception IncorrectFunctionParameterTypes;;
-   exception MixedTypeArray;;
-   exception ArrayInferTypeMismatch;;
-   exception IncorrectArrayAssignmentSize;;
 
    type func_info = {
    id : string;

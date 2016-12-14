@@ -15,6 +15,11 @@ print(s.c, "\n");
 int a;
 a = 0;
 
+// pitch
+pitch p;
+C4;
+
+
 func bar(int i, int j) -> unit {
     i = 3;
     print(i);

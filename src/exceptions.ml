@@ -18,10 +18,11 @@ exception InvalidWhileStatementType
 exception InvalidUnaryOperation
 exception UnitTypeError of string
 exception DuplicateFunction of string
-exception CannotUseReservedFuncName of string
 
+exception AssignLHSMustBeAssignable
+exception CannotUseBuiltinFuncName of string
 exception UndefinedStructType of string
-exception CanOnlyAccessStructType
+exception CanOnlyAccessStructType of string
 exception StructFieldNotFound of string * string
 exception Impossible
 
@@ -31,3 +32,15 @@ exception UndefinedID of string
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrint
+
+
+(*
+   exception VarAlreadyDeclared;;
+   exception VarNotDeclared;;
+   exception FunctionAlreadyDeclared;;
+   exception FunctionNotDeclared;;
+   exception IncorrectFunctionParameterTypes;;
+   exception MixedTypeArray;;
+   exception ArrayInferTypeMismatch;;
+   exception IncorrectArrayAssignmentSize;;
+*)

@@ -1,10 +1,12 @@
 // clang -emit-llvm -o stdlib.bc -c stdlib.c
+#include "beathoven.h"
 
-struct _pitch {
-    char key;
-    int octave;
-    int alter;
-};
+extern struct pitch p;
+
+void pp() {
+    printf("%d", p.octave);
+    printf("%d", p.alter);
+}
 
 /*
 extern void f(struct pitch p);

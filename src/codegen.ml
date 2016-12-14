@@ -32,10 +32,12 @@ let str_t = L.pointer_type i8_t
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
+
 let struct_tbl:(string, L.lltype) Hashtbl.t = Hashtbl.create 10
 let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
-
 let is_struct_packed = false
+
+let literal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 
 (*
 let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
@@ -43,9 +45,14 @@ let global_vars:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 
 (* ------------------- Utils ------------------- *)
 
-let lookup_struct s =
-  try Hashtbl.find struct_tbl s
-  with | Not_found -> raise(Exceptions.UndefinedStructType s)
+let lookup_struct sname =
+  try Hashtbl.find struct_tbl sname
+  with | Not_found -> raise(Exceptions.UndefinedStructType sname)
+
+let lookup_func fname =
+  match (L.lookup_function fname the_module) with
+    None -> raise (Exceptions.LLVMFunctionNotFound fname)
+  | Some f -> f
 
 let lltype_of_datatype (t : A.datatype) =
   match t with
@@ -55,7 +62,7 @@ let lltype_of_datatype (t : A.datatype) =
   | Datatype(String) -> str_t
   | Datatype(Bool) -> i1_t
   | Structtype(s) -> L.pointer_type (lookup_struct s)
-(* | Musictype(Pitch) -> *)
+  | Musictype(Pitch) -> L.pointer_type (lookup_struct "pitch")
     (*
     | 	Arraytype(t, i) -> get_ptr_type (Arraytype(t, (i)))
     | 	d -> raise(Exceptions.InvalidStructType (Utils.string_of_datatype d))
@@ -65,9 +72,10 @@ let lltype_of_bind_list bind_list =
   List.map (fun (t, _) -> lltype_of_datatype t) bind_list
 
 (* Declare variable and remember its llvalue in local_tbl *)
-let allocate (typ : A.datatype) var_name builder = (* -> () *)
+let codegen_allocate (typ : A.datatype) var_name builder = (* -> () *)
   let t = match typ with
       Structtype(s) -> lookup_struct s
+    | Musictype(Pitch) -> lookup_struct "pitch"
     | _ -> lltype_of_datatype typ
   in
   let alloca = L.build_alloca t var_name builder in
@@ -91,17 +99,13 @@ let lookup_id id builder =
   try
     let v = Hashtbl.find formal_tbl s in (* formal s found *)
     (* Make a copy of the formal in the local_tbl  *)
-    let alloca = allocate d s builder in
+    let alloca = codegen_allocate d s builder in
     ignore (L.build_store v alloca builder);
     alloca
   with Not_found -> raise (Exceptions.VariableNotDefined s)
 
 
-let lookup_func fname =
-  match (L.lookup_function fname the_module) with
-    None -> raise (Exceptions.LLVMFunctionNotFound fname)
-  | Some f -> f
-
+(* -------------------------------------------- *)
 
 let codegen_structfield sid fid builder isref =
   let struct_ll = lookup_id sid builder in
@@ -121,13 +125,27 @@ let codegen_structfield sid fid builder isref =
   if isref then p
   else L.build_load p f builder
 
+let codegen_pitch k o a builder =
+  let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
+  let pitch_ll =
+    try Hashtbl.find literal_tbl p
+    with | Not_found ->
+    codegen_allocate (A.Musictype(Pitch)) p builder
+  in
+  let octave = L.build_struct_gep pitch_ll 1 (p ^ ".octave") builder in
+  let alter = L.build_struct_gep pitch_ll 2 (p ^ ".alter") builder in
+  ignore(L.build_store (L.const_int i32_t o) octave builder);
+  ignore(L.build_store (L.const_int i32_t a) alter builder);
+  pitch_ll
+  (* L.const_named_struct (lookup_struct "pitch")
+    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
 let rec codegen_print expr_list builder =
   let (llval_expr_list : L.llvalue list) = List.map (codegen_expr builder) expr_list in
   let llstrfmt =
-    let idx = ref (-1) in
+    (* let idx = ref (-1) in *)
     let llval_and_fmt_of_expr expr = (* -> fmt : string *)
-      incr idx;
+      (* incr idx; *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
           Datatype(Int) -> "%d"
@@ -142,16 +160,19 @@ let rec codegen_print expr_list builder =
     in
     let fmt_list = List.map llval_and_fmt_of_expr expr_list in
     let fmt_str = String.concat " " fmt_list in
+    (* let ll = L.const_stringz context "%d" in
+    L.set_value_name "fmmt" ll; print_endline(L.value_name ll); *)
     L.build_global_stringptr fmt_str "fmt" builder
   in
   let actuals = Array.of_list (llstrfmt :: llval_expr_list) in
   (* actuals.(0) <- llstrfmt; *)
   L.build_call (lookup_func "printf") actuals "tmp" builder
-(*
-let zero = const_int i32_t 0 in
-let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
-build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
- *)
+  (*
+  Dice:
+  let zero = const_int i32_t 0 in
+  let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
+  build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
+   *)
 
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
@@ -166,8 +187,8 @@ and codegen_assign lhs rhs builder =
     match lhs with
       Id(_, _) -> lookup_id lhs builder
     | StructField(s, f, _) -> codegen_structfield s f builder true
+    | _ -> raise Exceptions.AssignLHSMustBeAssignable
     (*  | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
-        | _ -> raise Exceptions.AssignLHSMustBeAssignable
     *)
   in
   let rhs = codegen_expr builder rhs in
@@ -216,10 +237,7 @@ and codegen_expr builder = function
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
-(*
-  | LitPitch(s,o,a) -> L.build_struct_gep parent_expr field_index field llbuilder in
-   llvalue -> int -> string -> llbuilder -> llvalue
- *)
+  | LitPitch(k, o, a) -> codegen_pitch k o a builder
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -234,9 +252,9 @@ and codegen_expr builder = function
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
-  | VarDecl(t, s, e) ->
-    ignore(allocate t s builder);
-    if e <> Noexpr then ignore(codegen_assign (Id(s, t)) e builder);
+  | VarDecl(d, s, e) ->
+    ignore(codegen_allocate d s builder);
+    if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
     builder
   | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
 
