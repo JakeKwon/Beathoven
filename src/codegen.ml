@@ -36,9 +36,13 @@ let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
-let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
-let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
+let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
 let is_global = ref false
+(* In formal_tbl are the actual values of parameters. If need to modify
+  primitives in it, should create a copy variable with the same name
+  in local_tbl.
+ *)
+let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
 
 let array_tbl:(A.datatype, L.lltype) Hashtbl.t = Hashtbl.create 10
 let struct_tbl:(string, L.lltype) Hashtbl.t = Hashtbl.create 10
@@ -67,6 +71,7 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Structtype(s) -> lookup_struct s
   | Musictype(Pitch) -> lookup_struct "pitch"
   | Arraytype(d) -> lookup_array d
+  | Any -> void_t
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
 
 and lookup_array (d : A.datatype) =
@@ -108,25 +113,38 @@ let codegen_allocate (typ : A.datatype) var_name builder =
 
 (* Return the value for a variable or formal argument *)
 (* duplicate name in formal will be overwritten by local *)
-let load_id s builder =
-  try
-    let alloca = Hashtbl.find local_tbl s in
-    L.build_load alloca s builder
-  with | Not_found ->
-  try Hashtbl.find formal_tbl s
-  with Not_found -> raise (Exceptions.VariableNotDefined s)
+let load_id id builder =
+  match id with
+  | Id(s, d) -> (
+      let isloaded = ref false in
+      let v =
+        try Hashtbl.find local_tbl s
+        with | Not_found ->
+        try
+          let v = Hashtbl.find formal_tbl s in (* what value does formal save of non-primitive?? *)
+          isloaded := true; v
+        with | Not_found ->
+        try Hashtbl.find global_tbl s
+        with Not_found -> raise (Exceptions.Impossible
+          ("Undefined var not caught in Analyzer unless there is bug in Codegen"))
+      in
+      match d with (* Only load primitives *)
+      | A.Datatype(_) -> if !isloaded then v else L.build_load v s builder
+      | _ -> v )
+  | _ -> raise (Exceptions.Impossible("load_id"))
 
 let lookup_id id builder =
   match id with
-    Id(s, d) -> (
+  | Id(s, d) -> (
       try Hashtbl.find local_tbl s
       with | Not_found ->
       try
-        let v = Hashtbl.find formal_tbl s in (* formal s found *)
-        (* Make a copy of the formal in the local_tbl  *)
+        let v = Hashtbl.find formal_tbl s in
         let alloca = codegen_allocate d s builder in
         ignore (L.build_store v alloca builder);
         alloca
+      with | Not_found ->
+      try Hashtbl.find global_tbl s
       with Not_found -> raise (Exceptions.VariableNotDefined s))
   | _ -> raise (Exceptions.Impossible("lookup_id"))
 
@@ -153,7 +171,7 @@ let codegen_structfield sid fid builder isref =
 
 let codegen_expr_ref builder expr =
   match expr with
-  | Id(_, _) -> lookup_id expr builder
+  | Id(_, _) -> lookup_id expr builder (* Struct, Array *)
   | StructField(s, f, _) -> codegen_structfield s f builder true
   | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
 (*  | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
@@ -219,17 +237,12 @@ and codegen_funccall fname el d builder =
 
 and codegen_assign_with_lhs lhs rhs_expr builder =
   let rhs =
-    let store e =
-      let rhs = codegen_expr builder e in
+    let rhs = codegen_expr builder rhs_expr in
+    let store () =
       ignore(L.build_store rhs lhs builder);
       rhs
     in
-    let memcpy e =
-      let rhs =
-        match e with
-          LitPitch(k, o, a) -> codegen_pitch k o a builder
-        | _ -> lookup_id e builder
-      in
+    let memcpy e = (* e is non-primitive, so rhs is ref *)
       let size_ll =
         let codegen_sizeof e builder =
           let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
@@ -247,45 +260,47 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
     in
     let d = Analyzer.get_type_from_expr rhs_expr in
     match d with
-      Datatype(_) -> store rhs_expr
-    | _ -> memcpy rhs_expr (* memcpy Structtype or Musictype *)
+    | Datatype(_) -> store ()
+    | _ -> memcpy rhs_expr
   in
   (*
   (**debug**) print_endline (L.string_of_llvalue lhs);
   (**debug**) print_endline (L.string_of_llvalue rhs); *)
   rhs
-  (*
-  LitPitch(k, o, a) -> codegen_pitch k o a builder
-  let rhs = match rhs with
-    | 	Sast.SId(id, d) -> codegen_id false false id d llbuilder
-    |  	SObjAccess(e1, e2, d) -> codegen_obj_access true e1 e2 d llbuilder
-    | _ -> codegen_sexpr llbuilder rhs
-  *)
 
 and codegen_assign lhs_expr rhs_expr builder =
   codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
 
-and codegen_array el d builder = (* return llvalue of ptr of d *)
-  let size =
-    let length =
-      List.fold_left (fun count expr ->
-          match Analyzer.get_type_from_expr expr with
-          | Arraytype(_) ->
-            count + 1 (* TODO: codegen_expr expr *)
-          | _ -> count + 1
-        ) 0 el
+and codegen_array el d builder =
+  let len, arr = (* codegen_raw_array el element_type builder *)
+    (* no GC *)
+    let len =
+      let length =
+        List.fold_left (fun count expr ->
+            match Analyzer.get_type_from_expr expr with
+            | Arraytype(_) ->
+              count + 1 (* TODO: codegen_expr expr *)
+            | _ -> count + 1
+          ) 0 el
+      in
+      L.const_int i32_t length
     in
-    L.const_int i32_t length
+    let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
+    let i = ref 0 in
+    List.iter (fun e ->
+        let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
+        ignore(codegen_assign_with_lhs ptr e builder);
+        incr i;
+      ) el;
+    len, arr (* return llvalue of ptr of element_type *)
   in
-  let arr = L.build_array_malloc (lltype_of_datatype d) size ".arr" builder in (* ptr ?? *)
-  (* let llvalues = List.map (codegen_sexpr llbuilder) el in *)
-  let i = ref 0 in
-  List.iter (fun e ->
-      let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
-      ignore(codegen_assign_with_lhs ptr e builder);
-      incr i;
-    ) el;
-  arr
+  let lit_name = ".arr" ^ (Pprint.string_of_datatype d) in
+  let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder in
+  let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
+  let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
+  ignore(L.build_store len arr_len builder);
+  ignore(L.build_store arr arr_p builder);
+  alloca
 
 and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
@@ -314,13 +329,13 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
 
 (* Construct code for an expression; return its llvalue *)
 and codegen_expr builder = function
-    Id(s, _) -> load_id s builder
+    Id(_, _) as id -> load_id id builder
   | StructField(s, f, _) -> codegen_structfield s f builder false (* load *)
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
-  | LitPitch(k, o, a) -> codegen_pitch k o a builder
+  | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
   | Noexpr -> L.const_int i32_t 0
   | Null -> L.const_null i32_t (* should we have Null *)
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -330,7 +345,7 @@ and codegen_expr builder = function
      | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
-  | Array(el, d) -> codegen_array el d builder
+  | Array(el, d) -> codegen_array el d builder (* ref *)
 
 
 let rec codegen_stmt builder = function
