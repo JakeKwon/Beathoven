@@ -24,7 +24,7 @@ let rec string_of_datatype (t : A.datatype) =
   | Musictype(Pitch) -> "pitch"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
-  (* TODO J: other datatypes  *)
+(* TODO J: other datatypes  *)
 
 let string_of_op (op : A.binary_operator) =
   match op with
@@ -105,9 +105,20 @@ let rec json_of_expr expr =
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
     | LitArray(el, d) -> `Assoc [("Array",
-                               `Assoc [("elements", `List (List.map json_of_expr el));
-                                       tuple_of_datatype d
-                                      ])]
+                                  `Assoc [("elements", `List (List.map json_of_expr el));
+                                          tuple_of_datatype d
+                                         ])]
+    | ArrayIdx(a, idx, d) -> `Assoc [("ArrayEle",
+                                      `Assoc [("Array", json_of_expr a);
+                                              ("Idx", json_of_expr idx);
+                                              tuple_of_datatype d
+                                             ])]
+    | ArraySub(a, idx1, idx2, d) -> `Assoc [("ArraySub",
+                                             `Assoc [("Array", json_of_expr a);
+                                                     ("Idx1", json_of_expr idx1);
+                                                     ("Idx2", json_of_expr idx2);
+                                                     tuple_of_datatype d
+                                                    ])]
   in expr_json
 
 let rec json_of_stmt stmt =

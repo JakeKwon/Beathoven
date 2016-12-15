@@ -39,9 +39,9 @@ let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
 let is_global = ref false
 (* In formal_tbl are the actual values of parameters. If need to modify
-  primitives in it, should create a copy variable with the same name
-  in local_tbl.
- *)
+   primitives in it, should create a copy variable with the same name
+   in local_tbl.
+*)
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
 
 let array_tbl:(A.datatype, L.lltype) Hashtbl.t = Hashtbl.create 10
@@ -126,7 +126,7 @@ let load_id id builder =
         with | Not_found ->
         try Hashtbl.find global_tbl s
         with Not_found -> raise (Exceptions.Impossible
-          ("Undefined var not caught in Analyzer unless there is bug in Codegen"))
+                                   ("Undefined var not caught in Analyzer unless there is bug in Codegen"))
       in
       match d with (* Only load primitives *)
       | A.Datatype(_) -> if !isloaded then v else L.build_load v s builder
@@ -151,7 +151,7 @@ let lookup_id id builder =
 
 (* -------------------------------------------- *)
 
-let codegen_structfield sid fid builder isref =
+let codegen_structfield sid fid isref builder =
   let struct_ll = lookup_id sid builder in
   let f = match fid with Id(f, _) -> f in
   let field_index =
@@ -168,14 +168,6 @@ let codegen_structfield sid fid builder isref =
   let p = L.build_struct_gep struct_ll field_index f builder in
   if isref then p
   else L.build_load p f builder
-
-let codegen_expr_ref builder expr =
-  match expr with
-  | Id(_, _) -> lookup_id expr builder (* Structtype, Arraytype *)
-  | StructField(s, f, _) -> codegen_structfield s f builder true
-  | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
-(*  | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
-*)
 
 let codegen_pitch k o a builder =
   let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
@@ -271,6 +263,8 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
 and codegen_assign lhs_expr rhs_expr builder =
   codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
 
+(* ----- Array ----- *)
+
 and codegen_array el d builder =
   let len, arr = (* codegen_raw_array el element_type builder *)
     (* no GC *)
@@ -302,6 +296,24 @@ and codegen_array el d builder =
   ignore(L.build_store arr arr_p builder);
   alloca
 
+and codegen_arrayidx a idx d isref builder =
+  let idx_ll = codegen_expr builder idx in
+  let arr_s = codegen_expr builder a in
+  (* TODO: check idx in range  *)
+  let arr_p =
+    let ptr_p = L.build_struct_gep arr_s 1 (".ptr_p") builder in
+    L.build_load ptr_p ".arr_p" builder
+  in
+  let p = L.build_gep arr_p [| idx_ll |] ".arridx" builder in
+  if isref then p
+  else
+    match d with
+    | A.Datatype(_) -> L.build_load p ".val" builder
+    | _ -> p
+
+
+(* ----- Operators ----- *)
+
 and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
   and e2' = codegen_expr builder e2 in
@@ -327,10 +339,12 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
    | Neg -> L.build_neg
    | Not -> L.build_not) e1' "tmp" builder
 
-(* Construct code for an expression; return its llvalue *)
+(* Construct code for an expression; return its llvalue.
+   For non-primitive type, the returned llvalue is ref.
+*)
 and codegen_expr builder = function
     Id(_, _) as id -> load_id id builder
-  | StructField(s, f, _) -> codegen_structfield s f builder false (* load *)
+  | StructField(s, f, _) -> codegen_structfield s f false builder (* load *)
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
@@ -346,7 +360,15 @@ and codegen_expr builder = function
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
+  | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
+  | ArraySub(a, idx1, idx2, d) -> L.const_null i32_t (* TODO *)
 
+and codegen_expr_ref builder expr =
+  match expr with
+  | Id(_, _) -> lookup_id expr builder (* Structtype, Arraytype *)
+  | StructField(s, f, _) -> codegen_structfield s f true builder
+  | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d true builder
+  | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
 
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
