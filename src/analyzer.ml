@@ -65,17 +65,15 @@ let get_type_from_expr (expr : S.expr) =
   | LitDouble(_) -> A.Datatype(Double)
   | LitStr(_) -> A.Datatype(String)
   | LitPitch(_,_,_) -> A.Musictype(Pitch)
-  | Null -> A.Datatype(Unit)
+  | Null -> A.Datatype(Unit) (* Null -> Datatype(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
   | Assign(_,_,d) -> d
   | FuncCall(_,_,d)-> d
   | Noexpr -> A.Datatype(Unit)
-  | Array(_,d) -> Arraytype(d)
-(*
-  | Null -> Datatype(Null_t)
-   | Noexpr -> Datatype(Void_t)
-  *)
+  | LitArray(_,d) -> Arraytype(d)
+  | ArrayIdx(_,_,d) -> d
+  | ArraySub(_,_,_,d) -> d
 
 let get_stmt_from_expr e =
   let t = get_type_from_expr e in
@@ -154,7 +152,7 @@ let analyze_struct env s f =
         Structtype n -> (
           try StringMap.find n !(env.btmodule).struct_map
           with | Not_found -> raise(Exceptions.Impossible("analyze_struct")))
-      | _ as d -> raise (Exceptions.CanOnlyAccessStructType (string_of_datatype d))
+      | _ as d -> raise (Exceptions.ShouldAccessStructType (string_of_datatype d))
     in
     try List.find (fun field -> (snd field) = f) struct_decl.fields
     with | Not_found -> raise(Exceptions.StructFieldNotFound(s, f))
@@ -179,7 +177,9 @@ let rec build_sast_expr env (expr : A.expr) =
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
-  | Array(el) -> analyze_array env el
+  | LitArray(el) -> analyze_array env el
+  | ArrayIdx(a, e) -> analyze_arrayidx env a e
+  | ArraySub(a, e1, e2) -> analyze_arraysub env a e1 e2
 
 and build_sast_expr_list env (expr_list:A.expr list) =
   let helper_expr expr = snd (build_sast_expr env expr) in
@@ -190,7 +190,7 @@ and build_sast_expr_list env (expr_list:A.expr list) =
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
-    env, S.Array([], Any)
+    env, S.LitArray([], Any)
   else
     let ele_type =
       let ele_type = get_type_from_expr (List.hd sast_expr_list) in
@@ -207,13 +207,36 @@ and analyze_array env (expr_list:A.expr list) =
         in
         if d = ele_type or d = Any then
           match expr with
-          | Array(el, _) -> (List.rev el) @ l
+          | LitArray(el, _) -> (List.rev el) @ l
           | _ as e -> e :: l
         else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d))
       in
       List.rev (List.fold_left helper_array [] sast_expr_list)
     in
-    env, S.Array(sast_expr_list, ele_type)
+    env, S.LitArray(sast_expr_list, ele_type)
+
+and analyze_arrayidx env a e =
+  let _, sast_arr = build_sast_expr env a in
+  let ele_type =
+    match get_type_from_expr sast_arr with
+    | Arraytype(d) -> d
+    | _ as d -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
+  in
+  let _, idx = build_sast_expr env e in
+  (* TODO J: check idx is int type *)
+  env, S.ArrayIdx(sast_arr, idx, ele_type)
+
+and analyze_arraysub env a e1 e2 =
+  let _, sast_arr = build_sast_expr env a in
+  let d = get_type_from_expr sast_arr in
+  match d with
+  | Arraytype(_) -> (
+      let _, idx1 = build_sast_expr env e1 in
+      let _, idx2 = build_sast_expr env e2 in
+      (* TODO J: check Python-like idx *)
+      env, S.ArraySub(sast_arr, idx1, idx2, d)
+    )
+  | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
 
 and analyze_binop env e1 op e2 = (* -> env, Binop (e1,op,e2,t) *)
   let _, se1 = build_sast_expr env e1 in

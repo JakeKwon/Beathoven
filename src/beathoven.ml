@@ -30,7 +30,7 @@ let _ =
     (*let prog = Generator.gen_program ast in *)
     match action with
       Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
-    | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)
+    | Raw -> () 
     | Compile -> let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)

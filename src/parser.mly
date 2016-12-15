@@ -34,6 +34,7 @@
 %nonassoc NOELSE
 %nonassoc ELSE
 %right ASSIGN
+%left COLON
 %left OR
 %left AND
 %left EQ NEQ LT GT LTE GTE
@@ -44,9 +45,7 @@
 %left LBRACK
 %left DOT /* right?? */
 /*
-%left COLON
 %left OCTAVE_RAISE OCTAVE_LOWER
-%left ARRAY
 */
 
 
@@ -57,8 +56,6 @@
 %%
 
 literals:
-    ID { Id($1) }
-  | ID DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
   /*| NULL { Null }*/
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
@@ -78,39 +75,54 @@ primitive:
 musictype:
     TYPE_PITCH { Pitch }
 
-datatype:
+datatype_nonarray:
     primitive { Datatype($1) }
   | musictype { Musictype($1) }
   | TYPE_STRUCT ID { Structtype($2) }
-  | datatype LBRACK RBRACK { Arraytype($1) } /* int [][] */
+
+datatype:
+    datatype_nonarray { $1 }
+  | datatype_nonarray LBRACK RBRACK { Arraytype($1) }
 
 
 /* ------------------- Expressions ------------------- */
 
+ids:
+    ID { Id($1) }
+  | ID DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
+
+index_range: /* Python-like array access */
+    expr COLON expr { ($1, $3) }
+  | COLON expr { (LitInt(0), $2) }
+  | expr COLON { ($1, Noexpr) }
+  | COLON { (LitInt(0), Noexpr) }
+
 expr:
     literals { $1 }
+  | ids { $1 }
   | MINUS expr { Uniop (Neg, $2) }
   | expr PLUS   expr { Binop($1, Add, $3) }
   | expr MINUS  expr { Binop($1, Sub, $3) }
   | expr TIMES  expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
   | expr MOD    expr { Binop($1, Mod, $3) }
-  | expr ASSIGN expr { Assign($1, $3) }
-  | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
   | expr LT expr { Binop($1, Less, $3) }
   | expr LTE expr { Binop($1, Leq, $3) }
   | expr GT expr { Binop($1, Greater, $3) }
   | expr GTE expr { Binop($1, Geq, $3) }
+  | expr ASSIGN expr { Assign($1, $3) }
+  | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
   /*
   | NOT expr { Unop (Not, $2) }
   | expr AND expr { Binop($1, And, $3) }
   | expr OR expr { Binop($1, Or, $3) }
-  | expr bracket_args RBRACKET { ArrayAccess($1, List.rev $2) }
 */
+  | LBRACK expr_list RBRACK { LitArray($2) }
+  | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
+  | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LPAREN expr RPAREN { $2 }
-  | LBRACK expr_list RBRACK { Array($2) }
 
 formal_list: /* bind list */
     /* nothing */ { [] }

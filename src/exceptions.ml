@@ -28,11 +28,15 @@ exception InvalidUnaryOperation
 exception UnitTypeError of string
 exception DuplicateFunction of string
 
+(* Array *)
 exception ArrayTypeNotMatch of string
+exception ShouldAccessArray of string
+(* Assign *)
 exception AssignmentTypeMismatch of string * string
 exception CannotUseBuiltinFuncName of string
+(* Struct *)
 exception UndefinedStructType of string
-exception CanOnlyAccessStructType of string
+exception ShouldAccessStructType of string
 exception StructFieldNotFound of string * string
 
 (* ------------------- Environment ------------------- *)

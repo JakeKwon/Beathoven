@@ -171,7 +171,7 @@ let codegen_structfield sid fid builder isref =
 
 let codegen_expr_ref builder expr =
   match expr with
-  | Id(_, _) -> lookup_id expr builder (* Struct, Array *)
+  | Id(_, _) -> lookup_id expr builder (* Structtype, Arraytype *)
   | StructField(s, f, _) -> codegen_structfield s f builder true
   | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
 (*  | 	SArrayAccess(se, sel, d) -> codegen_array_access true se sel d llbuilder, true
@@ -337,7 +337,7 @@ and codegen_expr builder = function
   | LitStr s -> L.build_global_stringptr s "tmp" builder
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
   | Noexpr -> L.const_int i32_t 0
-  | Null -> L.const_null i32_t (* should we have Null *)
+  | Null -> L.const_null i32_t
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
@@ -345,7 +345,7 @@ and codegen_expr builder = function
      | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
-  | Array(el, d) -> codegen_array el d builder (* ref *)
+  | LitArray(el, d) -> codegen_array el d builder (* ref *)
 
 
 let rec codegen_stmt builder = function

@@ -19,7 +19,9 @@ type expr =
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
-  | Array of expr list * A.datatype (* element type *)
+  | LitArray of expr list * A.datatype (* element type *)
+  | ArrayIdx of expr * expr * A.datatype
+  | ArraySub of expr * expr * expr * A.datatype
 
 type stmt =
     Block of stmt list

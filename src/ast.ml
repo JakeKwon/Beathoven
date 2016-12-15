@@ -47,7 +47,9 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
-  | Array of expr list
+  | LitArray of expr list
+  | ArrayIdx of expr * expr
+  | ArraySub of expr * expr * expr
 
 type stmt =
     Block of stmt list
