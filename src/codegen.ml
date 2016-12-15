@@ -34,17 +34,16 @@ and void_t = L.void_type context
 let str_t = L.pointer_type i8_t
 let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
-(* let p_str_t = L.pointer_type str_t  *)
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let formal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 10
-(* let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50 *)
+let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
+let is_global = ref false
 
 let struct_tbl:(string, L.lltype) Hashtbl.t = Hashtbl.create 10
 let struct_field_indexes:(string, int) Hashtbl.t = Hashtbl.create 50
 let is_struct_packed = false
 
-let literal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 
 (* ------------------- Utils ------------------- *)
 
@@ -81,15 +80,23 @@ let get_bind_type d =
 let lltype_of_bind_list (bind_list : A.bind list) =
   List.map (fun (d, _) -> get_bind_type d) bind_list
 
-(* Declare variable and remember its llvalue in tbl *)
-(* still local !! *)
-let codegen_allocate_to_tbl tbl (typ : A.datatype) var_name builder =
+(* Declare variable and remember its llvalue in local_tbl *)
+let codegen_local_allocate (typ : A.datatype) var_name builder =
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
-  Hashtbl.add tbl var_name alloca;
+  Hashtbl.add local_tbl var_name alloca;
   alloca
 
-let codegen_allocate = codegen_allocate_to_tbl local_tbl
+(* Declare variable and remember its llvalue in global_tbl *)
+let codegen_global_allocate (typ : A.datatype) var_name builder =
+  let zeroinitializer = L.const_null (lltype_of_datatype typ) in
+  let alloca = L.define_global var_name zeroinitializer the_module in
+  Hashtbl.add global_tbl var_name alloca;
+  alloca
+
+let codegen_allocate (typ : A.datatype) var_name builder =
+  if !is_global then codegen_global_allocate typ var_name builder
+  else codegen_local_allocate typ var_name builder
 
 (* Return the value for a variable or formal argument *)
 (* duplicate name in formal will be overwritten by local *)
@@ -139,9 +146,9 @@ let codegen_structfield sid fid builder isref =
 let codegen_pitch k o a builder =
   let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
   let pitch_ll =
-    try Hashtbl.find literal_tbl p
+    try Hashtbl.find global_tbl p
     with | Not_found ->
-      let alloca = codegen_allocate_to_tbl literal_tbl (A.Musictype(Pitch)) p builder in
+      let alloca = codegen_global_allocate (A.Musictype(Pitch)) p builder in
       let octave = L.build_struct_gep alloca 1 (p ^ ".octave") builder in
       let alter = L.build_struct_gep alloca 2 (p ^ ".alter") builder in
       ignore(L.build_store (L.const_int i32_t o) octave builder);
@@ -149,8 +156,8 @@ let codegen_pitch k o a builder =
       alloca
   in
   pitch_ll
-  (* TODO: use global constant for pitch  *)
-(* L.const_named_struct (lookup_struct "pitch")
+(* initializer: 
+L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
 let rec codegen_print expr_list builder =
