@@ -1,4 +1,11 @@
-(* creation of environment *)
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
+(*
+Translation Environments
+*)
 open Sast
 
 (* include ?? *)

@@ -1,3 +1,12 @@
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
+
+(* ------------------- Scanner ------------------- *)
+exception Lexing_error of string
+
 (* ------------------- Analyzer ------------------- *)
 exception VariableNotDefined of string
 exception ReturntypeNotMatch of string

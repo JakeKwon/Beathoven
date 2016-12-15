@@ -1,3 +1,8 @@
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
 let default_mname = ".beathoven"
 let default_fname = ".main"
 
@@ -9,10 +14,10 @@ type primitive =
   | String
 
 type musictype =
-  Pitch
+    Pitch
 
-(* Primitive(primi) *)
-type datatype = Datatype of primitive | Musictype of musictype | Structtype of string
+type datatype = Datatype of primitive | Musictype of musictype
+              | Structtype of string | Arraytype of datatype
 
 type binary_operator =
     Add | Sub | Mult | Div | Mod | Equal | Neq
@@ -42,7 +47,7 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
-  (* LitChar, Array, ... *)
+  | Array of expr list 
 
 type stmt =
     Block of stmt list

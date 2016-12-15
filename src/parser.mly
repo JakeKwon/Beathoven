@@ -1,3 +1,8 @@
+/*
+ * Authors:
+ *  - Ruonan Xu
+ */
+
 %{
   open Ast
 %}
@@ -9,7 +14,8 @@
 %token <float> LIT_DOUBLE
 %token <string> ID
 %token <string> LIT_PITCH
-%token NULL TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_DOUBLE TYPE_STR TYPE_STRUCT TYPE_ENUM
+%token TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_CHAR TYPE_DOUBLE TYPE_STR
+%token TYPE_STRUCT TYPE_ENUM
 %token TYPE_PITCH TYPE_DURATION TYPE_NOTE TYPE_CHORD TYPE_SEQ
 %token ASSIGN
 %token RETURN SEP EOF
@@ -19,7 +25,6 @@
 %token COLON DOT COMMA
 %token NOT PARALLEL AND OR
 %token RARROW
-%token ARRAY
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
@@ -41,7 +46,6 @@
 /*
 %left COLON
 %left OCTAVE_RAISE OCTAVE_LOWER
-%left DOT
 %left ARRAY
 */
 
@@ -55,7 +59,7 @@
 literals:
     ID { Id($1) }
   | ID DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
-  | NULL { Null }
+  /*| NULL { Null }*/
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
   | LIT_DOUBLE { LitDouble($1) }
@@ -63,13 +67,6 @@ literals:
   | LIT_PITCH { LitPitch($1.[0],
       (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
       (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
-  /* | lit_array        { $1 } */
-  /*
-  lit_array:
-  | LBRACE stmt_list_plus RBRACE { Arr(($2), None) }
-  | LBRACK stmt_list_plus RBRACK { ArrMusic(($2)) }
-  | typename   BRACES  { Arr([], Some($1)) }
-  */
 
 primitive:
     TYPE_UNIT { Unit }
@@ -85,6 +82,7 @@ datatype:
     primitive { Datatype($1) }
   | musictype { Musictype($1) }
   | TYPE_STRUCT ID { Structtype($2) }
+  | datatype LBRACK RBRACK { Arraytype($1) } /* int [][] */
 
 
 /* ------------------- Expressions ------------------- */
@@ -112,6 +110,7 @@ expr:
   | expr bracket_args RBRACKET { ArrayAccess($1, List.rev $2) }
 */
   | LPAREN expr RPAREN { $2 }
+  | LBRACK expr_list RBRACK { Array($2) }
 
 formal_list: /* bind list */
     /* nothing */ { [] }

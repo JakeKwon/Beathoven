@@ -1,3 +1,8 @@
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
 module A = Ast
 
 type expr =
@@ -14,6 +19,7 @@ type expr =
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
+  | Array of expr list * A.datatype
 
 type stmt =
     Block of stmt list

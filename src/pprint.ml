@@ -1,4 +1,11 @@
-(* Pretty Print *)
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
+(*
+Pretty Print
+*)
 
 open Sast
 (* Ast is opened as module A in Sast. Items in Ast can be accessed with A.* here. *)
@@ -6,8 +13,7 @@ open Yojson
 (* Ref: https://realworldocaml.org/v1/en/html/handling-json-data.html *)
 
 
-
-let string_of_datatype (t : A.datatype) =
+let rec string_of_datatype (t : A.datatype) =
   match t with
     Datatype(Unit) -> "unit"
   | Datatype(Bool) -> "bool"
@@ -15,7 +21,8 @@ let string_of_datatype (t : A.datatype) =
   | Datatype(Double) -> "double"
   | Datatype(String) -> "string"
   | Musictype(Pitch) -> "pitch"
-  | Structtype(s) -> "Struct " ^ s
+  | Structtype(s) -> "Struct(" ^ s ^ ")"
+  | Arraytype(d) -> "Array(" ^ (string_of_datatype d) ^ ")"
 
 let string_of_op (op : A.binary_operator) =
   match op with
@@ -38,22 +45,18 @@ let string_of_uop (uop : A.unary_operator) =
     Neg -> "-"
   | Not -> "!"
 
-(* let string_of_expr = function
-    Int_Lit(i) -> string_of_int i
-   | Boolean_Lit(b) -> if b then "true" else "false"
-   | Float_Lit(f) -> string_of_float f
-   | String_Lit(s) -> "\"" ^ (String.escaped s) ^ "\""
-   | Char_Lit(c) -> Char.escaped c
-   | This -> "this"
-   | Id(s) -> s
-   | Binop(e1, o, e2) -> (string_of_expr e1) ^ " " ^ (string_of_op o) ^ " " ^ (string_of_expr e2)
-   | Assign(e1, e2) -> (string_of_expr e1) ^ " = " ^ (string_of_expr e2)
-   | Noexpr -> ""
-   | ObjAccess(e1, e2) -> (string_of_expr e1) ^ "." ^ (string_of_expr e2)
-   | Call(f, el) -> f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
-   | ArrayPrimitive(el) -> "|" ^ (string_of_array_primitive el) ^ "|"
-   |   Unop(op, e) -> (string_of_op op) ^ "(" ^ string_of_expr e ^ ")"
-   | Null -> "null" *)
+let rec string_of_expr = function
+    LitInt(l) -> string_of_int l
+  | LitBool(true) -> "true"
+  | LitBool(false) -> "false"
+  | Id(s,_) -> s
+  | Binop(e1, o, e2,_) ->
+    string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
+  | Uniop(o, e, _) -> string_of_uop o ^ string_of_expr e
+  | Assign(v, e,_) -> string_of_expr v ^ " = " ^ string_of_expr e
+  | FuncCall(f, el, _) ->
+    f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | Noexpr -> ""
 
 
 (* Print SAST tree representation *)
@@ -65,11 +68,10 @@ let rec json_of_expr expr =
     match expr with
       Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
     | StructField(e1, e2, d) -> `Assoc [("StructField",
-                                         `Assoc [
-                                           ("struct", (json_of_expr e1));
-                                           ("field", (json_of_expr e2));
-                                           tuple_of_datatype d;
-                                         ])]
+                                         `Assoc [("struct", (json_of_expr e1));
+                                                 ("field", (json_of_expr e2));
+                                                 tuple_of_datatype d;
+                                                ])]
     | LitBool(b) -> `Assoc [("bool", `Bool b)]
     | LitInt(i) -> `Assoc [("int", `Int i)]
     | LitDouble(d) -> `Assoc [("double", `Float d)]
@@ -78,32 +80,32 @@ let rec json_of_expr expr =
       let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
       `Assoc [("pitch", `String p)]
     | Binop(e1, op, e2, d) -> `Assoc [("binop",
-                                       `Assoc [
-                                         ("lhs", (json_of_expr e1));
-                                         ("op", `String (string_of_op op));
-                                         ("rhs", (json_of_expr e2));
-                                         tuple_of_datatype d;
-                                       ]);]
+                                       `Assoc [("lhs", (json_of_expr e1));
+                                               ("op", `String (string_of_op op));
+                                               ("rhs", (json_of_expr e2));
+                                               tuple_of_datatype d;
+                                              ]);]
     | Uniop(op, e, d) -> `Assoc [("uniop",
-                                  `Assoc [
-                                    ("op", `String (string_of_uop op));
-                                    ("operand", (json_of_expr e));
-                                    tuple_of_datatype d
-                                  ])]
+                                  `Assoc [("op", `String (string_of_uop op));
+                                          ("operand", (json_of_expr e));
+                                          tuple_of_datatype d
+                                         ])]
     | Assign(e1, e2, d)  -> `Assoc [("assign",
-                                     `Assoc [
-                                       ("lhs", (json_of_expr e1));
-                                       ("rhs", (json_of_expr e2));
-                                       tuple_of_datatype d
-                                     ])]
+                                     `Assoc [("lhs", (json_of_expr e1));
+                                             ("rhs", (json_of_expr e2));
+                                             tuple_of_datatype d
+                                            ])]
     | FuncCall(f, el, d)-> `Assoc [("funccall",
-                                    `Assoc [
-                                      ("name", `String f);
-                                      ("params", `List (List.map json_of_expr el));
-                                      tuple_of_datatype d
-                                    ])]
+                                    `Assoc [("name", `String f);
+                                            ("params", `List (List.map json_of_expr el));
+                                            tuple_of_datatype d
+                                           ])]
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
+    | Array(el, d) -> `Assoc [("Array",
+                               `Assoc [("elements", `List (List.map json_of_expr el));
+                                       tuple_of_datatype d
+                                      ])]
   in expr_json
 
 let rec json_of_stmt stmt =
@@ -128,62 +130,42 @@ let json_of_bind_list bind_list =
 
 let json_of_func (func : func_decl) =
   `Assoc[("func_decl",
-          `Assoc[
-            ("fname", `String func.fname);
-            ("returnType", `String (string_of_datatype func.returnType) );
-            ("formals", json_of_bind_list func.formals);
-            ("body", `List (List.map json_of_stmt func.body));
-          ])]
+          `Assoc[("fname", `String func.fname);
+                 ("returnType", `String (string_of_datatype func.returnType) );
+                 ("formals", json_of_bind_list func.formals);
+                 ("body", `List (List.map json_of_stmt func.body));
+                ])]
 
 let json_of_funcs funcs =
   `List(List.map json_of_func funcs)
 
 let json_of_struct (s : A.struct_decl) =
   `Assoc[("struct_decl",
-          `Assoc[
-            ("sname", `String s.sname);
-            ("fields", json_of_bind_list s.fields);
-          ])]
+          `Assoc[("sname", `String s.sname);
+                 ("fields", json_of_bind_list s.fields);
+                ])]
 
 let json_of_structs structs =
   `List(List.map json_of_struct structs)
 
 let json_of_module btmodule =
   `Assoc [("btmodule",
-           `Assoc[
-             ("mname", `String btmodule.mname);
-             ("structs", json_of_structs btmodule.structs);
-             ("funcs", json_of_funcs btmodule.funcs);
-           ])]
+           `Assoc[("mname", `String btmodule.mname);
+                  ("structs", json_of_structs btmodule.structs);
+                  ("funcs", json_of_funcs btmodule.funcs);
+                 ])]
 
 let json_of_module_list btmodules =
   `List(List.map json_of_module btmodules)
 
 let json_of_program program =
   `Assoc [("program",
-           `Assoc [
-             ("main_module", json_of_module program.main_module);
-             ("btmodules", json_of_module_list program.btmodules);
-           ])]
-
+           `Assoc [("main_module", json_of_module program.main_module);
+                   ("btmodules", json_of_module_list program.btmodules);
+                  ])]
 
 
 (*
-
-
-   let rec string_of_expr = function
-   LitInt(l) -> string_of_int l
-   | LitBool(true) -> "true"
-   | LitBool(false) -> "false"
-   | Id(s,_) -> s
-   | Binop(e1, o, e2,_) ->
-   string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
-   | Uniop(o, e, _) -> string_of_uop o ^ string_of_expr e
-   | Assign(v, e,_) -> string_of_expr v ^ " = " ^ string_of_expr e
-   | FuncCall(f, el, _) ->
-   f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
-   | Noexpr -> ""
-
    let rec string_of_stmt = function
    Block(stmts) ->
    "{\n" ^ String.concat "" (List.map string_of_stmt stmts) ^ "}\n"
