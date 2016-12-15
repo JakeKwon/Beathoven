@@ -27,6 +27,7 @@ exception InvalidUnaryOperation
 exception UnitTypeError of string
 exception DuplicateFunction of string
 
+exception ArrayTypeNotMatch of string
 exception AssignmentTypeMismatch of string * string
 exception AssignLHSMustBeAssignable
 exception CannotUseBuiltinFuncName of string

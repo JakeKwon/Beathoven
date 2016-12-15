@@ -71,6 +71,7 @@ let get_type_from_expr (expr : S.expr) =
   | Assign(_,_,d) -> d
   | FuncCall(_,_,d)-> d
   | Noexpr -> A.Datatype(Unit)
+  | Array(_,d) -> Arraytype(d)
 (*
   | Null -> Datatype(Null_t)
    | Noexpr -> Datatype(Void_t)
@@ -162,7 +163,6 @@ let analyze_struct env s f =
   let struct_id = S.Id(s, struct_type) in
   env, S.StructField(struct_id, field_id, fst field_bind)
 
-
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
@@ -179,6 +179,7 @@ let rec build_sast_expr env (expr : A.expr) =
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
+  | Array(el) -> analyze_array env el
 
 and build_sast_expr_list env (expr_list:A.expr list) =
   let helper_expr expr = snd (build_sast_expr env expr) in
@@ -186,7 +187,33 @@ and build_sast_expr_list env (expr_list:A.expr list) =
   (* print_int (get_map_size env.var_map); *)
   env, sast_expr_list
 
-(* --- Analyze expressions --- *)
+and analyze_array env (expr_list:A.expr list) =
+  let _, sast_expr_list = build_sast_expr_list env expr_list in
+  if List.length sast_expr_list = 0 then
+    env, S.Array([], Any)
+  else
+    let ele_type =
+      let ele_type = get_type_from_expr (List.hd sast_expr_list) in
+      match ele_type with
+      | Arraytype(d) -> d
+      | _ -> ele_type
+    in
+    let sast_expr_list =
+      let helper_array l expr =
+        let d =
+          match get_type_from_expr expr with
+          | Arraytype(d) -> d
+          | _ as d -> d
+        in
+        if d = ele_type or d = Any then
+          match expr with
+          | Array(el, _) -> (List.rev el) @ l
+          | _ as e -> e :: l
+        else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d))
+      in
+      List.rev (List.fold_left helper_array [] sast_expr_list)
+    in
+    env, S.Array(sast_expr_list, ele_type)
 
 and analyze_binop env e1 op e2 = (* -> env, Binop (e1,op,e2,t) *)
   let _, se1 = build_sast_expr env e1 in
@@ -222,7 +249,7 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-  if t1 = t2
+  if t1 = t2 or t2 = Any
   then env, S.Assign(lhs, rhs, t1)
   else
     raise (Exceptions.AssignmentTypeMismatch(string_of_datatype t1, string_of_datatype t2))

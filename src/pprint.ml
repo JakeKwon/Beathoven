@@ -15,7 +15,8 @@ open Yojson
 
 let rec string_of_datatype (t : A.datatype) =
   match t with
-    Datatype(Unit) -> "unit"
+  | Any -> "any"
+  | Datatype(Unit) -> "unit"
   | Datatype(Bool) -> "bool"
   | Datatype(Int) -> "int"
   | Datatype(Double) -> "double"

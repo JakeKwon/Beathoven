@@ -16,7 +16,7 @@ type primitive =
 type musictype =
     Pitch
 
-type datatype = Datatype of primitive | Musictype of musictype
+type datatype = Any | Datatype of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
 
 type binary_operator =
@@ -47,7 +47,7 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
-  | Array of expr list 
+  | Array of expr list
 
 type stmt =
     Block of stmt list
