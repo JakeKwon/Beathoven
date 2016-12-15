@@ -22,8 +22,8 @@ let rec string_of_datatype (t : A.datatype) =
   | Datatype(Double) -> "double"
   | Datatype(String) -> "string"
   | Musictype(Pitch) -> "pitch"
-  | Structtype(s) -> "Struct(" ^ s ^ ")"
-  | Arraytype(d) -> "Array(" ^ (string_of_datatype d) ^ ")"
+  | Structtype(s) -> "Struct_" ^ s
+  | Arraytype(d) -> "Array_" ^ (string_of_datatype d) 
 
 let string_of_op (op : A.binary_operator) =
   match op with

@@ -3,6 +3,7 @@
  *  - Ruonan Xu
  *)
 
+exception Impossible of string
 
 (* ------------------- Scanner ------------------- *)
 exception Lexing_error of string
@@ -29,12 +30,10 @@ exception DuplicateFunction of string
 
 exception ArrayTypeNotMatch of string
 exception AssignmentTypeMismatch of string * string
-exception AssignLHSMustBeAssignable
 exception CannotUseBuiltinFuncName of string
 exception UndefinedStructType of string
 exception CanOnlyAccessStructType of string
 exception StructFieldNotFound of string * string
-exception Impossible
 
 (* ------------------- Environment ------------------- *)
 exception UndefinedID of string
@@ -42,6 +41,7 @@ exception UndefinedID of string
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrint
+exception ExpressionNotAssignable of string
 
 
 (*

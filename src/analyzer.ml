@@ -153,7 +153,7 @@ let analyze_struct env s f =
       match struct_type with
         Structtype n -> (
           try StringMap.find n !(env.btmodule).struct_map
-          with | Not_found -> raise(Exceptions.Impossible))
+          with | Not_found -> raise(Exceptions.Impossible("analyze_struct")))
       | _ as d -> raise (Exceptions.CanOnlyAccessStructType (string_of_datatype d))
     in
     try List.find (fun field -> (snd field) = f) struct_decl.fields
