@@ -34,6 +34,7 @@ and void_t = L.void_type context
 let str_t = L.pointer_type i8_t
 let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
+let null_ll = L.const_null i32_t
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
@@ -58,7 +59,7 @@ let lookup_struct sname =
 
 let lookup_func fname =
   match (L.lookup_function fname the_module) with
-    None -> raise (Exceptions.LLVMFunctionNotFound fname)
+  | None -> raise (Exceptions.Impossible "Analyzer should catch undefined funcs")
   | Some f -> f
 
 let rec lltype_of_datatype (d : A.datatype) =
@@ -71,13 +72,12 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Structtype(s) -> lookup_struct s
   | Musictype(Pitch) -> lookup_struct "pitch"
   | Arraytype(d) -> lookup_array d
-  | Any -> void_t
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
 
 and lookup_array (d : A.datatype) =
   try Hashtbl.find array_tbl d
   with | Not_found ->
-    let struct_t = L.named_struct_type context ("Arr." ^ (Pprint.string_of_datatype d)) in
+    let struct_t = L.named_struct_type context ("Arr_" ^ (Pprint.string_of_datatype d)) in
     let type_array = [|i32_t; L.pointer_type (lltype_of_datatype d)|] in (* size; ptr of d*)
     L.struct_set_body struct_t type_array is_struct_packed;
     Hashtbl.add array_tbl d struct_t;
@@ -86,7 +86,7 @@ and lookup_array (d : A.datatype) =
 let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
-    Structtype(_) -> L.pointer_type lltype
+  | Structtype(_) -> L.pointer_type lltype
   | Musictype(_) -> L.pointer_type lltype
   | _ -> lltype
 
@@ -172,10 +172,8 @@ let codegen_pitch k o a builder =
 
 let rec codegen_print expr_list builder =
   let (llval_expr_list : L.llvalue list) = List.map (codegen_expr builder) expr_list in
-  let llstrfmt =
-    (* let idx = ref (-1) in *)
+  let printfmt =
     let llval_and_fmt_of_expr expr = (* -> fmt : string *)
-      (* incr idx; *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
           Primitive(Int) -> "%d"
@@ -190,15 +188,12 @@ let rec codegen_print expr_list builder =
     in
     let fmt_list = List.map llval_and_fmt_of_expr expr_list in
     let fmt_str = String.concat "" fmt_list in
-    (* let ll = L.const_stringz context "%d" in
-       L.set_value_name "fmmt" ll; print_endline(L.value_name ll); *)
     L.build_global_stringptr fmt_str "fmt" builder
   in
-  let actuals = Array.of_list (llstrfmt :: llval_expr_list) in
-  (* actuals.(0) <- llstrfmt; *)
+  let actuals = Array.of_list (printfmt :: llval_expr_list) in
   L.build_call (lookup_func "printf") actuals "tmp" builder
   (*
-  Dice:
+  ref Dice:
   let zero = const_int i32_t 0 in
   let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
   build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
@@ -214,37 +209,31 @@ and codegen_funccall fname el d builder =
 (* ----- Assignment ----- *)
 
 and codegen_assign_with_lhs lhs rhs_expr builder =
-  let rhs =
-    let rhs = codegen_expr builder rhs_expr in
-    let store () =
-      ignore(L.build_store rhs lhs builder);
-      rhs
-    in
-    let memcpy e = (* e is non-primitive, so rhs is ref *)
-      let size_ll =
-        let codegen_sizeof e builder =
-          let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
-          let size_ll = L.size_of lltype in
-          (* (**debug**) print_endline (L.string_of_llvalue size_ll); *)
-          (* L.build_bitcast size_ll size_t "size" builder *)
-          size_ll
-        in
-        codegen_sizeof rhs_expr builder
-      in
-      let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
-      let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
-      ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
-      rhs_p
-    in
-    let d = Analyzer.get_type_from_expr rhs_expr in
-    match d with
-    | Primitive(_) -> store ()
-    | _ -> memcpy rhs_expr
+  let store rhs =
+    ignore(L.build_store rhs lhs builder);
+    rhs
   in
-  (*
-  (**debug**) print_endline (L.string_of_llvalue lhs);
-  (**debug**) print_endline (L.string_of_llvalue rhs); *)
-  rhs
+  let memcpy rhs = (* rhs is non-primitive, so rhs is ref *)
+    let size_ll =
+      let codegen_sizeof e builder =
+        let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
+        let size_ll = L.size_of lltype in
+        (* (**debug**) print_endline (L.string_of_llvalue size_ll); *)
+        (* L.build_bitcast size_ll size_t "size" builder *)
+        size_ll
+      in
+      codegen_sizeof rhs_expr builder
+    in
+    let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
+    let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+    ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
+    rhs_p
+  in
+  let d = Analyzer.get_type_from_expr rhs_expr in
+  let rhs = codegen_expr builder rhs_expr in
+  match d with
+  | Primitive(_) -> store rhs
+  | _ -> memcpy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
   codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
@@ -272,35 +261,37 @@ and codegen_structfield struct_expr fid isref builder =
 (* ----- Array ----- *)
 
 and codegen_array el d builder =
-  let len, arr = (* codegen_raw_array el element_type builder *)
-    (* no GC *)
-    let len =
-      let length =
-        List.fold_left (fun count expr ->
-            match Analyzer.get_type_from_expr expr with
-            | Arraytype(_) ->
-              count + 1 (* TODO: codegen_expr expr *)
-            | _ -> count + 1
-          ) 0 el
+  if d = A.Primitive(Unit) then null_ll (* skip unknown empty array [] *)
+  else
+    let len, arr = (* codegen_raw_array el element_type builder *)
+      (* no GC *)
+      let len =
+        let length =
+          List.fold_left (fun count expr ->
+              match Analyzer.get_type_from_expr expr with
+              | Arraytype(_) ->
+                count + 1 (* TODO: codegen_expr expr *)
+              | _ -> count + 1
+            ) 0 el
+        in
+        L.const_int i32_t length
       in
-      L.const_int i32_t length
+      let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
+      let i = ref 0 in
+      List.iter (fun e ->
+          let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
+          ignore(codegen_assign_with_lhs ptr e builder);
+          incr i;
+        ) el;
+      len, arr (* return llvalue of ptr of element_type *)
     in
-    let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
-    let i = ref 0 in
-    List.iter (fun e ->
-        let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
-        ignore(codegen_assign_with_lhs ptr e builder);
-        incr i;
-      ) el;
-    len, arr (* return llvalue of ptr of element_type *)
-  in
-  let lit_name = ".arr" ^ (Pprint.string_of_datatype d) in
-  let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder in
-  let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
-  let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
-  ignore(L.build_store len arr_len builder);
-  ignore(L.build_store arr arr_p builder);
-  alloca
+    let lit_name = ".litarr_" ^ (Pprint.string_of_datatype d) in
+    let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder in
+    let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
+    let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
+    ignore(L.build_store len arr_len builder);
+    ignore(L.build_store arr arr_p builder);
+    alloca
 
 and codegen_arrayidx a idx d isref builder =
   let idx_ll = codegen_expr builder idx in
@@ -320,7 +311,7 @@ and codegen_arrayidx a idx d isref builder =
 
 (* ----- Operators ----- *)
 
-and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
+and codegen_binop e1 (op : A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
   and e2' = codegen_expr builder e2 in
   (match op with
@@ -329,6 +320,7 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Mult -> L.build_mul
    | Div -> L.build_sdiv
    | Equal -> L.build_icmp L.Icmp.Eq
+   (* TODO: string type equality *)
    | Neq -> L.build_icmp L.Icmp.Ne
    | Less -> L.build_icmp L.Icmp.Slt
    | Leq -> L.build_icmp L.Icmp.Sle
@@ -356,8 +348,8 @@ and codegen_expr builder = function
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
-  | Noexpr -> L.const_int i32_t 0
-  | Null -> L.const_null i32_t
+  | Noexpr -> null_ll
+  | Null -> null_ll
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
@@ -442,6 +434,9 @@ let codegen_builtin_funcs () =
   let _ = L.declare_function "printf" printf_t the_module in
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
+  (* Functions defined in stdlib.bc *)
+  let _print_pitch_t = L.function_type str_t [| get_bind_type (A.Musictype(Pitch)) |] in
+  let _ = L.declare_function "_print_pitch" _print_pitch_t the_module in
   ()
 
 let codegen_def_func func =
@@ -508,16 +503,10 @@ let codegen_program program =
     List.iter codegen_struct btmodule.structs;
     List.iter codegen_func btmodule.funcs
   in
-  codegen_builtin_funcs ();
-<<<<<<< HEAD
-  List.iter helper_def_func btmodules;
-  List.iter helper_func btmodules; (* main ?? *)
-  (* linker "stdlib.bc"; *)
-=======
   List.iter def_funcs_and_structs btmodules;
+  codegen_builtin_funcs ();
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
->>>>>>> 19e3d221c0a4f6fcbfd8e3a44f8117ef2aaf9ad2
   the_module
 
 
@@ -530,6 +519,3 @@ let codegen_program program =
    match L.block_terminator (L.insertion_block builder) with
     Some _ -> ()
    | None -> ignore (f builder) in *)
-
-
-(* print_endline (L.string_of_llvalue alloca); *)

@@ -1,5 +1,6 @@
 src/beathoven
 src/_build
+src/stdlib.ll
 test/scanner/tokenize
 test/compiler/logs/*
 *.log

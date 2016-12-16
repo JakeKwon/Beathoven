@@ -17,44 +17,6 @@ module SS = Set.Make(
   end )
 
 
-(* BINARY TYPES *)
-
-let get_equality_binop_type type1 type2 se1 se2 op =
-  (* Equality op not supported for float operands. The correct way to test floats
-     for equality is to check the difference between the operands in question *)
-  if (type1 = A.Primitive(Double) || type2 = A.Primitive(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
-  else
-    match type1, type2 with(*
-      A.Primitive(Char_t), Primitive(Int)
-    | Primitive(Int), Primitive(Char_t) -> env, S.Binop(se1, op, se2, A.Primitive(Bool)) *)
-    | _ ->
-      if type1 = type2 then S.Binop(se1, op, se2, A.Primitive(Bool))
-      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
-
-let get_logical_binop_type se1 se2 op = function
-    (A.Primitive(Bool), A.Primitive(Bool)) -> S.Binop(se1, op, se2, A.Primitive(Bool))
-  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
-
-let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [A.Primitive(Int); A.Primitive(Double)]
-  in
-  if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, A.Primitive(Bool))
-  else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
-
-let get_arithmetic_binop_type se1 se2 op = function
-    (A.Primitive(Int), A.Primitive(Double))
-  | (A.Primitive(Double), A.Primitive(Int))
-  | (A.Primitive(Double), A.Primitive(Double)) -> S.Binop(se1, op, se2, A.Primitive(Double))
-  (* | (A.Primitive(Int), A.Primitive(Char_t))
-     | (A.Primitive(Char_t), A.Primitive(Int))
-     | (A.Primitive(Char_t), A.Primitive(Char_t)) -> S.Binop(se1, op, se2, A.Primitive(Char_t))
-  *)
-  | (A.Primitive(Int), A.Primitive(Int)) -> S.Binop(se1, op, se2, A.Primitive(Int))
-
-  | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
-
-
 (* ------------------- SAST Utilities ------------------- *)
 let get_type_from_expr (expr : S.expr) =
   match expr with
@@ -79,13 +41,7 @@ let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
 
-(* ------------------- check sast ------------------- *)
-let check_vardecl_type d sast_expr =
-  let t = get_type_from_expr sast_expr in
-  d = t
-
 (* ------------------- debug ------------------- *)
-
 
 let get_map_size map =
   StringMap.fold (fun k v i -> i + 1) map 0
@@ -96,7 +52,8 @@ let get_map_size map =
 let (builtin_types_list : A.struct_decl list) =
   [{
     A.sname = "pitch";
-    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave"); (A.Primitive(Int), "alter");];
+    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+                (A.Primitive(Int), "alter");];
   };]
 
 let builtin_types =
@@ -107,15 +64,19 @@ let builtin_types =
 
 (* Initialize builtin_funcs *)
 let builtin_funcs =
+  let get_func_decl name (returnType : A.datatype) formalsType =
+    {
+      S.fname = name; S.body = [];
+      S.returnType = returnType;
+      S.formals = List.map (fun typ -> (typ, "")) formalsType;
+    }
+  in
+  let unit_t = A.Primitive(Unit) in
   let map = StringMap.empty in
   let map = StringMap.add "print"
-      {
-        S.fname = "printf";
-        S.formals = [];
-        S.returnType = A.Primitive(A.Int);
-        S.body = [];
-      }
-      map in
+    (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "print_pitch"
+      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
   map
 (*
 (* these are builtin_funcs  *)
@@ -183,7 +144,7 @@ and analyze_struct env e f =
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
-    env, S.LitArray([], Any)
+    env, S.LitArray([], Primitive(Unit))
   else
     let ele_type =
       let ele_type = get_type_from_expr (List.hd sast_expr_list) in
@@ -192,17 +153,21 @@ and analyze_array env (expr_list:A.expr list) =
       | _ -> ele_type
     in
     let sast_expr_list =
-      let helper_array l expr =
+      let ele_type = ref (A.Primitive(Unit)) in
+      let helper_array l (expr : S.expr) =
         let d =
           match get_type_from_expr expr with
           | Arraytype(d) -> d
           | _ as d -> d
         in
-        if d = ele_type or d = Any then
-          match expr with
-          | LitArray(el, _) -> (List.rev el) @ l
-          | _ as e -> e :: l
-        else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d))
+        if d = Primitive(Unit) then l (* expr is [] *)
+        else
+          (if !ele_type = Primitive(Unit) then ele_type := d;
+           if d = !ele_type then
+             match expr with
+             | LitArray(el, _) -> (List.rev el) @ l
+             | _ as e -> e :: l
+           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d)))
       in
       List.rev (List.fold_left helper_array [] sast_expr_list)
     in
@@ -231,17 +196,51 @@ and analyze_arraysub env a e1 e2 =
     )
   | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
 
+(* ----- Operators ----- *)
+
 and analyze_binop env e1 op e2 = (* -> env, Binop (e1,op,e2,t) *)
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
-  match op with
-    Equal | Neq                     -> env, get_equality_binop_type t1 t2 se1 se2 op
-  | And | Or                        -> env, get_logical_binop_type se1 se2 op (t1, t2)
-  | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
-  | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
-  | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
+  let get_logical_binop_type se1 se2 op = function
+      (A.Primitive(Bool), A.Primitive(Bool)) -> S.Binop(se1, op, se2, A.Primitive(Bool))
+    | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
+  in
+  let get_sast_equality_binop () =
+    if t1 = t2 then
+      match t1 with
+      | Primitive(Bool) | Primitive(Int) | Primitive(String)
+        -> S.Binop(se1, op, se2, A.Primitive(Bool))
+      (* Equality op not supported for double operands. *)
+      | _ -> raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for double type")
+    else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
+  in
+  let get_comparison_binop_type type1 type2 se1 se2 op =
+    let numerics = SS.of_list [A.Primitive(Int); A.Primitive(Double)]
+    in
+    if SS.mem type1 numerics && SS.mem type2 numerics
+    then S.Binop(se1, op, se2, A.Primitive(Bool))
+    else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
+  in
+  let get_arithmetic_binop_type se1 se2 op = function
+      (A.Primitive(Int), A.Primitive(Double))
+    | (A.Primitive(Double), A.Primitive(Int))
+    | (A.Primitive(Double), A.Primitive(Double)) -> S.Binop(se1, op, se2, A.Primitive(Double))
+    (* | (A.Primitive(Int), A.Primitive(Char_t))
+       | (A.Primitive(Char_t), A.Primitive(Int))
+       | (A.Primitive(Char_t), A.Primitive(Char_t)) -> S.Binop(se1, op, se2, A.Primitive(Char_t))
+    *)
+    | (A.Primitive(Int), A.Primitive(Int)) -> S.Binop(se1, op, se2, A.Primitive(Int))
+
+    | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
+  in
+  env, (
+    match op with
+    | And | Or -> get_logical_binop_type se1 se2 op (t1, t2)
+    | Equal | Neq -> get_sast_equality_binop ()
+    | Less | Leq | Greater | Geq -> get_comparison_binop_type t1 t2 se1 se2 op
+    | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (t1, t2))
 
 and analyze_unop env op e = (* -> env, Uniop (op,e,_) *)
   let check_num_unop t = function
@@ -265,10 +264,14 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-  if t1 = t2 or t2 = Any
-  then env, S.Assign(lhs, rhs, t1)
-  else
-    raise (Exceptions.AssignmentTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+  match t1, t2 with
+  | Arraytype(d), Arraytype(Primitive(Unit)) ->
+    let rhs = S.LitArray([], d) in (* it means e2 is [] *)
+    env, S.Assign(lhs, rhs, t1)
+  | _ ->
+    if t1 = t2 then env, S.Assign(lhs, rhs, t1)
+    else
+      raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
 
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
@@ -301,43 +304,42 @@ and analyze_funccall env s el =
   *)
 
 
-let get_sast_structtype env = function
-    Structtype(sname) ->
-    let n = get_global_name env.name sname in
-    if not (StringMap.mem n !(env.btmodule).struct_map)
-    then raise (Exceptions.UndefinedStructType n)
-    else Structtype(n) (* rename Structtype using sast(global) name *)
+let get_sast_structtype env s =
+  let n = get_global_name env.name s in
+  if not (StringMap.mem n !(env.btmodule).struct_map)
+  then raise (Exceptions.UndefinedStructType n)
+  else Structtype(n) (* rename Structtype using sast(global) name *)
 
-let build_sast_vardecl env d s e =
-  if StringMap.mem s env.var_map
-  then
-    raise (Exceptions.DuplicateVariable s)
+let get_sast_arraytype env d =
+  match d with
+  | Structtype(s) -> Arraytype(get_sast_structtype env s)
+  | _ -> Arraytype(d) (* so far there is no arraytype within arraytype !! *)
+
+let build_sast_vardecl env t1 s e =
+  if StringMap.mem s env.var_map then raise (Exceptions.DuplicateVariable s)
   else
-    let d =
-      match d with
-        Structtype(_) -> get_sast_structtype env d
-      | _ -> d
+    let t1 =
+      match t1 with
+      | Primitive(Unit) -> raise (Exceptions.UnitTypeError)
+      | Arraytype(d) -> get_sast_arraytype env d
+      | Structtype(s) -> get_sast_structtype env s
+      | _ -> t1
     in
     let _, sast_expr = build_sast_expr env e in
-    if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
-    then
-      (* TODO: check if t is Unit *)
-      (*
-      if  get_type_from_expr sast_expr = A.Primitive(Unit)
-      then
-      raise (Exceptions.UnitTypeError "UnitTypeError")
-      (* semant.ml's handle_expr_statement *)
-      (* ref: Dice/local_handler *)
-      else
-       *)
-      env.var_map <- StringMap.add s d env.var_map;
-    (* print_int (get_map_size env.var_map); *)
-    env, S.VarDecl(d, s, sast_expr)
-
+    let t2 = get_type_from_expr sast_expr in
+    let sast_expr =
+      match t1, t2 with
+      | Arraytype(d), Arraytype(Primitive(Unit)) ->
+        S.LitArray([], d) (* it means e is [] *)
+      | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
+        else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+    in
+    env.var_map <- StringMap.add s t1 env.var_map;
+    env, S.VarDecl(t1, s, sast_expr)
 
 
 let rec build_sast_block env = function
-    [] -> env, S.Block([])
+  | [] -> env, S.Block([])
   | _ as l ->
     let _, sl = build_sast_stmt_list env l in env, S.Block(sl)
 
@@ -553,7 +555,7 @@ let build_sast_struct_decl mname btmodule_env struct_decl =
   !btmodule_env.struct_map <- (StringMap.add sname struct_decl !btmodule_env.struct_map);
   {
     sname = sname;
-    fields = struct_decl.fields;
+    fields = struct_decl.fields; (* TODO: rename struct **bind** with global name !!*)
   }
 
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =

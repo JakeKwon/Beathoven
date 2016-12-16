@@ -24,7 +24,6 @@ let get_global_name mname n =
 
 let rec string_of_datatype (t : A.datatype) =
   match t with
-  | Any -> "any"
   | Primitive(Unit) -> "unit"
   | Primitive(Bool) -> "bool"
   | Primitive(Int) -> "int"

@@ -17,9 +17,9 @@ s.b = "struct s changed\n";
 print(t.b);
 print(s.b);
 
-
 // Array is Python-like
-int [] arr = [1,3,5,7];
+int [] arr;
+arr = [];
 arr = [2, 4, 6, 8, 10];
 print(arr[3]);
 arr[3] = 9;
@@ -31,9 +31,13 @@ s.b = "struct s back\n";
 print(sth_arr[0].b);
 print(sth_arr[1].b);
 
-
-int a;
-a = 0;
+// String equation
+string str_a = "a";
+string str_b = str_a;
+print(str_a == str_b); // so far 1
+str_b = "a";
+print(str_a == str_b); // so far 0
+print("\n");
 
 // pitch
 pitch p = C4;
@@ -52,13 +56,9 @@ func foo(int a) -> unit {
     print(" by foo\n");
 }
 
-int b = a;
-
-
-
-b = 1 + 2;
+int a = 1;
+int b = 1 + 2;
 bar(a, b);
-
 print(a);
 
 // pitch p;
@@ -66,3 +66,4 @@ print(a);
 bool c;
 c = (2 <= 2);
 c = (2 != 2);
+print("\n");

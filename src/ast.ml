@@ -16,7 +16,7 @@ type primitive =
 type musictype =
     Pitch
 
-type datatype = Any | Primitive of primitive | Musictype of musictype
+type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
 
 type binary_operator =
