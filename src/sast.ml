@@ -55,6 +55,4 @@ type btmodule = {
 
 type program = {
   btmodules : btmodule list;
-  (* functions : sfunc_decl list; (* All method declarations *) *)
-  (* user_type ?? *)
 }

@@ -35,10 +35,15 @@ let str_t = L.pointer_type i8_t
 let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
 let null_ll = L.const_null i32_t
+and null_str = L.const_null str_t
+
+let is_main = ref false
+(* All vardecls in main adopt global name and
+   are defined as global variables in codegen. *)
+let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
+let literal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
-let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
-let is_main = ref false
 (* In formal_tbl are the actual values of parameters. If need to modify
    primitives in it, should create a copy variable with the same name
    in local_tbl.
@@ -93,19 +98,24 @@ let get_bind_type d =
 let lltype_of_bind_list (bind_list : A.bind list) =
   List.map (fun (d, _) -> get_bind_type d) bind_list
 
-(* Declare variable and remember its llvalue in local_tbl *)
+(* Declare local variable and remember its llvalue in local_tbl *)
 let codegen_local_allocate (typ : A.datatype) var_name builder =
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
 
-(* Declare variable and remember its llvalue in global_tbl *)
-let codegen_global_allocate (typ : A.datatype) var_name builder =
+(* Declare global variable and remember its llvalue in tbl *)
+let codegen_global_allocate_to_tbl tbl (typ : A.datatype) var_name builder =
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
-  Hashtbl.add global_tbl var_name alloca;
+  Hashtbl.add tbl var_name alloca;
   alloca
+
+let codegen_global_allocate (typ : A.datatype) var_name builder =
+  (codegen_global_allocate_to_tbl global_tbl) typ var_name builder
+and codegen_literal_allocate (typ : A.datatype) var_name builder =
+  (codegen_global_allocate_to_tbl literal_tbl) typ var_name builder
 
 let codegen_allocate (typ : A.datatype) var_name builder =
   if !is_main then codegen_global_allocate typ var_name builder
@@ -148,25 +158,27 @@ let lookup_id id builder =
       with Not_found -> raise (Exceptions.VariableNotDefined s))
   | _ -> raise (Exceptions.Impossible("lookup_id"))
 
+let get_struct_alloca name d (l : (string * L.llvalue) list) builder =
+  (* literals *)
+  try Hashtbl.find literal_tbl name
+  with | Not_found ->
+    let alloca = codegen_literal_allocate d name builder in
+    let set_struct_field i (field, llvalue) =
+      let field' = L.build_struct_gep alloca i (name ^ "." ^ field) builder in
+      ignore(L.build_store llvalue field' builder)
+    in
+    List.iteri set_struct_field l;
+    alloca
+(* TODO: initializer(better way)
+   L.const_named_struct (lookup_struct "pitch")
+   ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
 (* -------------------------------------------- *)
 
 let codegen_pitch k o a builder =
-  let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
-  let pitch_ll =
-    try Hashtbl.find global_tbl p
-    with | Not_found ->
-      let alloca = codegen_global_allocate (A.Musictype(Pitch)) p builder in
-      let octave = L.build_struct_gep alloca 1 (p ^ ".octave") builder in
-      let alter = L.build_struct_gep alloca 2 (p ^ ".alter") builder in
-      ignore(L.build_store (L.const_int i32_t o) octave builder);
-      ignore(L.build_store (L.const_int i32_t a) alter builder);
-      alloca
-  in
-  pitch_ll
-(* initializer:
-   L.const_named_struct (lookup_struct "pitch")
-   ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
+  let pitch = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
+  get_struct_alloca pitch (A.Musictype(Pitch))
+    [("key", null_str); ("octave", L.const_int i32_t o); ("alter", L.const_int i32_t a)] builder
 
 (* ----- Functions ----- *)
 
@@ -261,7 +273,7 @@ and codegen_structfield struct_expr fid isref builder =
 (* ----- Array ----- *)
 
 and codegen_array el d builder =
-  if d = A.Primitive(Unit) then null_ll (* skip unknown empty array [] *)
+  if d = A.Primitive(Unit) then null_ll (* TODO: null!! skip unknown empty array [] *)
   else
     let len, arr = (* codegen_raw_array el element_type builder *)
       (* no GC *)

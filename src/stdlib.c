@@ -5,7 +5,7 @@
 
 char buffer[20];
 
-char* _print_pitch(struct pitch *p) {
+string _print_pitch(pitch *p) {
     char c = '\0';
     if (p->alter == 1) c = '#';
     else if (p->alter == -1) c = 'b';
@@ -14,6 +14,9 @@ char* _print_pitch(struct pitch *p) {
     return buffer;
 }
 
+duration* _allocate_duration(int a, int b) {
+    return NULL;
+}
 
 /*
 extern struct pitch p;
