@@ -151,24 +151,6 @@ let lookup_id id builder =
 
 (* -------------------------------------------- *)
 
-let codegen_structfield sid fid isref builder =
-  let struct_ll = lookup_id sid builder in
-  let f = match fid with Id(f, _) -> f in
-  let field_index =
-    let field =
-      let struct_name =
-        match sid with Id(_, d) -> (
-            match d with Structtype(s) -> s
-          )
-      in
-      struct_name ^ "." ^ f  (* how about changing sast field name to be global ?? *)
-    in
-    Hashtbl.find struct_field_indexes field
-  in
-  let p = L.build_struct_gep struct_ll field_index f builder in
-  if isref then p
-  else L.build_load p f builder
-
 let codegen_pitch k o a builder =
   let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
   let pitch_ll =
@@ -205,7 +187,7 @@ let rec codegen_print expr_list builder =
       print_fmt_of_datatype (Analyzer.get_type_from_expr expr)
     in
     let fmt_list = List.map llval_and_fmt_of_expr expr_list in
-    let fmt_str = String.concat " " fmt_list in
+    let fmt_str = String.concat "" fmt_list in
     (* let ll = L.const_stringz context "%d" in
        L.set_value_name "fmmt" ll; print_endline(L.value_name ll); *)
     L.build_global_stringptr fmt_str "fmt" builder
@@ -262,6 +244,26 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
 
 and codegen_assign lhs_expr rhs_expr builder =
   codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
+
+(* ----- Struct ----- *)
+
+and codegen_structfield struct_expr fid isref builder =
+  let struct_ll = codegen_expr builder struct_expr in
+  (* let struct_ll = lookup_id sid builder in *)
+  let f = match fid with Id(f, _) -> f in
+  let field_index =
+    let field =
+      let global_field_name = function
+        | A.Structtype(s) -> s ^ "." ^ f
+        | _ -> raise (Exceptions.Impossible("Must be structtype unless Analyzer fails"))
+      in
+      global_field_name (Analyzer.get_type_from_expr struct_expr)
+    in
+    Hashtbl.find struct_field_indexes field
+  in
+  let p = L.build_struct_gep struct_ll field_index f builder in
+  if isref then p
+  else L.build_load p f builder
 
 (* ----- Array ----- *)
 
@@ -344,7 +346,7 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
 *)
 and codegen_expr builder = function
     Id(_, _) as id -> load_id id builder
-  | StructField(s, f, _) -> codegen_structfield s f false builder (* load *)
+  | StructField(e, f, _) -> codegen_structfield e f false builder (* load *)
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
@@ -366,7 +368,7 @@ and codegen_expr builder = function
 and codegen_expr_ref builder expr =
   match expr with
   | Id(_, _) -> lookup_id expr builder (* Structtype, Arraytype *)
-  | StructField(s, f, _) -> codegen_structfield s f true builder
+  | StructField(e, f, _) -> codegen_structfield e f true builder
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d true builder
   | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
 

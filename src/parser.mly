@@ -87,10 +87,6 @@ datatype:
 
 /* ------------------- Expressions ------------------- */
 
-ids:
-    ID { Id($1) }
-  | ID DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
-
 index_range: /* Python-like array access */
     expr COLON expr { ($1, $3) }
   | COLON expr { (LitInt(0), $2) }
@@ -123,6 +119,10 @@ expr:
   | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
   | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LPAREN expr RPAREN { $2 }
+
+ids:
+    ID { Id($1) }
+  | expr DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
 
 formal_list: /* bind list */
     /* nothing */ { [] }

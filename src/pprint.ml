@@ -12,6 +12,15 @@ open Sast
 open Yojson
 (* Ref: https://realworldocaml.org/v1/en/html/handling-json-data.html *)
 
+let get_global_func_name mname (func:A.func_decl) =
+  if mname = A.default_mname && func.fname = A.default_fname
+  then "main"
+  else mname ^ "." ^ func.fname (* module.main *)
+(* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
+
+let get_global_name mname n =
+  if mname = A.default_mname then n
+  else mname ^ "." ^ n
 
 let rec string_of_datatype (t : A.datatype) =
   match t with
@@ -125,7 +134,7 @@ let rec json_of_stmt stmt =
   let (stmt_json : Yojson.Basic.json) = (* OCaml cannot infer data type as I wish *)
     match stmt with
       Block sl -> `Assoc [("block", `List (List.map json_of_stmt sl))]
-    | Expr(e, d) -> `Assoc [("expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
+    | Expr(e, d) -> `Assoc [("stmt_expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | If (e, s1, s2) -> `Assoc [("if", `Assoc [("cond", json_of_expr e); ("then", json_of_stmt s1)]); ("else", json_of_stmt s2)]
     (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)

@@ -35,7 +35,7 @@ type struct_decl = {
 
 type expr =
     Id of string
-  | StructField of string * string
+  | StructField of expr * string
   | LitBool of bool
   | LitInt of int
   | LitDouble of float

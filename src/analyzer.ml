@@ -92,16 +92,6 @@ let get_map_size map =
 
 (* ------------------- build sast from ast ------------------- *)
 
-let get_global_func_name mname (func:A.func_decl) =
-  if mname = A.default_mname && func.fname = A.default_fname
-  then "main"
-  else mname ^ "." ^ func.fname (* module.main *)
-(* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
-
-let get_global_name mname n =
-  if mname = default_mname then n
-  else mname ^ "." ^ n
-
 (* Initialize builtin_types *)
 let (builtin_types_list : A.struct_decl list) =
   [{
@@ -143,28 +133,10 @@ let add_reserved_functions =
   reserved
 *)
 
-(* ref: Dice/check_obj_access *)
-let analyze_struct env s f =
-  let struct_type = get_ID_type env s in
-  let field_bind =
-    let struct_decl =
-      match struct_type with
-        Structtype n -> (
-          try StringMap.find n !(env.btmodule).struct_map
-          with | Not_found -> raise(Exceptions.Impossible("analyze_struct")))
-      | _ as d -> raise (Exceptions.ShouldAccessStructType (string_of_datatype d))
-    in
-    try List.find (fun field -> (snd field) = f) struct_decl.fields
-    with | Not_found -> raise(Exceptions.StructFieldNotFound(s, f))
-  in
-  let field_id = S.Id(snd field_bind, fst field_bind) in
-  let struct_id = S.Id(s, struct_type) in
-  env, S.StructField(struct_id, field_id, fst field_bind)
-
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
     Id(s) -> env, S.Id(s, get_ID_type env s)
-  | StructField(s, f) -> analyze_struct env s f
+  | StructField(e, f) -> analyze_struct env e f
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
@@ -186,6 +158,27 @@ and build_sast_expr_list env (expr_list:A.expr list) =
   let sast_expr_list = List.map helper_expr expr_list in
   (* print_int (get_map_size env.var_map); *)
   env, sast_expr_list
+
+(* ref: Dice/check_obj_access *)
+and analyze_struct env e f =
+  let _, sast_expr = build_sast_expr env e in
+  let field_bind =
+    let struct_type = get_type_from_expr sast_expr in
+    let struct_decl =
+      match struct_type with
+        Structtype n -> (
+          try StringMap.find n !(env.btmodule).struct_map
+          with | Not_found -> raise(Exceptions.Impossible("analyze_struct")))
+      | _ as d -> raise (Exceptions.ShouldAccessStructType (string_of_datatype d))
+    in
+    try List.find (fun field -> (snd field) = f) struct_decl.fields
+    with | Not_found -> raise(Exceptions.StructFieldNotFound(
+        (string_of_datatype struct_type), f))
+  in
+  let field_id = S.Id(snd field_bind, fst field_bind) in
+  env, S.StructField(sast_expr, field_id, fst field_bind)
+
+(* ----- Array ----- *)
 
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in

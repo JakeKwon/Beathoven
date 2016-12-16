@@ -8,7 +8,7 @@ Struct sth {
 Struct sth s;
 Struct sth t;
 s.a = 17; // assign field
-s.b = " struct string\n";
+s.b = "struct string\n";
 t = s; // copy structs
 //print(t.a, t.b, "\n"); // load field
 print(t.a);
@@ -24,6 +24,12 @@ arr = [2, 4, 6, 8, 10];
 print(arr[3]);
 arr[3] = 9;
 print(arr[3], " array is good\n");
+
+// Array of structs
+Struct sth [] sth_arr = [s, t, t];
+s.b = "struct s back\n";
+print(sth_arr[0].b);
+print(sth_arr[1].b);
 
 
 int a;
