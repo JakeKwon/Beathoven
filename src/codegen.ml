@@ -509,15 +509,10 @@ let codegen_program program =
     List.iter codegen_func btmodule.funcs
   in
   codegen_builtin_funcs ();
-<<<<<<< HEAD
-  List.iter helper_def_func btmodules;
-  List.iter helper_func btmodules; (* main ?? *)
-  (* linker "stdlib.bc"; *)
-=======
+
   List.iter def_funcs_and_structs btmodules;
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
-  linker "stdlib.bc";
->>>>>>> 19e3d221c0a4f6fcbfd8e3a44f8117ef2aaf9ad2
+  (* linker "stdlib.bc"; *)
   the_module
 
 
