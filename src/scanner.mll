@@ -100,7 +100,7 @@ rule token = parse
   | digit+ as lit { LIT_INT(int_of_string lit) }
   | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
-  | (letter | '_') (letter | digit | '_')* as lit { ID(lit) } (* Identifiers *)
+  | (letter) (letter | digit | '_')* as lit { ID(lit) } (* Identifiers should start with letters *)
   | eof { EOF }
   | _ as c { raise (Exceptions.Lexing_error("Unknown token '" ^ String.make 1 c ^ "'")) }
 

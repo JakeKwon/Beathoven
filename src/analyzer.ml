@@ -52,7 +52,8 @@ let get_map_size map =
 let (builtin_types_list : A.struct_decl list) =
   [{
     A.sname = "pitch";
-    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave"); (A.Primitive(Int), "alter");];
+    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+                (A.Primitive(Int), "alter");];
   };]
 
 let builtin_types =
@@ -63,15 +64,19 @@ let builtin_types =
 
 (* Initialize builtin_funcs *)
 let builtin_funcs =
+  let get_func_decl name (returnType : A.datatype) formalsType =
+    {
+      S.fname = name; S.body = [];
+      S.returnType = returnType;
+      S.formals = List.map (fun typ -> (typ, "")) formalsType;
+    }
+  in
+  let unit_t = A.Primitive(Unit) in
   let map = StringMap.empty in
   let map = StringMap.add "print"
-      {
-        S.fname = "printf";
-        S.formals = [];
-        S.returnType = A.Primitive(A.Int);
-        S.body = [];
-      }
-      map in
+    (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "print_pitch"
+      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
   map
 (*
 (* these are builtin_funcs  *)

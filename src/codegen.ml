@@ -59,7 +59,7 @@ let lookup_struct sname =
 
 let lookup_func fname =
   match (L.lookup_function fname the_module) with
-    None -> raise (Exceptions.LLVMFunctionNotFound fname)
+  | None -> raise (Exceptions.Impossible "Analyzer should catch undefined funcs")
   | Some f -> f
 
 let rec lltype_of_datatype (d : A.datatype) =
@@ -86,7 +86,7 @@ and lookup_array (d : A.datatype) =
 let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
-    Structtype(_) -> L.pointer_type lltype
+  | Structtype(_) -> L.pointer_type lltype
   | Musictype(_) -> L.pointer_type lltype
   | _ -> lltype
 
@@ -172,10 +172,8 @@ let codegen_pitch k o a builder =
 
 let rec codegen_print expr_list builder =
   let (llval_expr_list : L.llvalue list) = List.map (codegen_expr builder) expr_list in
-  let llstrfmt =
-    (* let idx = ref (-1) in *)
+  let printfmt =
     let llval_and_fmt_of_expr expr = (* -> fmt : string *)
-      (* incr idx; *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
           Primitive(Int) -> "%d"
@@ -190,15 +188,12 @@ let rec codegen_print expr_list builder =
     in
     let fmt_list = List.map llval_and_fmt_of_expr expr_list in
     let fmt_str = String.concat "" fmt_list in
-    (* let ll = L.const_stringz context "%d" in
-       L.set_value_name "fmmt" ll; print_endline(L.value_name ll); *)
     L.build_global_stringptr fmt_str "fmt" builder
   in
-  let actuals = Array.of_list (llstrfmt :: llval_expr_list) in
-  (* actuals.(0) <- llstrfmt; *)
+  let actuals = Array.of_list (printfmt :: llval_expr_list) in
   L.build_call (lookup_func "printf") actuals "tmp" builder
   (*
-  Dice:
+  ref Dice:
   let zero = const_int i32_t 0 in
   let s = build_in_bounds_gep llstrfmt [| zero |] "tmp" llbuilder in
   build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
@@ -439,6 +434,9 @@ let codegen_builtin_funcs () =
   let _ = L.declare_function "printf" printf_t the_module in
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
+  (* Functions defined in stdlib.bc *)
+  let _print_pitch_t = L.function_type str_t [| get_bind_type (A.Musictype(Pitch)) |] in
+  let _ = L.declare_function "_print_pitch" _print_pitch_t the_module in
   ()
 
 let codegen_def_func func =
@@ -505,8 +503,8 @@ let codegen_program program =
     List.iter codegen_struct btmodule.structs;
     List.iter codegen_func btmodule.funcs
   in
-  codegen_builtin_funcs ();
   List.iter def_funcs_and_structs btmodules;
+  codegen_builtin_funcs ();
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
   the_module
@@ -521,6 +519,3 @@ let codegen_program program =
    match L.block_terminator (L.insertion_block builder) with
     Some _ -> ()
    | None -> ignore (f builder) in *)
-
-
-(* print_endline (L.string_of_llvalue alloca); *)
