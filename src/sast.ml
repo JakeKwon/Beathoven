@@ -1,7 +1,13 @@
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
 module A = Ast
 
 type expr =
     Id of string * A.datatype
+  | StructField of expr * expr * A.datatype (* Id * Id * datatype *)
   | LitBool of bool
   | LitInt of int
   | LitDouble of float
@@ -13,6 +19,9 @@ type expr =
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
+  | LitArray of expr list * A.datatype (* element type *)
+  | ArrayIdx of expr * expr * A.datatype
+  | ArraySub of expr * expr * expr * A.datatype
 
 type stmt =
     Block of stmt list
@@ -28,7 +37,7 @@ type stmt =
 
 
 type func_decl = {
-  fname : string; (* global name *)
+  fname : string;
   formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
@@ -39,9 +48,8 @@ type func_decl = {
 
 type btmodule = {
   mname : string;
-  structs: A.struct_decl list;
-  (* main_func : func_decl; *)
-  funcs : func_decl list; 
+  structs: A.struct_decl list; (* global name *)
+  funcs : func_decl list; (* global name *)
 }
 
 type program = {
@@ -50,5 +58,3 @@ type program = {
   (* functions : sfunc_decl list; (* All method declarations *) *)
   (* user_type ?? *)
 }
-
-(* Class Declarations |  | Main entry method *)

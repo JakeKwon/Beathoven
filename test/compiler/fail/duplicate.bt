@@ -1,0 +1,7 @@
+func bar() -> unit {
+    int a = 1;
+}
+
+func bar() -> unit {
+    print("duplicate");
+}
