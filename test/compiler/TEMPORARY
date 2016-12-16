@@ -1,0 +1,3 @@
+Uncaught exception:
+  
+  Exceptions.InvalidBinopExpression("Arithmetic operators don't support these types")

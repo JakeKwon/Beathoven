@@ -9,7 +9,7 @@ RED='\033[0;31m'
 
 INPUTS="pass/*.bt"
 LLI="lli"
-BEAT="../../beathoven.sh -c "
+BEAT="../../src/beathoven"
 
 printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 
@@ -20,6 +20,7 @@ globallog=logs/globallog.log
 rm -f logs/globallog.log
 rm -f logs/*.ll
 rm -f logs/*.out
+rm -f logs/*.err
 rm -f logs/*.diff
 error=0
 globalerror=0
@@ -57,6 +58,7 @@ which "$LLI" >> $globallog || LLIFail
 # Run <args>
 # Report the command, run it, and report any errors
 Run() {
+    printf "Running... $* \n"
     echo $* 1>&2
     eval $*
     #     SignalError "$1 failed on $*"
@@ -64,14 +66,28 @@ Run() {
     # }
 }
 
+RunFail() {
+    printf "Running... $* \n"
+    echo $* 1>&2
+    eval $*
+  #   && {
+  # SignalError "failed: $* did not report an error"
+  # return 1
+  #   }
+  #   return 0
+}
+
 Compare() {
-    generatedfiles="$generatedfiles $3"
+    # generatedfiles="$generatedfiles $3"
+    printf "Comparing... $* \n"
+    printf "diff -b $1 $2 > $3\n"
     echo diff -b $1 $2 ">" $3 1>&2
     diff -b "$1" "$2" > "$3" 2>&1 || {
         SignalError "$1 differs. See globallog.log file for breakdown."
         echo "FAILED $1 differs from $2" 1>&2
     }
 }
+
 
 Check(){
   error=0
@@ -80,20 +96,22 @@ Check(){
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Test: $basename ${NC}\n"
+    printf "\n${CYAN}Running Pass Test: $basename ${NC}\n"
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
 
-    generatedfiles=""
+    # generatedfiles=""
 
-    generatedfiles="$generatedfiles ${basename}.ll ${basename}.out"
-    printf "../../beathoven.sh -c $1 $TMP_LLI_FILE \n"
-    # to llvm
-    Run ../../beathoven.sh -c $1 $TMP_LLI_FILE &&
-    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
-    # Run "$BEAT" "<" $1 ${basename}.ll ">" "${basename}.ll" &&
+    # generatedfiles="$generatedfiles ${basename}.ll ${basename}.out"
+    # printf "$BEAT $1 $TMP_LLI_FILE \n"
+    # printf "$LLI $TMP_LLI_FILE > $TMP_OUT_FILE \n"
+
+    # Run "$MICROC" "<" $1 ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
+    Run "$BEAT" "<" $1 ">" "$TMP_LLI_FILE"
+    Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
+    # printf $TMP_OUT_FILE ${reffile}.out logs/${basename}.diff
     Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
     # printf "\nRunning $BEAT < $1 ${basename}.ll > ${basename}.ll\n"
 
@@ -103,8 +121,52 @@ Check(){
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}OK${NC}\n"
-  echo "###### SUCCESS" 1>&2
+  printf "${GREEN}SUCCESS${NC}\n"
+  echo "###### OK" 1>&2
+    else
+  echo "###### FAILED" 1>&2
+  globalerror=$error
+    fi
+}
+
+CheckFail() {
+    error=0
+    basename=`echo $1 | sed 's/.*\\///
+                             s/.bt//'`
+    reffile=`echo $1 | sed 's/.bt$//'`
+    basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
+
+    printf "\n${CYAN}Running Fail Test: $basename ${NC}\n"
+
+    echo 1>&2
+    echo "###### Testing $basename" 1>&2
+
+    # generatedfiles=""
+
+    # generatedfiles="$generatedfiles ${basename}.ll ${basename}.out"
+    # printf "$BEAT $1 $TMP_LLI_FILE \n"
+    # printf "$LLI $TMP_LLI_FILE > $TMP_OUT_FILE \n"
+    # to llvm
+    # Run "$BEAT" "$1" "$TMP_LLI_FILE" original
+    RunFail "$BEAT" "<" $1 "2>" "$TMP_ERR_FILE" ">>" $globallog
+    eval "head -3" $TMP_ERR_FILE ">" "TEMPORARY"
+    eval "cp TEMPORARY " $TMP_ERR_FILE
+    # rm "TEMPORARY"
+    # Run "$LLI" "$TMP_LLI_FILE" "2>" "$TMP_OUT_FILE"
+    Compare "$TMP_ERR_FILE" ${reffile}.err logs/${basename}.diff
+
+    # generatedfiles="$generatedfiles ${basename}.err ${basename}.diff" &&
+    # RunFail "$MICROC" "<" $1 "2>" "${basename}.err" ">>" $globallog &&
+    # Compare ${basename}.err ${reffile}.err ${basename}.diff
+
+    # Report the status and clean up the generated files
+
+    if [ $error -eq 0 ] ; then
+  if [ $keep -eq 0 ] ; then
+      rm -f $generatedfiles
+  fi
+  printf "${GREEN}SUCCESS${NC}\n"
+  echo "###### OK" 1>&2
     else
   echo "###### FAILED" 1>&2
   globalerror=$error
@@ -113,16 +175,6 @@ Check(){
 
 files="pass/*.bt"
 
-# while getopts kdpsh c; do
-#     case $c in
-#   k) # Keep intermediate files
-#       keep=1
-#       ;;
-#   h) # Help
-#       Usage
-#       ;;
-#     esac
-# done
 for file in $files
 do
   # printf ${file:5}
@@ -135,40 +187,24 @@ do
 
   Check $file 2>> $globallog
 done
-printf "You have $totalerrors out of $totalfiles errors"
-printf "\n\n${CYAN}####  End of Compiler Pass Tests!  ####${NC}"
+printf "You have $totalerrors out of $totalfiles pass errors"
+printf "\n\n${CYAN}####  End of Pass Compiler Tests!  ####${NC}"
 
 
-# for infile in $INPUTS; do
-#     outfile=${infile/.bt/.out}
-#     llvm_file=${infile/.bt/.ll}
+printf "\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
+failfiles="fail/*.bt"
 
-#     # compile odds program to temp python file
-#     # will not work because we haven't compiled into raw LL yet
-#     ../../beathoven.sh -c $infile $TMP_FILE > $TMP_FILE
-#     printf "\nTesting $infile\n"
-#     # if ll file exists compare
-#     if [ -e "$llvm_file" ]; then
-#         cmp -s $llvm_file $TMP_FILE
-#         printf $llvm_file
-#         if [ "$?" -ne 0 ]; then
-#             printf "%-65s ${RED}ERROR\n${NC}" "  - checking $llvm_file..." 1>&2
-#             rm -f $TMP_FILE
-#             exit 1
-#         fi
-#     fi
+for file in $failfiles
+do
+  # printf ${file:5}
+  totalfiles=$(($totalfiles + $one))
+  TMP_LLI_FILE=$(mktemp "logs/${file:5}.ll")
+  TMP_ERR_FILE=$(mktemp "logs/${file:5}.err")
 
-#     # # if test output file exists, compare compiled output to it
-#     # if [ -e "$outfile" ]; then
-#     #     cat $TMP_FILE | cmp -s $outfile -
-#     #     if [ "$?" -ne 0 ]; then
-#     #         printf "../../beathoven.sh -c $infile $TMP_FILE"
-#     #         printf "%-65s ${RED}ERROR\n${NC}" "  - checking $outfile..." 1>&2
-#     #         rm -f $TMP_FILE
-#     #         exit 1
-#     #     fi
-#     # fi
-# printf "%-65s ${GREEN}SUCCESS\n${NC}" "  - checking $infile..."
-# done
+  # TMP_LLI_FILE= $(mktemp "ll.XXXX")
+  # TMP_OUT_FILE= $(mktemp "out.XXXX")
 
-# exit 0
+  CheckFail $file 2>> $globallog
+done
+printf "\n\n${CYAN}####  End of Fail Compiler Tests!  ####${NC}"
+
