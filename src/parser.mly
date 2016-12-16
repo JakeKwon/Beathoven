@@ -76,7 +76,7 @@ musictype:
     TYPE_PITCH { Pitch }
 
 datatype_nonarray:
-    primitive { Datatype($1) }
+    primitive { Primitive($1) }
   | musictype { Musictype($1) }
   | TYPE_STRUCT ID { Structtype($2) }
 
@@ -207,7 +207,7 @@ mbody:
     mfuncs
   {
     { fname = default_fname; formals = [];
-      returnType = Datatype(Unit); body = List.rev (fst $1) } :: (List.rev (snd $1))
+      returnType = Primitive(Unit); body = List.rev (fst $1) } :: (List.rev (snd $1))
   }
 
 /* ------------------- Modules ------------------- */

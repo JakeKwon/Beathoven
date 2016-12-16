@@ -25,11 +25,11 @@ let get_global_name mname n =
 let rec string_of_datatype (t : A.datatype) =
   match t with
   | Any -> "any"
-  | Datatype(Unit) -> "unit"
-  | Datatype(Bool) -> "bool"
-  | Datatype(Int) -> "int"
-  | Datatype(Double) -> "double"
-  | Datatype(String) -> "string"
+  | Primitive(Unit) -> "unit"
+  | Primitive(Bool) -> "bool"
+  | Primitive(Int) -> "int"
+  | Primitive(Double) -> "double"
+  | Primitive(String) -> "string"
   | Musictype(Pitch) -> "pitch"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)

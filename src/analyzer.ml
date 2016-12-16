@@ -22,35 +22,35 @@ module SS = Set.Make(
 let get_equality_binop_type type1 type2 se1 se2 op =
   (* Equality op not supported for float operands. The correct way to test floats
      for equality is to check the difference between the operands in question *)
-  if (type1 = A.Datatype(Double) || type2 = A.Datatype(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
+  if (type1 = A.Primitive(Double) || type2 = A.Primitive(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
   else
     match type1, type2 with(*
-      A.Datatype(Char_t), Datatype(Int)
-    | Datatype(Int), Datatype(Char_t) -> env, S.Binop(se1, op, se2, A.Datatype(Bool)) *)
+      A.Primitive(Char_t), Primitive(Int)
+    | Primitive(Int), Primitive(Char_t) -> env, S.Binop(se1, op, se2, A.Primitive(Bool)) *)
     | _ ->
-      if type1 = type2 then S.Binop(se1, op, se2, A.Datatype(Bool))
+      if type1 = type2 then S.Binop(se1, op, se2, A.Primitive(Bool))
       else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
 
 let get_logical_binop_type se1 se2 op = function
-    (A.Datatype(Bool), A.Datatype(Bool)) -> S.Binop(se1, op, se2, A.Datatype(Bool))
+    (A.Primitive(Bool), A.Primitive(Bool)) -> S.Binop(se1, op, se2, A.Primitive(Bool))
   | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
 
 let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [A.Datatype(Int); A.Datatype(Double)]
+  let numerics = SS.of_list [A.Primitive(Int); A.Primitive(Double)]
   in
   if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, A.Datatype(Bool))
+  then S.Binop(se1, op, se2, A.Primitive(Bool))
   else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
 
 let get_arithmetic_binop_type se1 se2 op = function
-    (A.Datatype(Int), A.Datatype(Double))
-  | (A.Datatype(Double), A.Datatype(Int))
-  | (A.Datatype(Double), A.Datatype(Double)) -> S.Binop(se1, op, se2, A.Datatype(Double))
-  (* | (A.Datatype(Int), A.Datatype(Char_t))
-     | (A.Datatype(Char_t), A.Datatype(Int))
-     | (A.Datatype(Char_t), A.Datatype(Char_t)) -> S.Binop(se1, op, se2, A.Datatype(Char_t))
+    (A.Primitive(Int), A.Primitive(Double))
+  | (A.Primitive(Double), A.Primitive(Int))
+  | (A.Primitive(Double), A.Primitive(Double)) -> S.Binop(se1, op, se2, A.Primitive(Double))
+  (* | (A.Primitive(Int), A.Primitive(Char_t))
+     | (A.Primitive(Char_t), A.Primitive(Int))
+     | (A.Primitive(Char_t), A.Primitive(Char_t)) -> S.Binop(se1, op, se2, A.Primitive(Char_t))
   *)
-  | (A.Datatype(Int), A.Datatype(Int)) -> S.Binop(se1, op, se2, A.Datatype(Int))
+  | (A.Primitive(Int), A.Primitive(Int)) -> S.Binop(se1, op, se2, A.Primitive(Int))
 
   | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
 
@@ -60,17 +60,17 @@ let get_type_from_expr (expr : S.expr) =
   match expr with
     Id (_,d) -> d
   | StructField(_,_,d) -> d
-  | LitBool(_) -> A.Datatype(Bool)
-  | LitInt(_) -> A.Datatype(Int)
-  | LitDouble(_) -> A.Datatype(Double)
-  | LitStr(_) -> A.Datatype(String)
+  | LitBool(_) -> A.Primitive(Bool)
+  | LitInt(_) -> A.Primitive(Int)
+  | LitDouble(_) -> A.Primitive(Double)
+  | LitStr(_) -> A.Primitive(String)
   | LitPitch(_,_,_) -> A.Musictype(Pitch)
-  | Null -> A.Datatype(Unit) (* Null -> Datatype(Null_t) *)
+  | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
   | Assign(_,_,d) -> d
   | FuncCall(_,_,d)-> d
-  | Noexpr -> A.Datatype(Unit)
+  | Noexpr -> A.Primitive(Unit)
   | LitArray(_,d) -> Arraytype(d)
   | ArrayIdx(_,_,d) -> d
   | ArraySub(_,_,_,d) -> d
@@ -96,7 +96,7 @@ let get_map_size map =
 let (builtin_types_list : A.struct_decl list) =
   [{
     A.sname = "pitch";
-    A.fields = [(A.Datatype(String), "key"); (A.Datatype(Int), "octave"); (A.Datatype(Int), "alter");];
+    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave"); (A.Primitive(Int), "alter");];
   };]
 
 let builtin_types =
@@ -112,7 +112,7 @@ let builtin_funcs =
       {
         S.fname = "printf";
         S.formals = [];
-        S.returnType = A.Datatype(A.Int);
+        S.returnType = A.Primitive(A.Int);
         S.body = [];
       }
       map in
@@ -249,15 +249,15 @@ and analyze_unop env op e = (* -> env, Uniop (op,e,_) *)
     | _ -> raise(Exceptions.InvalidUnaryOperation)
   in
   let check_bool_unop = function
-      Not -> A.Datatype(Bool)
+      Not -> A.Primitive(Bool)
     | _ -> raise(Exceptions.InvalidUnaryOperation)
   in
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
   match t with
-    A.Datatype(Int)
-  | A.Datatype(Double) -> env, S.Uniop(op, se, check_num_unop t op)
-  | A.Datatype(Bool) -> env, S.Uniop(op, se, check_bool_unop op)
+    A.Primitive(Int)
+  | A.Primitive(Double) -> env, S.Uniop(op, se, check_num_unop t op)
+  | A.Primitive(Bool) -> env, S.Uniop(op, se, check_bool_unop op)
   | _ -> raise(Exceptions.InvalidUnaryOperation)
 
 and analyze_assign env e1 e2 =
@@ -323,7 +323,7 @@ let build_sast_vardecl env d s e =
     then
       (* TODO: check if t is Unit *)
       (*
-      if  get_type_from_expr sast_expr = A.Datatype(Unit)
+      if  get_type_from_expr sast_expr = A.Primitive(Unit)
       then
       raise (Exceptions.UnitTypeError "UnitTypeError")
       (* semant.ml's handle_expr_statement *)
@@ -353,7 +353,7 @@ and build_sast_stmt env (stmt : A.stmt) =
   | Break -> check_break env (* TODO: Need to check if in right context *)
   | Continue -> check_continue env (* TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
-  | Struct _ -> env, S.Expr(Noexpr, A.Datatype(Unit)) (* skip structs *)
+  | Struct _ -> env, S.Expr(Noexpr, A.Primitive(Unit)) (* skip structs *)
 
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
@@ -370,7 +370,7 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
    let t = get_type_from_expr se in
    let _, ifbody = build_sast_stmt env s1 in
    let _, elsebody = build_sast_stmt env s2 in
-   if t = A.Datatype(Bool)
+   if t = A.Primitive(Bool)
     then env, S.If(se, ifbody, elsebody)
     else raise (Exceptions.IfComparisonNotBool "foo") *)
 
@@ -382,7 +382,7 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
    let t = get_type_from_expr se in
    let sstmt, _ = parse_stmt env s in
    let swhile =
-    if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
+    if (t = A.Primitive(Bool) || t = A.Primitive(Unit))
       then S.While(se, sstmt)
       else raise Exceptions.InvalidWhileStatementType
    in
@@ -392,7 +392,7 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
 
 
 and check_sblock sl env = match sl with
-    []  -> S.Block([S.Expr(S.Noexpr, A.Datatype(Unit))])
+    []  -> S.Block([S.Expr(S.Noexpr, A.Primitive(Unit))])
   | _   ->
     let sl, _ = convert_stmt_list_to_sstmt_list env sl in
     S.Block(sl)
@@ -406,8 +406,8 @@ and check_return e env =
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
   match t, env.env_returnType with
-  (* A.Datatype(Unit), Datatype(Objecttype(_))
-     |   Datatype(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
+  (* A.Primitive(Unit), Primitive(Objecttype(_))
+     |   Primitive(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
   |   _ ->
     if t = env.env_returnType
     then env, S.Return(se, t)
@@ -418,7 +418,7 @@ and check_if e s1 s2 env =
   let t = get_type_from_expr se in
   let _, ifbody = build_sast_stmt env s1 in
   let _, elsebody = build_sast_stmt env s2 in
-  if t = A.Datatype(Bool)
+  if t = A.Primitive(Bool)
   then env, S.If(se, ifbody, elsebody)
   else raise (Exceptions.IfComparisonNotBool "foo")
 (*
@@ -432,7 +432,7 @@ and check_for e1 e2 e3 s env =
   let forbody, _ = parse_stmt env s in
   let conditional = get_type_from_expr se2 in
   let sfor =
-    if (conditional = A.Datatype(Bool) || conditional = A.Datatype(Unit))
+    if (conditional = A.Primitive(Bool) || conditional = A.Primitive(Unit))
       then S.For(se1, se2, se3, forbody)
       else raise (Exceptions.InvalidForStatementType "foo")
   in
@@ -450,7 +450,7 @@ and check_while e s env =
   let t = get_type_from_expr se in
   let _, sstmt = parse_stmt env s in
   let swhile =
-    if (t = A.Datatype(Bool) || t = A.Datatype(Unit))
+    if (t = A.Primitive(Bool) || t = A.Primitive(Unit))
     then S.While(se, sstmt)
     else raise Exceptions.InvalidWhileStatementType
   in
@@ -482,7 +482,7 @@ and parse_stmt env = function
   |   Continue            -> check_continue env (* Need to check if in right context *)
 (* |   Local(d, s, e)      -> local_handler d s e env *)
 (* | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
-   | If (e, _, _) -> if get_type_from_expr e != A.Datatype(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
+   | If (e, _, _) -> if get_type_from_expr e != A.Primitive(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
    | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
 *)
 
@@ -504,7 +504,7 @@ let check_fbody fbody returnType =
   if len = 0 then true else
     let final_stmt = List.hd (List.rev fbody) in
     match returnType, final_stmt with
-      A.Datatype(Unit), _   -> true
+      A.Primitive(Unit), _   -> true
     |   _, S.Return(_, _)   -> true
     |   _                   -> false
 

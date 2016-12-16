@@ -63,11 +63,11 @@ let lookup_func fname =
 
 let rec lltype_of_datatype (d : A.datatype) =
   match d with
-    Datatype(Unit) -> void_t
-  | Datatype(Int) -> i32_t
-  | Datatype(Double) -> double_t
-  | Datatype(String) -> str_t
-  | Datatype(Bool) -> i1_t
+    Primitive(Unit) -> void_t
+  | Primitive(Int) -> i32_t
+  | Primitive(Double) -> double_t
+  | Primitive(String) -> str_t
+  | Primitive(Bool) -> i1_t
   | Structtype(s) -> lookup_struct s
   | Musictype(Pitch) -> lookup_struct "pitch"
   | Arraytype(d) -> lookup_array d
@@ -129,7 +129,7 @@ let load_id id builder =
                                    ("Undefined var not caught in Analyzer unless there is bug in Codegen"))
       in
       match d with (* Only load primitives *)
-      | A.Datatype(_) -> if !isloaded then v else L.build_load v s builder
+      | A.Primitive(_) -> if !isloaded then v else L.build_load v s builder
       | _ -> v )
   | _ -> raise (Exceptions.Impossible("load_id"))
 
@@ -168,6 +168,8 @@ let codegen_pitch k o a builder =
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
+(* ----- Functions ----- *)
+
 let rec codegen_print expr_list builder =
   let (llval_expr_list : L.llvalue list) = List.map (codegen_expr builder) expr_list in
   let llstrfmt =
@@ -176,12 +178,12 @@ let rec codegen_print expr_list builder =
       (* incr idx; *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
-          Datatype(Int) -> "%d"
-        | Datatype(String) -> "%s"
-        | Datatype(Bool) ->
+          Primitive(Int) -> "%d"
+        | Primitive(String) -> "%s"
+        | Primitive(Bool) ->
           (* print_endline (L.string_of_llvalue (List.nth llval_expr_list !idx)); *)
           "%d" (* TODO: print "true" or "false" *)
-        | Datatype(Double) -> "%lf"
+        | Primitive(Double) -> "%lf"
         | _ -> raise (Exceptions.InvalidTypePassedToPrint)
       in
       print_fmt_of_datatype (Analyzer.get_type_from_expr expr)
@@ -206,8 +208,10 @@ and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
   match d with
-    A.Datatype(A.Unit) -> L.build_call f actuals "" builder
+    A.Primitive(A.Unit) -> L.build_call f actuals "" builder
   | _ -> L.build_call f actuals "tmp" builder
+
+(* ----- Assignment ----- *)
 
 and codegen_assign_with_lhs lhs rhs_expr builder =
   let rhs =
@@ -234,7 +238,7 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
     in
     let d = Analyzer.get_type_from_expr rhs_expr in
     match d with
-    | Datatype(_) -> store ()
+    | Primitive(_) -> store ()
     | _ -> memcpy rhs_expr
   in
   (*
@@ -310,7 +314,7 @@ and codegen_arrayidx a idx d isref builder =
   if isref then p
   else
     match d with
-    | A.Datatype(_) -> L.build_load p ".val" builder
+    | A.Primitive(_) -> L.build_load p ".val" builder
     | _ -> p
 
 
@@ -462,7 +466,7 @@ let codegen_func func =
   init_params llfunc func.formals;
   ignore (codegen_stmt llbuilder (Block(func.body)));
   (* Finish off the function. *)
-  if func.returnType = A.Datatype(A.Unit)
+  if func.returnType = A.Primitive(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
