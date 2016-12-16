@@ -1,29 +1,36 @@
-(* creation of environment *)
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *)
+
+(*
+Translation Environments
+*)
 open Sast
 
 (* include ?? *)
 let beathoven_lib = "stdlib.bt"
 
 module StringMap = Map.Make (String)
-module StringSet = Set.Make (String)
 
 
 type btmodule_env = {
-  func_map : A.func_decl StringMap.t; (* global name *)
-  (* main_func : A.func_decl; *)
+  func_map : A.func_decl StringMap.t; (* key: global name *)
+  (* an immutable field, as funcs are known before analyzer *)
+  mutable struct_map : A.struct_decl StringMap.t; (* key: global name *)
+  (* what's the use except findding duplicate?? *)
   (* decl : A.btmodule; *)
   (* field_map : A.datatype StringMap.t; *)
 }
 
 type env = {
   builtin_funcs : func_decl StringMap.t;
-  (* builtin_types :  *)
   btmodule_map : btmodule_env StringMap.t;
   name : string;
-  btmodule : btmodule_env; (* current module *)
+  btmodule : btmodule_env ref; (* current module *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;
-  mutable env_returnType: A.datatype;
+  mutable env_returnType: A.datatype; (* why mutable ?? *)
   mutable env_in_for : bool;
   mutable env_in_while : bool;
 }
@@ -46,23 +53,11 @@ let get_ID_type env s =
     let (d, _) = StringMap.find s env.formal_map in d
   with | Not_found -> raise (Exceptions.UndefinedID s)
 
-(* (*
- * QL
- * Manager: Matthew Piccolella
- *)
 
+(*
    module FunctionMap = Map.Make(String);;
    module VariableMap = Map.Make(String);;
    module ArrayTypeMap = Map.Make(String);;
-
-   exception VarAlreadyDeclared;;
-   exception VarNotDeclared;;
-   exception FunctionAlreadyDeclared;;
-   exception FunctionNotDeclared;;
-   exception IncorrectFunctionParameterTypes;;
-   exception MixedTypeArray;;
-   exception ArrayInferTypeMismatch;;
-   exception IncorrectArrayAssignmentSize;;
 
    type func_info = {
    id : string;

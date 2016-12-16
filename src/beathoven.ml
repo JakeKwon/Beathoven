@@ -26,13 +26,11 @@ let _ =
   let lexbuf = Lexing.from_channel stdin in
   (* try *)
     let ast = Parser.program Scanner.token lexbuf in
-    (* Semant.check ast; *)
-    (* Analyzer.analyze ast; *)
     let sast = Analyzer.analyze_ast ast in
     (*let prog = Generator.gen_program ast in *)
     match action with
       Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
-    | Raw -> () (* print_string (Llvm.string_of_llmodule (Codegen.translate ast)) *)
+    | Raw -> () 
     | Compile -> let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)

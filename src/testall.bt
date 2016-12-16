@@ -1,6 +1,47 @@
-int a;
+// Struct can only be defined outside funcs
+Struct sth {
+    int a;
+    string b;
+    int c;
+}
 
-a = 0;
+Struct sth s;
+Struct sth t;
+s.a = 17; // assign field
+s.b = "struct string\n";
+t = s; // copy structs
+//print(t.a, t.b, "\n"); // load field
+print(t.a);
+print(t.b);
+s.b = "struct s changed\n";
+print(t.b);
+print(s.b);
+
+// Array is Python-like
+int [] arr;
+arr = [];
+arr = [2, 4, 6, 8, 10];
+print(arr[3]);
+arr[3] = 9;
+print(arr[3], " array is good\n");
+
+// Array of structs
+Struct sth [] sth_arr = [s, t, t];
+s.b = "struct s back\n";
+print(sth_arr[0].b);
+print(sth_arr[1].b);
+
+// String equation
+string str_a = "a";
+string str_b = str_a;
+print(str_a == str_b); // so far 1
+str_b = "a";
+print(str_a == str_b); // so far 0
+print("\n");
+
+// pitch
+pitch p = C4;
+
 
 func bar(int i, int j) -> unit {
     i = 3;
@@ -15,18 +56,14 @@ func foo(int a) -> unit {
     print(" by foo\n");
 }
 
-int b = a;
-
-
-
-b = 1 + 2;
+int a = 1;
+int b = 1 + 2;
 bar(a, b);
-
 print(a);
 
-pitch p;
+// pitch p;
 
 bool c;
 c = (2 <= 2);
 c = (2 != 2);
-//*/
+print("\n");
