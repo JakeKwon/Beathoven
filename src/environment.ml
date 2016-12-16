@@ -24,7 +24,6 @@ type btmodule_env = {
 }
 
 type env = {
-  builtin_funcs : func_decl StringMap.t;
   btmodule_map : btmodule_env StringMap.t;
   name : string;
   btmodule : btmodule_env ref; (* current module *)
@@ -91,11 +90,7 @@ type environment = {
   extern_functions: Ast.externfun list;
   types: Sast.tdefault list;
 }
- *)
 
-
-
-(*
    module FunctionMap = Map.Make(String);;
    module VariableMap = Map.Make(String);;
    module ArrayTypeMap = Map.Make(String);;
@@ -120,26 +115,11 @@ type environment = {
    | "double" -> Double
    | _ -> raise (Failure "String does not match a particular data type. Something went wrong.")
 
-   let declare_var (id : string) (primi : string) (env : symbol_table) =
-   if VariableMap.mem id env.var_map then
-    raise VarAlreadyDeclared
-   else
-    let update_var_map = VariableMap.add id (string_to_primi(primi)) env.var_map in
-    update env.func_map update_var_map env.array_type_map
-
    let var_type (id : string) (env : symbol_table) =
    if VariableMap.mem id env.var_map then
     VariableMap.find id env.var_map
    else
     raise VarNotDeclared
-
-   let create_func (func_name: string) (ret_type : string) (args : arg_decl list) =
-   {
-    id = func_name;
-    return = (string_to_primi ret_type);
-    args = List.map (fun arg -> string_to_primi arg.var_type) args;
-    arg_names = List.map (fun arg -> arg.var_name) args;
-   }
 
    let define_array_type (expected_type: primi)
    (inferred_type : primi list) (env : symbol_table) (id : string) =

@@ -240,7 +240,7 @@ and analyze_assign env e1 e2 =
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
   try
-    let func = StringMap.find s env.builtin_funcs in
+    let func = StringMap.find s builtin_funcs in
     env, S.FuncCall(func.fname, sast_el, func.returnType)
   (* TODO: check builtin funcs *)
   with | Not_found ->
@@ -488,7 +488,6 @@ let build_sast_func_decl btmodule_map btmodule_env mname (func:A.func_decl) =
     (* initialize a new environment for every func *)
     {
       (* same for all envs *)
-      builtin_funcs = builtin_funcs;
       btmodule_map = btmodule_map;
       (* immutable in this env  *)
       name = mname; (* current module ?? does it change later ?? *)

@@ -501,9 +501,15 @@ let codegen_program program =
   in
   let build_funcs_and_structs btmodule =
     List.iter codegen_struct btmodule.structs;
-    List.iter codegen_func btmodule.funcs
+    match btmodule.funcs with
+    | [] -> raise (Exceptions.Impossible "Each module has at least one func (main)")
+    | hd :: tl ->
+      (* main of modules *)
+      is_global := true; codegen_func hd;
+      (* functions in modules *)
+      is_global := false; List.iter codegen_func btmodule.funcs
   in
-  List.iter def_funcs_and_structs btmodules;
+  List.iter def_funcs_and_structs btmodules; (* define language structs first *)
   codegen_builtin_funcs ();
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
