@@ -1,3 +1,3 @@
 Uncaught exception:
 
-  Exceptions.DuplicateVariable("b")
+  Exceptions.DuplicateVariable("_bt.b")

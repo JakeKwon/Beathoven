@@ -12,16 +12,6 @@ open Sast
 open Yojson
 (* Ref: https://realworldocaml.org/v1/en/html/handling-json-data.html *)
 
-let get_global_func_name mname (func:A.func_decl) =
-  if mname = A.default_mname && func.fname = A.default_fname
-  then "main"
-  else mname ^ "." ^ func.fname (* module.main *)
-(* We use '.' to separate types so llvm will recognize the function name and it won't conflict *)
-
-let get_global_name mname n =
-  if mname = A.default_mname then n
-  else mname ^ "." ^ n
-
 let rec string_of_datatype (t : A.datatype) =
   match t with
   | Primitive(Unit) -> "unit"

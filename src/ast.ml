@@ -3,8 +3,8 @@
  *  - Ruonan Xu
  *)
 
-let default_mname = ".beathoven"
-let default_fname = ".main"
+let default_mname = "_bt"
+let default_fname = "_main"
 
 type primitive =
     Unit

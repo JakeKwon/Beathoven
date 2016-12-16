@@ -38,7 +38,7 @@ let null_ll = L.const_null i32_t
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
 let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
-let is_global = ref false
+let is_main = ref false
 (* In formal_tbl are the actual values of parameters. If need to modify
    primitives in it, should create a copy variable with the same name
    in local_tbl.
@@ -108,7 +108,7 @@ let codegen_global_allocate (typ : A.datatype) var_name builder =
   alloca
 
 let codegen_allocate (typ : A.datatype) var_name builder =
-  if !is_global then codegen_global_allocate typ var_name builder
+  if !is_main then codegen_global_allocate typ var_name builder
   else codegen_local_allocate typ var_name builder
 
 (* Return the value for a variable or formal argument *)
@@ -505,9 +505,9 @@ let codegen_program program =
     | [] -> raise (Exceptions.Impossible "Each module has at least one func (main)")
     | hd :: tl ->
       (* main of modules *)
-      is_global := true; codegen_func hd;
+      is_main := true; codegen_func hd;
       (* functions in modules *)
-      is_global := false; List.iter codegen_func btmodule.funcs
+      is_main := false; List.iter codegen_func btmodule.funcs
   in
   List.iter def_funcs_and_structs btmodules; (* define language structs first *)
   codegen_builtin_funcs ();

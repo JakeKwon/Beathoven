@@ -7,28 +7,46 @@
 Translation Environments
 *)
 open Sast
+module StringMap = Map.Make (String)
 
 (* include ?? *)
 let beathoven_lib = "stdlib.bt"
 
-module StringMap = Map.Make (String)
+let get_global_func_name mname fname =
+  if mname = A.default_mname && fname = A.default_fname
+  then "main" (* main entry *)
+  (* We use '.' to separate types so llvm will recognize the function name
+  and it won't conflict *)
+  else mname ^ "." ^ fname
+
+let get_global_name mname n =
+  (* TODO: maybe need another module name for user main, instead of
+  default_mname. Since user ids are not visible to all. Work on this during
+  stdlib.bt *)
+  (* if mname = A.default_mname then n else  *)
+  mname ^ "." ^ n
 
 
 type btmodule_env = {
+  (* an immutable field, as all funcs are known in Ast *)
   func_map : A.func_decl StringMap.t; (* key: global name *)
-  (* an immutable field, as funcs are known before analyzer *)
   mutable struct_map : A.struct_decl StringMap.t; (* key: global name *)
   (* what's the use except findding duplicate?? *)
-  (* decl : A.btmodule; *)
-  (* field_map : A.datatype StringMap.t; *)
+  mutable field_map : A.datatype StringMap.t; (* key: global name *)
 }
 
+(* initialize a new environment for every func *)
 type env = {
+  (* same for all envs *)
   btmodule_map : btmodule_env StringMap.t;
+  (* the module this func is in *)
   name : string;
-  btmodule : btmodule_env ref; (* current module *)
+  btmodule : btmodule_env ref;
+  ismain : bool; (* whether this func is main of module *)
+  (* func locals *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;
+
   mutable env_returnType: A.datatype; (* why mutable ?? *)
   mutable env_in_for : bool;
   mutable env_in_while : bool;
