@@ -14,17 +14,18 @@
 %token <float> LIT_DOUBLE
 %token <string> ID
 %token <string> LIT_PITCH
-%token TYPE_UNIT TYPE_BOOL TYPE_INT TYPE_CHAR TYPE_DOUBLE TYPE_STR
-%token TYPE_STRUCT TYPE_ENUM
-%token TYPE_PITCH TYPE_DURATION TYPE_NOTE TYPE_CHORD TYPE_SEQ
+%token UNIT BOOL INT CHAR DOUBLE STR
+%token STRUCT ENUM
+%token PITCH DURATION NOTE CHORD SEQ
 %token ASSIGN
 %token RETURN SEP EOF
 %token LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE
 %token PLUS MINUS TIMES DIVIDE MOD
 %token EQ NEQ LT LTE GT GTE
 %token COLON DOT COMMA
-%token NOT PARALLEL AND OR
+%token NOT AND OR
 %token RARROW
+%token SLASH PARALLEL
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
@@ -40,6 +41,7 @@
 %left EQ NEQ LT GT LTE GTE
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
+%nonassoc SLASH
 %right NOT
 %right RBRACK
 %left LBRACK
@@ -64,21 +66,24 @@ literals:
   | LIT_PITCH { LitPitch($1.[0],
       (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
       (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
+  | LIT_INT SLASH LIT_INT { LitDuration($1, $3) }
+
 
 primitive:
-    TYPE_UNIT { Unit }
-  | TYPE_INT { Int }
-  | TYPE_DOUBLE { Double }
-  | TYPE_STR { String }
-  | TYPE_BOOL { Bool }
+    UNIT { Unit }
+  | INT { Int }
+  | DOUBLE { Double }
+  | STR { String }
+  | BOOL { Bool }
 
 musictype:
-    TYPE_PITCH { Pitch }
+    PITCH { Pitch }
+  | DURATION { Duration }
 
 datatype_nonarray:
     primitive { Primitive($1) }
   | musictype { Musictype($1) }
-  | TYPE_STRUCT ID { Structtype($2) }
+  | STRUCT ID { Structtype($2) }
 
 datatype:
     datatype_nonarray { $1 }
@@ -181,7 +186,7 @@ var_decl:
 /* ------------------- Structs ------------------- */
 
 struct_decl:
-  TYPE_STRUCT ID LBRACE field_list RBRACE
+  STRUCT ID LBRACE field_list RBRACE
   {
     { sname = $2; fields = $4; }
   }

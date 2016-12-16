@@ -7,33 +7,99 @@
 Translation Environments
 *)
 open Sast
+module StringMap = Map.Make (String)
 
 (* include ?? *)
 let beathoven_lib = "stdlib.bt"
 
-module StringMap = Map.Make (String)
+let get_global_func_name mname fname =
+  if mname = A.default_mname && fname = A.default_fname
+  then "main" (* main entry *)
+  (* We use '.' to separate types so llvm will recognize the function name
+  and it won't conflict *)
+  else mname ^ "." ^ fname
+
+let get_global_name mname n =
+  (* TODO: maybe need another module name for user main, instead of
+  default_mname. Since user ids are not visible to all. Work on this during
+  stdlib.bt *)
+  (* if mname = A.default_mname then n else  *)
+  mname ^ "." ^ n
 
 
 type btmodule_env = {
+  (* an immutable field, as all funcs are known in Ast *)
   func_map : A.func_decl StringMap.t; (* key: global name *)
-  (* an immutable field, as funcs are known before analyzer *)
   mutable struct_map : A.struct_decl StringMap.t; (* key: global name *)
   (* what's the use except findding duplicate?? *)
-  (* decl : A.btmodule; *)
-  (* field_map : A.datatype StringMap.t; *)
+  mutable field_map : A.datatype StringMap.t; (* key: global name *)
 }
 
+(* initialize a new environment for every func *)
 type env = {
-  builtin_funcs : func_decl StringMap.t;
+  (* same for all envs *)
   btmodule_map : btmodule_env StringMap.t;
+  (* the module this func is in *)
   name : string;
-  btmodule : btmodule_env ref; (* current module *)
+  btmodule : btmodule_env ref;
+  ismain : bool; (* whether this func is main of module *)
+  (* func locals *)
   formal_map : A.bind StringMap.t;
   mutable var_map : A.datatype StringMap.t;
+
   mutable env_returnType: A.datatype; (* why mutable ?? *)
   mutable env_in_for : bool;
   mutable env_in_while : bool;
 }
+
+(* Initialize builtin_types *)
+let (builtin_types_list : A.struct_decl list) =
+  [{
+    A.sname = "pitch";
+    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+                (A.Primitive(Int), "alter");];
+  };
+  {
+    A.sname = "duration";
+    A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
+  };]
+
+let (builtin_types : A.struct_decl StringMap.t) =
+  let add_to_map (builtin_type : A.struct_decl) map =
+    StringMap.add builtin_type.sname builtin_type map
+  in
+  List.fold_right add_to_map builtin_types_list StringMap.empty
+
+(* Initialize builtin_funcs *)
+let (builtin_funcs : func_decl StringMap.t) =
+  let get_func_decl name (returnType : A.datatype) formalsType =
+    {
+      fname = name; body = [];
+      returnType = returnType;
+      formals = List.map (fun typ -> (typ, "")) formalsType;
+    }
+  in
+  let unit_t = A.Primitive(Unit) in
+  let map = StringMap.empty in
+  let map = StringMap.add "print"
+    (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "print_pitch"
+      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
+  map
+(*
+let add_reserved_functions =
+  let reserved_stub name return_type formals =
+    {
+      formals    = formals;
+    }
+  in
+    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
+    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
+    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
+    (* reserved_stub "input"   (str_t)   ([]); *)
+  ] in
+  reserved
+*)
 
 (*
 type environment = {
@@ -42,29 +108,10 @@ type environment = {
   extern_functions: Ast.externfun list;
   types: Sast.tdefault list;
 }
- *)
 
-(* Environment Utilities *)
-
-let get_ID_type env s =
-  try StringMap.find s env.var_map
-  with | Not_found ->
-  try
-    let (d, _) = StringMap.find s env.formal_map in d
-  with | Not_found -> raise (Exceptions.UndefinedID s)
-
-
-(*
    module FunctionMap = Map.Make(String);;
    module VariableMap = Map.Make(String);;
    module ArrayTypeMap = Map.Make(String);;
-
-   type func_info = {
-   id : string;
-   return : primi;
-   args : primi list;
-   arg_names: string list;
-   }
 
    type symbol_table = {
    func_map: func_info FunctionMap.t;
@@ -79,13 +126,6 @@ let get_ID_type env s =
     array_type_map = ArrayTypeMap.empty;
    }
 
-   let update f_map v_map a_type_map js_map =
-   {
-    func_map = f_map;
-    var_map = v_map;
-    array_type_map = a_type_map;
-   }
-
    let string_to_primi (s : string) = match s
    with "int" -> Int
    | "bool" -> Bool
@@ -93,33 +133,11 @@ let get_ID_type env s =
    | "double" -> Double
    | _ -> raise (Failure "String does not match a particular data type. Something went wrong.")
 
-   let rec primi_to_string (dt : primi) = match dt
-   with Int -> "int"
-   | Bool -> "bool"
-   | String -> "string"
-   | Double -> "double"
-   | _ -> raise (Failure "Data Type doesn't have a corresponding string.")
-
-   let declare_var (id : string) (primi : string) (env : symbol_table) =
-   if VariableMap.mem id env.var_map then
-    raise VarAlreadyDeclared
-   else
-    let update_var_map = VariableMap.add id (string_to_primi(primi)) env.var_map in
-    update env.func_map update_var_map env.array_type_map
-
    let var_type (id : string) (env : symbol_table) =
    if VariableMap.mem id env.var_map then
     VariableMap.find id env.var_map
    else
     raise VarNotDeclared
-
-   let create_func (func_name: string) (ret_type : string) (args : arg_decl list) =
-   {
-    id = func_name;
-    return = (string_to_primi ret_type);
-    args = List.map (fun arg -> string_to_primi arg.var_type) args;
-    arg_names = List.map (fun arg -> arg.var_name) args;
-   }
 
    let define_array_type (expected_type: primi)
    (inferred_type : primi list) (env : symbol_table) (id : string) =

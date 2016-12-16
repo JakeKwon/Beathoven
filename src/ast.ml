@@ -3,8 +3,8 @@
  *  - Ruonan Xu
  *)
 
-let default_mname = ".beathoven"
-let default_fname = ".main"
+let default_mname = "_bt"
+let default_fname = "_main"
 
 type primitive =
     Unit
@@ -15,6 +15,7 @@ type primitive =
 
 type musictype =
     Pitch
+  | Duration
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
@@ -41,6 +42,7 @@ type expr =
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)
+  | LitDuration of int * int
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr

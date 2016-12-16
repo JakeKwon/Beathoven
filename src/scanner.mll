@@ -41,7 +41,7 @@ rule token = parse
   | '+' { PLUS }
   | '-' { MINUS }
   | '*' { TIMES }
-  | '/' { DIVIDE }
+  | '\\' { DIVIDE } (* otherwise need to infer what's 1/4, binop or duration *)
   | '%' { MOD }
   | '=' { ASSIGN }
   | "==" { EQ }
@@ -58,19 +58,20 @@ rule token = parse
   | "and" { AND }
   | "or" { OR }
   | "->" { RARROW }
+  | '/' { SLASH }
   | "::" { SCORE_RESOLUTION }
   | '^' { OCTAVE_RAISE }
   | '_' { OCTAVE_LOWER }
   | "=>" { MATCHCASE }
 (* ------------- Keywords ------------- *)
-  | "unit" { TYPE_UNIT }
-  | "bool" { TYPE_BOOL }
-  | "int" { TYPE_INT }
-  | "double" { TYPE_DOUBLE }
-  | "char" { TYPE_CHAR }
-  | "string" { TYPE_STR }
-  | "Struct" { TYPE_STRUCT }
-  | "Enum" { TYPE_ENUM }
+  | "unit" { UNIT }
+  | "bool" { BOOL }
+  | "int" { INT }
+  | "double" { DOUBLE }
+  | "char" { CHAR }
+  | "string" { STR }
+  | "Struct" { STRUCT }
+  | "Enum" { ENUM }
   | "if" { IF }
   | "else"{ ELSE }
   | "match" { MATCH }
@@ -90,11 +91,11 @@ rule token = parse
   | "true" { LIT_BOOL(true) }
   | "false" { LIT_BOOL(false) }
 (* ------------- Music Keywords ------------- *)
-  | "pitch" { TYPE_PITCH }
-  | "duration" { TYPE_DURATION }
-  | "Note" { TYPE_NOTE }
-  | "Chord" { TYPE_CHORD }
-  | "Seq" { TYPE_SEQ }
+  | "pitch" { PITCH }
+  | "duration" { DURATION }
+  | "Note" { NOTE }
+  | "Chord" { CHORD }
+  | "Seq" { SEQ }
 (* ------------- Literals ------------- *)
   | pitch as lit { LIT_PITCH(lit) }
   | digit+ as lit { LIT_INT(int_of_string lit) }
