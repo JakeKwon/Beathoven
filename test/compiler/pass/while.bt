@@ -1,3 +1,7 @@
-/*while (true) {
-	print("hello");
-}*/
+int x = 0;
+
+while (x < 2) {
+	print("while true");
+  x = x + 1;
+  print(x);
+}

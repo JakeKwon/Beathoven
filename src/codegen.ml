@@ -486,11 +486,11 @@ let codegen_struct (s : A.struct_decl) =
  *)
 
 
-let linker filename =
+(* let linker filename =
   (* let llctx = L.global_context () in *)
   let llmem = L.MemoryBuffer.of_file filename in
   let llm = Llvm_bitreader.parse_bitcode context llmem in
-  Llvm_linker.link_modules' the_module llm
+  Llvm_linker.link_modules' the_module llm *)
 
 let codegen_program program =
   (* TODO: maybe we don't need a separate main_module *)
