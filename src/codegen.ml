@@ -512,7 +512,8 @@ let codegen_program program =
 
   List.iter def_funcs_and_structs btmodules;
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
-  (* linker "stdlib.bc"; *)
+
+  linker "stdlib.bc";
   the_module
 
 
