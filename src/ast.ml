@@ -15,6 +15,7 @@ type primitive =
 
 type musictype =
     Pitch
+  | Duration
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
@@ -41,6 +42,7 @@ type expr =
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)
+  | LitDuration of int * int
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr

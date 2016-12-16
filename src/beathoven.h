@@ -3,3 +3,8 @@ struct pitch {
     int octave;
     int alter;
 };
+
+struct duration {
+    int a;
+    int b;
+};

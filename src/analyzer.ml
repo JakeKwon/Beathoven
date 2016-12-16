@@ -18,6 +18,14 @@ module SS = Set.Make(
 
 
 (* ------------------- SAST Utilities ------------------- *)
+
+let get_var_type env s =
+  try StringMap.find s env.var_map
+  with | Not_found ->
+  try
+    let (d, _) = StringMap.find s env.formal_map in d
+  with | Not_found -> raise (Exceptions.VariableNotDefined s)
+
 let get_type_from_expr (expr : S.expr) =
   match expr with
     Id (_,d) -> d
@@ -27,6 +35,7 @@ let get_type_from_expr (expr : S.expr) =
   | LitDouble(_) -> A.Primitive(Double)
   | LitStr(_) -> A.Primitive(String)
   | LitPitch(_,_,_) -> A.Musictype(Pitch)
+  | LitDuration(_,_) -> A.Musictype(Duration)
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
@@ -48,61 +57,16 @@ let get_map_size map =
 
 (* ------------------- build sast from ast ------------------- *)
 
-(* Initialize builtin_types *)
-let (builtin_types_list : A.struct_decl list) =
-  [{
-    A.sname = "pitch";
-    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
-                (A.Primitive(Int), "alter");];
-  };]
-
-let builtin_types =
-  let add_to_map builtin_type map =
-    StringMap.add builtin_type.sname builtin_type map
-  in
-  List.fold_right add_to_map builtin_types_list StringMap.empty
-
-(* Initialize builtin_funcs *)
-let builtin_funcs =
-  let get_func_decl name (returnType : A.datatype) formalsType =
-    {
-      S.fname = name; S.body = [];
-      S.returnType = returnType;
-      S.formals = List.map (fun typ -> (typ, "")) formalsType;
-    }
-  in
-  let unit_t = A.Primitive(Unit) in
-  let map = StringMap.empty in
-  let map = StringMap.add "print"
-    (get_func_decl "printf" unit_t []) map in
-  let map = StringMap.add "print_pitch"
-      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
-  map
-(*
-(* these are builtin_funcs  *)
-let add_reserved_functions =
-  let reserved_stub name return_type formals =
-    {
-      formals    = formals;
-    }
-  in
-    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
-    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
-    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
-    (* reserved_stub "input"   (str_t)   ([]); *)
-  ] in
-  reserved
-*)
-
 let rec build_sast_expr env (expr : A.expr) =
   match expr with
-    Id(s) -> env, S.Id(s, get_ID_type env s)
+    Id(s) -> env, S.Id(s, get_var_type env s)
   | StructField(e, f) -> analyze_struct env e f
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
   | LitStr(s) -> env, S.LitStr(s)
-  | LitPitch(k, o, a) -> env, S.LitPitch(k,o,a)
+  | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
+  | LitDuration(a, b) -> env, S.LitDuration(a, b)
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2
@@ -588,14 +552,7 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
       S.funcs = sast_funcs;
     }
   in
-  let sast_btmodule_list = List.map build_sast_btmodule btmodule_list in
-  match sast_btmodule_list with
-    [] -> raise (Exceptions.ShouldNotHappenUnlessCompilerHasBug "no default module")
-  | head::tail ->
-    {
-      S.main_module = head;
-      S.btmodules = tail;
-    }
+  List.map build_sast_btmodule btmodule_list
 
 
 (* ref: build_class_maps - Generate map of all modules to be used for semantic checking *)
@@ -622,38 +579,7 @@ let build_btmodule_map (btmodule_list : A.btmodule list) =
 
 let analyze_ast (btmodule_list) =
   let btmodule_map = build_btmodule_map btmodule_list in
-  let sast = build_sast btmodule_map btmodule_list in
-  sast
-
-(* typed_ast.ml *)
-
-(* ------------------------------------------------ *)
-
-
-(*
-let check (btmodule) =
- (* Raise an exception if the given list has a duplicate *)
- let report_duplicate exceptf list =
- let rec helper = function
- n1 :: n2 :: _ when n1 = n2 -> raise (Failure (exceptf n1))
- | _ :: t -> helper t
- | [] -> ()
- in helper (List.sort compare list)
- in
-
- (* Raise an exception if a given binding is to a Unit type *)
- let check_not_Unit exceptf = function
- (Primitive(Unit), n) -> raise (Failure (exceptf n))
- | _ -> ()
- in
-
- (* Raise an exception of the given rvalue type cannot be assigned to
- the given lvalue type *)
- let check_assign lvaluet rvaluet err =
- if lvaluet == rvaluet then lvaluet else raise err
- in
-
- List.iter (check_not_Unit (fun n -> "illegal Unit global " ^ n)) btmodule.funcs.formals;
-
- report_duplicate (fun n -> "duplicate global " ^ n) (List.map snd btmodule.funcs.formals);
-*)
+  let sast_btmodule_list = build_sast btmodule_map btmodule_list in
+  {
+    S.btmodules = sast_btmodule_list;
+  }

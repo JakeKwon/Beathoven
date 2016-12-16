@@ -35,6 +35,55 @@ type env = {
   mutable env_in_while : bool;
 }
 
+(* Initialize builtin_types *)
+let (builtin_types_list : A.struct_decl list) =
+  [{
+    A.sname = "pitch";
+    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+                (A.Primitive(Int), "alter");];
+  };
+  {
+    A.sname = "duration";
+    A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
+  };]
+
+let (builtin_types : A.struct_decl StringMap.t) =
+  let add_to_map (builtin_type : A.struct_decl) map =
+    StringMap.add builtin_type.sname builtin_type map
+  in
+  List.fold_right add_to_map builtin_types_list StringMap.empty
+
+(* Initialize builtin_funcs *)
+let (builtin_funcs : func_decl StringMap.t) =
+  let get_func_decl name (returnType : A.datatype) formalsType =
+    {
+      fname = name; body = [];
+      returnType = returnType;
+      formals = List.map (fun typ -> (typ, "")) formalsType;
+    }
+  in
+  let unit_t = A.Primitive(Unit) in
+  let map = StringMap.empty in
+  let map = StringMap.add "print"
+    (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "print_pitch"
+      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
+  map
+(*
+let add_reserved_functions =
+  let reserved_stub name return_type formals =
+    {
+      formals    = formals;
+    }
+  in
+    (* reserved_stub "print"   (Unit)  ([Many(Any)]); *)
+    (* reserved_stub "sizeof"  (i32_t)   ([mf Any "in"]); *)
+    (* reserved_stub "open"  (i32_t)   ([mf str_t "path"; mf i32_t "flags"]); *)
+    (* reserved_stub "input"   (str_t)   ([]); *)
+  ] in
+  reserved
+*)
+
 (*
 type environment = {
   scope: symbol_table; (* vars symbol table *)
@@ -44,27 +93,12 @@ type environment = {
 }
  *)
 
-(* Environment Utilities *)
-
-let get_ID_type env s =
-  try StringMap.find s env.var_map
-  with | Not_found ->
-  try
-    let (d, _) = StringMap.find s env.formal_map in d
-  with | Not_found -> raise (Exceptions.UndefinedID s)
 
 
 (*
    module FunctionMap = Map.Make(String);;
    module VariableMap = Map.Make(String);;
    module ArrayTypeMap = Map.Make(String);;
-
-   type func_info = {
-   id : string;
-   return : primi;
-   args : primi list;
-   arg_names: string list;
-   }
 
    type symbol_table = {
    func_map: func_info FunctionMap.t;
@@ -79,26 +113,12 @@ let get_ID_type env s =
     array_type_map = ArrayTypeMap.empty;
    }
 
-   let update f_map v_map a_type_map js_map =
-   {
-    func_map = f_map;
-    var_map = v_map;
-    array_type_map = a_type_map;
-   }
-
    let string_to_primi (s : string) = match s
    with "int" -> Int
    | "bool" -> Bool
    | "string" -> String
    | "double" -> Double
    | _ -> raise (Failure "String does not match a particular data type. Something went wrong.")
-
-   let rec primi_to_string (dt : primi) = match dt
-   with Int -> "int"
-   | Bool -> "bool"
-   | String -> "string"
-   | Double -> "double"
-   | _ -> raise (Failure "Data Type doesn't have a corresponding string.")
 
    let declare_var (id : string) (primi : string) (env : symbol_table) =
    if VariableMap.mem id env.var_map then

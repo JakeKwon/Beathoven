@@ -348,6 +348,7 @@ and codegen_expr builder = function
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
+  | LitDuration(a, b) -> null_ll (* TODO: codegen_duration a b builder *)
   | Noexpr -> null_ll
   | Null -> null_ll
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -493,8 +494,7 @@ let linker filename =
   Llvm_linker.link_modules' the_module llm
 
 let codegen_program program =
-  (* TODO: maybe we don't need a separate main_module *)
-  let btmodules = program.main_module :: program.btmodules in
+  let btmodules = program.btmodules in
   let def_funcs_and_structs btmodule =
     List.iter codegen_def_struct btmodule.structs;
     List.iter codegen_def_func btmodule.funcs

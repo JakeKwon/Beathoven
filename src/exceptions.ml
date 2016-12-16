@@ -9,12 +9,7 @@ exception Impossible of string
 exception Lexing_error of string
 
 (* ------------------- Analyzer ------------------- *)
-exception VariableNotDefined of string
 exception ReturntypeNotMatch of string
-exception VariableDeclarationNotMatch of string
-exception ShouldNotHappenUnlessCompilerHasBug of string
-exception FuncNotFound of string * string
-exception DuplicateVariable of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
 exception IfComparisonNotBool of string
@@ -24,17 +19,21 @@ exception CannotCallBreakOutsideOfLoop
 exception CannotCallContinueOutsideOfLoop
 exception InvalidWhileStatementType
 exception InvalidUnaryOperation
-exception DuplicateFunction of string
 
-(* Operators *)
-exception InvalidBinopExpression of string
+(* Variables  *)
+exception VariableNotDefined of string
+exception DuplicateVariable of string
 (* Vardecl *)
 exception UnitTypeError
 exception VardeclTypeMismatch of string * string
+(* Operators *)
+exception InvalidBinopExpression of string
 (* Assign *)
 exception AssignTypeMismatch of string * string
 (* Functions *)
+exception DuplicateFunction of string
 exception CannotUseBuiltinFuncName of string
+exception FuncNotFound of string * string
 (* Array *)
 exception ArrayTypeNotMatch of string
 exception ShouldAccessArray of string
@@ -44,7 +43,6 @@ exception ShouldAccessStructType of string
 exception StructFieldNotFound of string * string
 
 (* ------------------- Environment ------------------- *)
-exception UndefinedID of string
 
 (* ------------------- Codegen ------------------- *)
 exception LLVMFunctionNotFound of string
@@ -55,8 +53,6 @@ exception ExpressionNotAssignable of string
 (*
    exception VarAlreadyDeclared;;
    exception VarNotDeclared;;
-   exception FunctionAlreadyDeclared;;
-   exception FunctionNotDeclared;;
    exception IncorrectFunctionParameterTypes;;
    exception IncorrectArrayAssignmentSize;;
 *)

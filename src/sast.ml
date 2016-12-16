@@ -13,6 +13,7 @@ type expr =
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int
+  | LitDuration of int * int
   | Null
   | Binop of expr * A.binary_operator * expr * A.datatype
   | Uniop of A.unary_operator * expr * A.datatype
@@ -53,7 +54,6 @@ type btmodule = {
 }
 
 type program = {
-  main_module : btmodule; (* still not sure if need main_module *)
   btmodules : btmodule list;
   (* functions : sfunc_decl list; (* All method declarations *) *)
   (* user_type ?? *)
