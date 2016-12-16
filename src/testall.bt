@@ -31,9 +31,12 @@ s.b = "struct s back\n";
 print(sth_arr[0].b);
 print(sth_arr[1].b);
 
-
-int a;
-a = 0;
+// String equation
+string str_a = "a";
+string str_b = str_a;
+print(str_a == str_b); // so far 1
+str_b = "a";
+print(str_a == str_b); // so far 0
 
 // pitch
 pitch p = C4;

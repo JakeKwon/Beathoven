@@ -17,44 +17,6 @@ module SS = Set.Make(
   end )
 
 
-(* BINARY TYPES *)
-
-let get_equality_binop_type type1 type2 se1 se2 op =
-  (* Equality op not supported for float operands. The correct way to test floats
-     for equality is to check the difference between the operands in question *)
-  if (type1 = A.Primitive(Double) || type2 = A.Primitive(Double)) then raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for Double types")
-  else
-    match type1, type2 with(*
-      A.Primitive(Char_t), Primitive(Int)
-    | Primitive(Int), Primitive(Char_t) -> env, S.Binop(se1, op, se2, A.Primitive(Bool)) *)
-    | _ ->
-      if type1 = type2 then S.Binop(se1, op, se2, A.Primitive(Bool))
-      else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
-
-let get_logical_binop_type se1 se2 op = function
-    (A.Primitive(Bool), A.Primitive(Bool)) -> S.Binop(se1, op, se2, A.Primitive(Bool))
-  | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
-
-let get_comparison_binop_type type1 type2 se1 se2 op =
-  let numerics = SS.of_list [A.Primitive(Int); A.Primitive(Double)]
-  in
-  if SS.mem type1 numerics && SS.mem type2 numerics
-  then S.Binop(se1, op, se2, A.Primitive(Bool))
-  else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
-
-let get_arithmetic_binop_type se1 se2 op = function
-    (A.Primitive(Int), A.Primitive(Double))
-  | (A.Primitive(Double), A.Primitive(Int))
-  | (A.Primitive(Double), A.Primitive(Double)) -> S.Binop(se1, op, se2, A.Primitive(Double))
-  (* | (A.Primitive(Int), A.Primitive(Char_t))
-     | (A.Primitive(Char_t), A.Primitive(Int))
-     | (A.Primitive(Char_t), A.Primitive(Char_t)) -> S.Binop(se1, op, se2, A.Primitive(Char_t))
-  *)
-  | (A.Primitive(Int), A.Primitive(Int)) -> S.Binop(se1, op, se2, A.Primitive(Int))
-
-  | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
-
-
 (* ------------------- SAST Utilities ------------------- *)
 let get_type_from_expr (expr : S.expr) =
   match expr with
@@ -85,7 +47,6 @@ let check_vardecl_type d sast_expr =
   d = t
 
 (* ------------------- debug ------------------- *)
-
 
 let get_map_size map =
   StringMap.fold (fun k v i -> i + 1) map 0
@@ -231,17 +192,51 @@ and analyze_arraysub env a e1 e2 =
     )
   | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
 
+(* ----- Operators ----- *)
+
 and analyze_binop env e1 op e2 = (* -> env, Binop (e1,op,e2,t) *)
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let t1 = get_type_from_expr se1 in
   let t2 = get_type_from_expr se2 in
-  match op with
-    Equal | Neq                     -> env, get_equality_binop_type t1 t2 se1 se2 op
-  | And | Or                        -> env, get_logical_binop_type se1 se2 op (t1, t2)
-  | Less | Leq | Greater | Geq      -> env, get_comparison_binop_type t1 t2 se1 se2 op
-  | Add | Mult | Sub | Div | Mod    -> env, get_arithmetic_binop_type se1 se2 op (t1, t2)
-  | _                               -> raise (Exceptions.InvalidBinopExpression ((string_of_op op) ^ " is not a supported binary op"))
+  let get_logical_binop_type se1 se2 op = function
+      (A.Primitive(Bool), A.Primitive(Bool)) -> S.Binop(se1, op, se2, A.Primitive(Bool))
+    | _ -> raise (Exceptions.InvalidBinopExpression "Logical operators only operate on Bool types")
+  in
+  let get_sast_equality_binop () =
+    if t1 = t2 then
+      match t1 with
+      | Primitive(Bool) | Primitive(Int) | Primitive(String)
+        -> S.Binop(se1, op, se2, A.Primitive(Bool))
+      (* Equality op not supported for double operands. *)
+      | _ -> raise (Exceptions.InvalidBinopExpression "Equality operation is not supported for double type")
+    else raise (Exceptions.InvalidBinopExpression "Equality operator can't operate on different types")
+  in
+  let get_comparison_binop_type type1 type2 se1 se2 op =
+    let numerics = SS.of_list [A.Primitive(Int); A.Primitive(Double)]
+    in
+    if SS.mem type1 numerics && SS.mem type2 numerics
+    then S.Binop(se1, op, se2, A.Primitive(Bool))
+    else raise (Exceptions.InvalidBinopExpression "Comparison operators operate on numeric types only")
+  in
+  let get_arithmetic_binop_type se1 se2 op = function
+      (A.Primitive(Int), A.Primitive(Double))
+    | (A.Primitive(Double), A.Primitive(Int))
+    | (A.Primitive(Double), A.Primitive(Double)) -> S.Binop(se1, op, se2, A.Primitive(Double))
+    (* | (A.Primitive(Int), A.Primitive(Char_t))
+       | (A.Primitive(Char_t), A.Primitive(Int))
+       | (A.Primitive(Char_t), A.Primitive(Char_t)) -> S.Binop(se1, op, se2, A.Primitive(Char_t))
+    *)
+    | (A.Primitive(Int), A.Primitive(Int)) -> S.Binop(se1, op, se2, A.Primitive(Int))
+
+    | _ -> raise (Exceptions.InvalidBinopExpression "Arithmetic operators don't support these types")
+  in
+  env, (
+    match op with
+    | And | Or -> get_logical_binop_type se1 se2 op (t1, t2)
+    | Equal | Neq -> get_sast_equality_binop ()
+    | Less | Leq | Greater | Geq -> get_comparison_binop_type t1 t2 se1 se2 op
+    | Add | Mult | Sub | Div | Mod -> get_arithmetic_binop_type se1 se2 op (t1, t2))
 
 and analyze_unop env op e = (* -> env, Uniop (op,e,_) *)
   let check_num_unop t = function
@@ -335,9 +330,8 @@ let build_sast_vardecl env d s e =
     env, S.VarDecl(d, s, sast_expr)
 
 
-
 let rec build_sast_block env = function
-    [] -> env, S.Block([])
+  | [] -> env, S.Block([])
   | _ as l ->
     let _, sl = build_sast_stmt_list env l in env, S.Block(sl)
 

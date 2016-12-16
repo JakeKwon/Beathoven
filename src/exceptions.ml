@@ -18,7 +18,6 @@ exception DuplicateVariable of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
 exception IfComparisonNotBool of string
-exception InvalidBinopExpression of string
 exception ReturnTypeMismatch of string * string
 exception InvalidForStatementType of string
 exception CannotCallBreakOutsideOfLoop
@@ -28,12 +27,15 @@ exception InvalidUnaryOperation
 exception UnitTypeError of string
 exception DuplicateFunction of string
 
+(* Operators *)
+exception InvalidBinopExpression of string
+(* Assign *)
+exception AssignmentTypeMismatch of string * string
+(* Functions *)
+exception CannotUseBuiltinFuncName of string
 (* Array *)
 exception ArrayTypeNotMatch of string
 exception ShouldAccessArray of string
-(* Assign *)
-exception AssignmentTypeMismatch of string * string
-exception CannotUseBuiltinFuncName of string
 (* Struct *)
 exception UndefinedStructType of string
 exception ShouldAccessStructType of string

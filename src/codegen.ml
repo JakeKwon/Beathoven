@@ -320,7 +320,7 @@ and codegen_arrayidx a idx d isref builder =
 
 (* ----- Operators ----- *)
 
-and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
+and codegen_binop e1 (op : A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
   and e2' = codegen_expr builder e2 in
   (match op with
@@ -329,6 +329,7 @@ and codegen_binop e1 (op : Sast.A.binary_operator) e2 builder =
    | Mult -> L.build_mul
    | Div -> L.build_sdiv
    | Equal -> L.build_icmp L.Icmp.Eq
+   (* TODO: string type equality *)
    | Neq -> L.build_icmp L.Icmp.Ne
    | Less -> L.build_icmp L.Icmp.Slt
    | Leq -> L.build_icmp L.Icmp.Sle
