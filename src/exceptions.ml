@@ -24,13 +24,15 @@ exception CannotCallBreakOutsideOfLoop
 exception CannotCallContinueOutsideOfLoop
 exception InvalidWhileStatementType
 exception InvalidUnaryOperation
-exception UnitTypeError of string
 exception DuplicateFunction of string
 
 (* Operators *)
 exception InvalidBinopExpression of string
+(* Vardecl *)
+exception UnitTypeError
+exception VardeclTypeMismatch of string * string
 (* Assign *)
-exception AssignmentTypeMismatch of string * string
+exception AssignTypeMismatch of string * string
 (* Functions *)
 exception CannotUseBuiltinFuncName of string
 (* Array *)
@@ -56,7 +58,5 @@ exception ExpressionNotAssignable of string
    exception FunctionAlreadyDeclared;;
    exception FunctionNotDeclared;;
    exception IncorrectFunctionParameterTypes;;
-   exception MixedTypeArray;;
-   exception ArrayInferTypeMismatch;;
    exception IncorrectArrayAssignmentSize;;
 *)

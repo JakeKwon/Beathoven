@@ -41,11 +41,6 @@ let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
 
-(* ------------------- check sast ------------------- *)
-let check_vardecl_type d sast_expr =
-  let t = get_type_from_expr sast_expr in
-  d = t
-
 (* ------------------- debug ------------------- *)
 
 let get_map_size map =
@@ -144,7 +139,7 @@ and analyze_struct env e f =
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
-    env, S.LitArray([], Any)
+    env, S.LitArray([], Primitive(Unit))
   else
     let ele_type =
       let ele_type = get_type_from_expr (List.hd sast_expr_list) in
@@ -153,17 +148,21 @@ and analyze_array env (expr_list:A.expr list) =
       | _ -> ele_type
     in
     let sast_expr_list =
-      let helper_array l expr =
+      let ele_type = ref (A.Primitive(Unit)) in
+      let helper_array l (expr : S.expr) =
         let d =
           match get_type_from_expr expr with
           | Arraytype(d) -> d
           | _ as d -> d
         in
-        if d = ele_type or d = Any then
-          match expr with
-          | LitArray(el, _) -> (List.rev el) @ l
-          | _ as e -> e :: l
-        else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d))
+        if d = Primitive(Unit) then l (* expr is [] *)
+        else
+          (if !ele_type = Primitive(Unit) then ele_type := d;
+           if d = !ele_type then
+             match expr with
+             | LitArray(el, _) -> (List.rev el) @ l
+             | _ as e -> e :: l
+           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d)))
       in
       List.rev (List.fold_left helper_array [] sast_expr_list)
     in
@@ -260,10 +259,14 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-  if t1 = t2 or t2 = Any
-  then env, S.Assign(lhs, rhs, t1)
-  else
-    raise (Exceptions.AssignmentTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+  match t1, t2 with
+  | Arraytype(d), Arraytype(Primitive(Unit)) ->
+    let rhs = S.LitArray([], d) in (* it means e2 is [] *)
+    env, S.Assign(lhs, rhs, t1)
+  | _ ->
+    if t1 = t2 then env, S.Assign(lhs, rhs, t1)
+    else
+      raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
 
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
@@ -296,38 +299,38 @@ and analyze_funccall env s el =
   *)
 
 
-let get_sast_structtype env = function
-    Structtype(sname) ->
-    let n = get_global_name env.name sname in
-    if not (StringMap.mem n !(env.btmodule).struct_map)
-    then raise (Exceptions.UndefinedStructType n)
-    else Structtype(n) (* rename Structtype using sast(global) name *)
+let get_sast_structtype env s =
+  let n = get_global_name env.name s in
+  if not (StringMap.mem n !(env.btmodule).struct_map)
+  then raise (Exceptions.UndefinedStructType n)
+  else Structtype(n) (* rename Structtype using sast(global) name *)
 
-let build_sast_vardecl env d s e =
-  if StringMap.mem s env.var_map
-  then
-    raise (Exceptions.DuplicateVariable s)
+let get_sast_arraytype env d =
+  match d with
+  | Structtype(s) -> Arraytype(get_sast_structtype env s)
+  | _ -> Arraytype(d) (* so far there is no arraytype within arraytype !! *)
+
+let build_sast_vardecl env t1 s e =
+  if StringMap.mem s env.var_map then raise (Exceptions.DuplicateVariable s)
   else
-    let d =
-      match d with
-        Structtype(_) -> get_sast_structtype env d
-      | _ -> d
+    let t1 =
+      match t1 with
+      | Primitive(Unit) -> raise (Exceptions.UnitTypeError)
+      | Arraytype(d) -> get_sast_arraytype env d
+      | Structtype(s) -> get_sast_structtype env s
+      | _ -> t1
     in
     let _, sast_expr = build_sast_expr env e in
-    if (sast_expr = S.Noexpr) || (check_vardecl_type d sast_expr)
-    then
-      (* TODO: check if t is Unit *)
-      (*
-      if  get_type_from_expr sast_expr = A.Primitive(Unit)
-      then
-      raise (Exceptions.UnitTypeError "UnitTypeError")
-      (* semant.ml's handle_expr_statement *)
-      (* ref: Dice/local_handler *)
-      else
-       *)
-      env.var_map <- StringMap.add s d env.var_map;
-    (* print_int (get_map_size env.var_map); *)
-    env, S.VarDecl(d, s, sast_expr)
+    let t2 = get_type_from_expr sast_expr in
+    let sast_expr =
+      match t1, t2 with
+      | Arraytype(d), Arraytype(Primitive(Unit)) ->
+        S.LitArray([], d) (* it means e is [] *)
+      | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
+        else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+    in
+    env.var_map <- StringMap.add s t1 env.var_map;
+    env, S.VarDecl(t1, s, sast_expr)
 
 
 let rec build_sast_block env = function
@@ -547,7 +550,7 @@ let build_sast_struct_decl mname btmodule_env struct_decl =
   !btmodule_env.struct_map <- (StringMap.add sname struct_decl !btmodule_env.struct_map);
   {
     sname = sname;
-    fields = struct_decl.fields;
+    fields = struct_decl.fields; (* TODO: rename struct **bind** with global name !!*)
   }
 
 let build_sast btmodule_map (btmodule_list:A.btmodule list) =
