@@ -1,7 +1,7 @@
 typedef char * string;
 
 typedef struct pitch {
-    char* key;
+    char key;
     int octave;
     int alter;
 } pitch;
