@@ -15,10 +15,11 @@ type primitive =
   | Double
   | String
   | Char
-
-type musictype =
-    Pitch
+  (* primitive music type *)
+  | Pitch
   | Duration
+
+type musictype = Seq
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype

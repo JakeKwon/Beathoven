@@ -21,8 +21,8 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Double) -> "double"
   | Primitive(String) -> "string"
   | Primitive(Char) -> "char"
-  | Musictype(Pitch) -> "pitch"
-  | Musictype(Duration) -> "duration"
+  | Primitive(Pitch) -> "pitch"
+  | Primitive(Duration) -> "duration"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
 (* TODO J: other datatypes  *)

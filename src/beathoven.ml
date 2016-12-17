@@ -5,8 +5,6 @@
  *  - Eunice Kokor
  *)
 
-open Printf
-
 type action = Compile | Help | Raw | Sast
 
 let get_help =
@@ -37,7 +35,7 @@ let _ =
     (*let prog = Generator.gen_program ast in *)
     match action with
     | Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
-    | Raw -> () 
+    | Raw -> ()
     | Compile -> let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)
@@ -48,7 +46,7 @@ let _ =
         stdlib prog (Utils.conclude_program ()); close_out file *)
     | Help -> print_string get_help
   with
-    (* Must add rule for Analyzer *)(* 
+    (* Must add rule for Analyzer *)(*
     | Scanner.Illegal_Character(m) ->
       let line_num, column_num, _ = get_pos_and_tok lexbuf in
         eprintf

@@ -112,7 +112,7 @@ rule token = parse
   | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | ''' ( ascii | digit | escape ) ''' as str { LIT_CHAR(get_char str) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
-  | (letter) (letter | digit | '_')* as lit { ID(lit) } (* Identifiers should start with letters *)
+  | (letter) (letter | digit | '_')* '''? as lit { ID(lit) } (* Identifiers should start with letters *)
   | eof { EOF }
   | _ as c { raise (Exceptions.Lexing_error("Unknown token '" ^ String.make 1 c ^ "'")) }
 

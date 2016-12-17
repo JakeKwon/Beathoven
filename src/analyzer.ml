@@ -42,8 +42,8 @@ let get_type_from_expr (expr : S.expr) =
   | LitDouble(_) -> A.Primitive(Double)
   | LitChar(_) -> A.Primitive(Char)
   | LitStr(_) -> A.Primitive(String)
-  | LitPitch(_,_,_) -> A.Musictype(Pitch)
-  | LitDuration(_,_) -> A.Musictype(Duration)
+  | LitPitch(_,_,_) -> A.Primitive(Pitch)
+  | LitDuration(_,_) -> A.Primitive(Duration)
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
