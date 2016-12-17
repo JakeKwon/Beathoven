@@ -1,6 +1,9 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Jake Kwon
+ *  - Sona Roy
+ *  - Eunice Kokor
  *)
 
 (*

@@ -1,6 +1,7 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Eunice Kokor
  *)
 
 let default_mname = "_bt"
@@ -12,6 +13,7 @@ type primitive =
   | Int
   | Double
   | String
+  | Char
 
 type musictype =
     Pitch
@@ -39,6 +41,7 @@ type expr =
   | StructField of expr * string
   | LitBool of bool
   | LitInt of int
+  | LitChar of char
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)
