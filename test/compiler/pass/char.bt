@@ -1,0 +1,6 @@
+// char
+char ch_a = 'a';
+char ch_b;
+ch_b = 'b';
+print("ch_a is ",ch_a,"\n");
+print("ch_a is ",ch_b);
