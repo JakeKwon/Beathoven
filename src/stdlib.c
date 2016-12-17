@@ -3,19 +3,26 @@
 #include <stdio.h>
 #include "beathoven.h"
 
-char buffer[20];
+char _buffer[20];
 
 string _print_pitch(pitch *p) {
     char c = '\0';
     if (p->alter == 1) c = '#';
     else if (p->alter == -1) c = 'b';
-    sprintf(buffer, "%s%d%c", p->key, p->octave, c);
+    sprintf(_buffer, "%s%d%c", p->key, p->octave, c);
     // printf("%s%d", p->key, p->octave);
-    return buffer;
+    return _buffer;
 }
 
-duration* _allocate_duration(int a, int b) {
-    return NULL;
+// _duration d;
+//
+// duration _allocate_duration(int a, int b) {
+//     return &d;
+// }
+
+string _str_of_duration(duration d) {
+    sprintf(_buffer, "%d/%d", d->a, d->b);
+    return _buffer;
 }
 
 /*
