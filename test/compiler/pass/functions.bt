@@ -1,7 +1,23 @@
 
 func printHello() -> unit {
     print(5);
+    print("\n");
+}
+
+func bar(int i, int j) -> unit {
+    i = 3;
+    print(i);
+    print(" by bar\n");
+    foo(j + 2);
+}
+
+func foo(int a) -> unit {
+    // int a = 1;
+    print(a);
+    print(" by foo\n");
 }
 
 printHello();
 printHello();
+bar(1,2);
+
