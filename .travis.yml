@@ -2,7 +2,8 @@ sudo: required
 install: ./install.sh
 script: make test
 osx_image: xcode8.2
-before_install: 
-    brew update
+before_install:
+  - brew update
+  - brew outdated <package-name> || brew upgrade <package-name>
 # uncomment and edit the following line if your project needs to run something other than `rake`:
 # script: bundle exec rspec spec
