@@ -17,15 +17,12 @@ Detailed documentation on the OCaml LLVM library:
   http://llvm.moe/ocaml/
 *)
 
-(*
-open Log
-*)
 module L = Llvm (* LLVM VMCore interface library *)
 open Sast
 
 module StringMap = Map.Make(String)
 
-let _debug = false
+let _debug = true
 
 let context = L.global_context () (* global data container *)
 let the_module = L.create_module context "Beathoven Codegen" (* container *)
@@ -108,7 +105,7 @@ let lltype_of_bind_list (bind_list : A.bind list) =
 
 (* Declare local variable and remember its llvalue in local_tbl *)
 let codegen_local_allocate (typ : A.datatype) var_name builder =
-  if _debug then print_endline ("codegen_local_allocate: " ^ var_name);
+  if _debug then Log.debug ("codegen_local_allocate: " ^ var_name);
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
@@ -116,7 +113,7 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
 
 (* Declare global variable and remember its llvalue in global_tbl *)
 let codegen_global_allocate (typ : A.datatype) var_name builder =
-  if _debug then print_endline ("codegen_global_allocate: " ^ var_name);
+  if _debug then Log.debug ("codegen_global_allocate: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
   Hashtbl.add global_tbl var_name alloca;
@@ -135,7 +132,7 @@ let codegen_ptr (typ : A.datatype) var_name builder =
   alloca (* ptr of lltype *)
 
 let codegen_allocate (typ : A.datatype) var_name builder =
-  if _debug then print_endline ("codegen_allocate: " ^ var_name);
+  if _debug then Log.debug ("codegen_allocate: " ^ var_name);
   if !is_main then codegen_global_allocate typ var_name builder
   else codegen_local_allocate typ var_name builder
 
@@ -169,7 +166,7 @@ let lookup_id id builder =
       try
         let v = Hashtbl.find formal_tbl s in
         let alloca =
-          if _debug then print_endline ("lookup_id (formal_tbl): " ^ s);
+          if _debug then Log.debug ("lookup_id (formal_tbl): " ^ s);
           codegen_allocate d s builder
         in
         ignore (L.build_store v alloca builder);
@@ -193,15 +190,23 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
+(*
+let cast_literal_alloca name d ptr_lit builder =
+  (* Store ptr_lit in a tmp variable  *)
+  let alloca = codegen_allocate d (".pl_" ^ name) builder in
+  ignore(L.build_store ptr_lit alloca builder);
+  L.build_load alloca ".ptrlit" builder
+  (* TODO: alternative, bitcast?? ptr_lit *)
+ *)
+
 (* -------------------------------------------- *)
 
 let codegen_pitch k o a builder =
   let pitch = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
   let ptr_lit = get_literal_alloca pitch (A.Musictype(Pitch))
-  [("key", L.const_int i8_t (Char.code k)); ("octave", L.const_int i32_t o);
-  ("alter", L.const_int i32_t a)] builder in
+      [("key", L.const_int i8_t (Char.code k)); ("octave", L.const_int i32_t o);
+       ("alter", L.const_int i32_t a)] builder in
   ptr_lit (* primitive: _pitch* *)
-
 
 let codegen_duration a b builder =
   let gcd' =
@@ -213,11 +218,9 @@ let codegen_duration a b builder =
   let ptr_lit = get_literal_alloca duration (A.Musictype(Duration))
       [("a", L.const_int i32_t a); ("b", L.const_int i32_t b)] builder
   in
-  (* don't need to store ptr_lit in a tmp variable  *)
-  (* let alloca = codegen_allocate (A.Musictype(Duration)) (".d_" ^ duration) builder in
-  ignore(L.build_store ptr_lit alloca builder);
-  L.build_load alloca ".dur" builder *)
   ptr_lit (* primitive: _duration* *)
+  (* Seems there is no need to cast, since when assign we simply store it. *)
+  (* cast_literal_alloca duration (A.Musictype(Duration)) ptr_lit builder *)
 
 (* ----- Functions ----- *)
 
@@ -254,8 +257,12 @@ let rec codegen_print expr_list builder =
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
+  (if _debug then
+     Log.debug ("codegen_funccall(" ^ fname ^ "): ");
+   let helper ll = Log.debug (L.string_of_llvalue ll) in
+   Array.iter helper actuals);
   match d with
-    A.Primitive(A.Unit) -> L.build_call f actuals "" builder
+  | A.Primitive(A.Unit) -> L.build_call f actuals "" builder
   | _ -> L.build_call f actuals "tmp" builder
 
 (* ----- Assignment ----- *)
@@ -270,7 +277,7 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
       let codegen_sizeof e builder =
         let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
         let size_ll = L.size_of lltype in
-        (* (**debug**) print_endline (L.string_of_llvalue size_ll); *)
+        Log.debug ("rhs_size: " ^ (L.string_of_llvalue size_ll));
         (* L.build_bitcast size_ll size_t "size" builder *)
         size_ll
       in
@@ -284,13 +291,16 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
   in
   let d = Analyzer.get_type_from_expr rhs_expr in
   let rhs = codegen_expr builder rhs_expr in
+  Log.debug ("lhs: " ^ (L.string_of_llvalue lhs) ^ "\n rhs: " ^ (L.string_of_llvalue rhs));
   match d with
   | Primitive(_) -> store rhs
-  (* | Musictype(Duration) | Musictype(Pitch)  *)
+  | Musictype(Duration) -> store rhs
+  | Musictype(Pitch) -> store rhs
   | _ -> memcpy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
-  codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
+  let lhs = codegen_expr_ref builder lhs_expr in
+  codegen_assign_with_lhs lhs rhs_expr builder
 
 (* ----- Struct ----- *)
 
@@ -504,7 +514,7 @@ let codegen_def_func func =
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
-  if _debug then print_endline ("codegen_func: " ^ func.fname);
+  if _debug then Log.debug ("codegen_func: " ^ func.fname);
   let init_params llfunc formals =
     List.iteri ( fun i formal ->
         let n = snd formal in

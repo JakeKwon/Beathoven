@@ -5,7 +5,8 @@
 
 char _buffer[20];
 
-string _str_of_pitch(pitch p) {
+string _str_of_pitch(pitch* _p) {
+    const pitch p = *_p;
     char c = '\0';
     printf("%d\n", p->alter);
     if (p->alter == 1) c = '#';
@@ -20,7 +21,8 @@ string _str_of_pitch(pitch p) {
 //     return &d;
 // }
 
-string _str_of_duration(duration d) {
+string _str_of_duration(duration* _d) {
+    const duration d = *_d;
     sprintf(_buffer, "%d/%d", d->a, d->b);
     return _buffer;
 }
