@@ -39,12 +39,11 @@ str_b = "a";
 print(str_a == str_b); // so far 0
 print("\n");
 
-// pitch
-pitch p = C4;
-
-// duration
-duration q = 2/8;
-print(str_of_duration(q), "\n"); // 1/4
+// pitch and duration
+pitch pitch' = F6#;
+duration q = 2/8; // 1/4
+pitch p = pitch';
+print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
 
 
 // char

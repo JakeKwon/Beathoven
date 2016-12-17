@@ -28,14 +28,14 @@ typedef struct _pitch {
     int octave;
     int alter;
 } _pitch;
-typedef _pitch * pitch;
+typedef const _pitch * pitch; // since _pitch is literal
 
 // Musictype(Duration)
 typedef struct _duration {
     int a;
     int b;
 } _duration;
-typedef _duration * duration;
+typedef const _duration * duration;
 
 // Musictype(Note)
 typedef struct Note {

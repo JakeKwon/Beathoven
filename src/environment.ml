@@ -85,7 +85,7 @@ let (builtin_funcs : func_decl StringMap.t) =
     }
   in
   let unit_t = A.Primitive(Unit) and string_t = A.Primitive(String)
-  and pitch_t = A.Musictype(Pitch) and duration_t = A.Musictype(Duration)
+  and pitch_t = A.Primitive(Pitch) and duration_t = A.Primitive(Duration)
   in
   let map = StringMap.empty in
   let map = StringMap.add "print"

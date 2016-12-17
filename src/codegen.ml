@@ -77,8 +77,8 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(String) -> str_t
   | Primitive(Bool) -> i1_t
   | Primitive(Char) -> i8_t
-  | Musictype(Duration) -> L.pointer_type (lookup_struct "_duration")
-  | Musictype(Pitch) -> L.pointer_type (lookup_struct "_pitch")
+  | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
+  | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
   | Structtype(s) -> lookup_struct s
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
@@ -96,7 +96,6 @@ let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
   | Structtype(_) -> L.pointer_type lltype
-  | Musictype(_) -> L.pointer_type lltype (* TODO: what ?? *)
   (* TODO: Array *)
   | _ -> lltype
 
@@ -119,11 +118,11 @@ let codegen_global_allocate (typ : A.datatype) var_name builder =
   Hashtbl.add global_tbl var_name alloca;
   alloca
 
-let codegen_ptr (typ : A.datatype) var_name builder =
-  let lltype = (* Here is the actual type of literals *)
+let codegen_lit_alloca (typ : A.datatype) var_name builder =
+  let lltype = (* Actual type of literals *)
     match typ with
-    | Musictype(Duration) -> lookup_struct "_duration"
-    | Musictype(Pitch) -> lookup_struct "_pitch"
+    | Primitive(Duration) -> lookup_struct "_duration"
+    | Primitive(Pitch) -> lookup_struct "_pitch"
     | _ -> lltype_of_datatype typ
   in
   let zeroinitializer = L.const_null lltype in
@@ -146,7 +145,7 @@ let load_id id builder =
         try Hashtbl.find local_tbl s
         with | Not_found ->
         try
-          let v = Hashtbl.find formal_tbl s in (* what value does formal save of non-primitive?? *)
+          let v = Hashtbl.find formal_tbl s in
           isloaded := true; v
         with | Not_found ->
         try Hashtbl.find global_tbl s
@@ -179,7 +178,7 @@ let lookup_id id builder =
 let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
   try Hashtbl.find literal_tbl name
   with | Not_found ->
-    let alloca = codegen_ptr d name builder in
+    let alloca = codegen_lit_alloca d name builder in
     let set_struct_field i (field, llvalue) =
       let field' = L.build_struct_gep alloca i (name ^ "." ^ field) builder in
       ignore(L.build_store llvalue field' builder)
@@ -203,7 +202,7 @@ let cast_literal_alloca name d ptr_lit builder =
 
 let codegen_pitch k o a builder =
   let pitch = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
-  let ptr_lit = get_literal_alloca pitch (A.Musictype(Pitch))
+  let ptr_lit = get_literal_alloca pitch (A.Primitive(Pitch))
       [("key", L.const_int i8_t (Char.code k)); ("octave", L.const_int i32_t o);
        ("alter", L.const_int i32_t a)] builder in
   ptr_lit (* primitive: _pitch* *)
@@ -215,12 +214,12 @@ let codegen_duration a b builder =
   in
   let a = a / gcd' and b = b / gcd' in
   let duration = (string_of_int a) ^ "/" ^ (string_of_int b) in
-  let ptr_lit = get_literal_alloca duration (A.Musictype(Duration))
+  let ptr_lit = get_literal_alloca duration (A.Primitive(Duration))
       [("a", L.const_int i32_t a); ("b", L.const_int i32_t b)] builder
   in
   ptr_lit (* primitive: _duration* *)
   (* Seems there is no need to cast, since when assign we simply store it. *)
-  (* cast_literal_alloca duration (A.Musictype(Duration)) ptr_lit builder *)
+  (* cast_literal_alloca duration (A.Primitive(Duration)) ptr_lit builder *)
 
 (* ----- Functions ----- *)
 
@@ -294,8 +293,6 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
   Log.debug ("lhs: " ^ (L.string_of_llvalue lhs) ^ "\n rhs: " ^ (L.string_of_llvalue rhs));
   match d with
   | Primitive(_) -> store rhs
-  | Musictype(Duration) -> store rhs
-  | Musictype(Pitch) -> store rhs
   | _ -> memcpy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
@@ -502,9 +499,9 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
-  let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Musictype(Pitch)) |] in
+  let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
-  let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Musictype(Duration)) |] in
+  let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in
   let _ = L.declare_function "_str_of_duration" _str_of_duration_t the_module in
   ()
 

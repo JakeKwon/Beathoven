@@ -80,14 +80,13 @@ primitive:
   | STR { String }
   | BOOL { Bool }
   | CHAR { Char }
-
-musictype:
-    PITCH { Pitch }
+  /* primitive music types */
+  | PITCH { Pitch }
   | DURATION { Duration }
 
 datatype_nonarray:
     primitive { Primitive($1) }
-  | musictype { Musictype($1) }
+  /*| musictype { Musictype($1) }*/
   | STRUCT ID { Structtype($2) }
 
 datatype:
