@@ -1,1 +1,8 @@
-print(+);
+Struct sth {
+    int a;
+    string b;
+    int c;
+}
+Struct sth s;
+
+print(s);
