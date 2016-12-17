@@ -2,6 +2,8 @@
  * Authors:
  *  - Ruonan Xu
  *  - Jake Kwon
+ *  - Eunice Kokor
+ *  - Sona Roy
  *)
 
 open Ast

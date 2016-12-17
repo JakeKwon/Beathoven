@@ -1,8 +1,10 @@
-/*
+(*
  * Authors:
  *  - Ruonan Xu
  *  - Jake Kwon
- */
+ *  - Sona Roy
+ *)
+>>>>>>> b8fea09a8cb47dacc624710ff72e1fefd7380f46
 
 %{
   open Ast
@@ -15,6 +17,7 @@
 %token <float> LIT_DOUBLE
 %token <string> ID
 %token <string> LIT_PITCH
+%token <char> LIT_CHAR
 %token UNIT BOOL INT CHAR DOUBLE STR
 %token STRUCT ENUM
 %token PITCH DURATION NOTE CHORD SEQ
@@ -64,6 +67,7 @@ literals:
   | LIT_INT { LitInt($1) }
   | LIT_DOUBLE { LitDouble($1) }
   | LIT_STR { LitStr($1) }
+  | LIT_CHAR { LitChar($1) }
   | LIT_PITCH { LitPitch($1.[0],
       (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
       (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }

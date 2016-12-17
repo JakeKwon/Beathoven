@@ -2,6 +2,8 @@
  * Authors:
  *  - Ruonan Xu
  *  - Jake Kwon
+ *  - Sona Roy
+ *  - Eunice Kokor
  *)
 
 module A = Ast
@@ -11,6 +13,7 @@ type expr =
   | StructField of expr * expr * A.datatype (* Id * Id * datatype *)
   | LitBool of bool
   | LitInt of int
+  | LitChar of char
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int

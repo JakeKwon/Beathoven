@@ -1,3 +1,10 @@
+(*
+ * Authors:
+ *  - Ruonan Xu
+ *  - Jake Kwon
+ *  - Eunice Kokor
+ *)
+
 (* open Printf *)
 
 type action = Compile | Help | Raw | Sast
