@@ -19,6 +19,7 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Int) -> "int"
   | Primitive(Double) -> "double"
   | Primitive(String) -> "string"
+  | Primitive(Char) -> "char"
   | Musictype(Pitch) -> "pitch"
   | Musictype(Duration) -> "duration"
   | Structtype(s) -> "Struct_" ^ s
@@ -77,6 +78,7 @@ let rec json_of_expr expr =
     | LitInt(i) -> `Assoc [("int", `Int i)]
     | LitDouble(d) -> `Assoc [("double", `Float d)]
     | LitStr(s) -> `Assoc [("string", `String s)]
+    | LitChar(c) -> `Assoc [("char", `String (Core.Std.Char.to_string c))]
     | LitPitch(k, o, a) ->
       let p = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
       `Assoc [("pitch", `String p)]

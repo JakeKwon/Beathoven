@@ -25,6 +25,8 @@ open Sast
 
 module StringMap = Map.Make(String)
 
+let _debug = true
+
 let context = L.global_context () (* global data container *)
 let the_module = L.create_module context "Beathoven Codegen" (* container *)
 (* let builder = L.builder context *)
@@ -77,6 +79,7 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(Double) -> double_t
   | Primitive(String) -> str_t
   | Primitive(Bool) -> i1_t
+  | Primitive(Char) -> i8_t
   | Structtype(s) -> lookup_struct s
   | Musictype(Pitch) -> lookup_struct "pitch"
   | Arraytype(d) -> lookup_array d
@@ -103,6 +106,7 @@ let lltype_of_bind_list (bind_list : A.bind list) =
 
 (* Declare local variable and remember its llvalue in local_tbl *)
 let codegen_local_allocate (typ : A.datatype) var_name builder =
+  if _debug then print_endline ("codegen_local_allocate: " ^ var_name);
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
@@ -110,6 +114,7 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
 
 (* Declare global variable and remember its llvalue in tbl *)
 let codegen_global_allocate_to_tbl tbl (typ : A.datatype) var_name builder =
+  if _debug then print_endline ("codegen_global_allocate_to_tbl: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
   Hashtbl.add tbl var_name alloca;
@@ -121,6 +126,7 @@ and codegen_literal_allocate (typ : A.datatype) var_name builder =
   (codegen_global_allocate_to_tbl literal_tbl) typ var_name builder
 
 let codegen_allocate (typ : A.datatype) var_name builder =
+  if _debug then print_endline ("codegen_allocate: " ^ var_name);
   if !is_main then codegen_global_allocate typ var_name builder
   else codegen_local_allocate typ var_name builder
 
@@ -191,8 +197,9 @@ let rec codegen_print expr_list builder =
     let llval_and_fmt_of_expr expr = (* -> fmt : string *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
-          Primitive(Int) -> "%d"
+        | Primitive(Int) -> "%d"
         | Primitive(String) -> "%s"
+        | Primitive(Char) -> "%c"
         | Primitive(Bool) ->
           (* print_endline (L.string_of_llvalue (List.nth llval_expr_list !idx)); *)
           "%d" (* TODO: print "true" or "false" *)
@@ -362,6 +369,7 @@ and codegen_expr builder = function
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
+  | LitChar c -> L.const_int i8_t (Char.code c)
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
   | LitDuration(a, b) -> null_ll (* TODO: codegen_duration a b builder *)
   | Noexpr -> null_ll

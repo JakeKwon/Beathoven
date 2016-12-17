@@ -1,9 +1,9 @@
-(*
+/*
  * Authors:
  *  - Ruonan Xu
  *  - Jake Kwon
  *  - Sona Roy
- *)
+ */
 
 %{
   open Ast
@@ -79,6 +79,7 @@ primitive:
   | DOUBLE { Double }
   | STR { String }
   | BOOL { Bool }
+  | CHAR { Char }
 
 musictype:
     PITCH { Pitch }
