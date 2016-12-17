@@ -31,12 +31,14 @@ typedef struct _pitch {
 } _pitch;
 typedef const _pitch * pitch; // since _pitch is literal
 
+
 // Musictype(Duration)
 typedef struct _duration {
     int a;
     int b;
 } _duration;
 typedef const _duration * duration;
+
 
 // Musictype(Note)
 typedef struct Note {
@@ -52,6 +54,7 @@ typedef struct Chord {
     // or
     //Note notes[4];
 } Chord;
+
 typedef struct _note_or_chord {
     int type;
     union {
@@ -65,6 +68,7 @@ typedef struct _note_or_chord {
     // } ele;
     // But, avoid pointers unless it's inevitable
 } _Seq_ele;
+
 */
 
 /* Composite music types */
@@ -75,6 +79,7 @@ typedef struct Seq {
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
+
 
 typedef struct _Sequence {
     Seq seq;
@@ -94,6 +99,7 @@ typedef struct Part {
     // Chord keySignature;
     // Enum Instrument instrument;
 } Part;
+
 
 // Part[]
 typedef struct _Arr_Part {

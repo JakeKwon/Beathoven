@@ -4,9 +4,9 @@
 
 int main(){
 
-pitch pitch_struct;
+_pitch pitch_struct;
 
-pitch* test_pitch = &pitch_struct;
+pitch test_pitch = &pitch_struct;
 
 test_pitch->key = 'C';
 test_pitch -> octave = 4;

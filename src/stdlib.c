@@ -1,3 +1,8 @@
+/*
+ * Authors:
+ *  - Ruonan Xu
+ */
+
 // clang -emit-llvm -o stdlib.bc -c stdlib.c
 // clang -S -emit-llvm -c stdlib.c
 #include <stdio.h>
@@ -9,7 +14,9 @@ char _buffer[20];
 int _pitch_values[7] = {0,2,4,5,7,9,11};
 
 
+
 string _str_of_pitch(pitch p) {
+
     char c = '\0';
     string _buffer = malloc(4); // garbage!
     if (p->alter == 1) c = '#';
@@ -32,7 +39,7 @@ string _str_of_duration(duration d) {
     return _buffer;
 }
 
-int _get_midi_pitch(pitch *p) {
+int _get_midi_pitch(pitch p) {
   int note_number_index = 0;
 
   if( (int)(p->key) == 'A') note_number_index = 5;
