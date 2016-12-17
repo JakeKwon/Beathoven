@@ -58,8 +58,8 @@ type env = {
 (* Initialize builtin_types *)
 let (builtin_types_list : A.struct_decl list) =
   [{
-    A.sname = "pitch";
-    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+    A.sname = "_pitch";
+    A.fields = [(A.Primitive(Char), "key"); (A.Primitive(Int), "octave");
                 (A.Primitive(Int), "alter");];
   };
    {
@@ -90,8 +90,8 @@ let (builtin_funcs : func_decl StringMap.t) =
   let map = StringMap.empty in
   let map = StringMap.add "print"
       (get_func_decl "printf" unit_t []) map in
-  let map = StringMap.add "print_pitch"
-      (get_func_decl "_print_pitch" string_t [ pitch_t ]) map in
+  let map = StringMap.add "str_of_pitch"
+      (get_func_decl "_str_of_pitch" string_t [ pitch_t ]) map in
   let map = StringMap.add "str_of_duration"
       (get_func_decl "_str_of_duration" string_t [ duration_t ]) map in
   map

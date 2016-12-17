@@ -5,12 +5,12 @@
 
 char _buffer[20];
 
-string _print_pitch(pitch *p) {
+string _str_of_pitch(pitch p) {
     char c = '\0';
+    printf("%d\n", p->alter);
     if (p->alter == 1) c = '#';
     else if (p->alter == -1) c = 'b';
-    sprintf(_buffer, "%s%d%c", p->key, p->octave, c);
-    // printf("%s%d", p->key, p->octave);
+    sprintf(_buffer, "%c%d%c", p->key, p->octave, c);
     return _buffer;
 }
 
