@@ -78,6 +78,13 @@ typedef struct Seq {
     Note *arr;
 } Seq;
 
+// Seq[]
+typedef struct _Arr_Seq {
+    int len;
+    Seq* arr;
+} _Arr_Seq;
+
+/*
 typedef struct _Sequence {
     Seq seq;
     double startTime;
@@ -90,12 +97,14 @@ typedef struct _Arr_Sequence {
     _Sequence* arr;
 } _Arr_Sequence;
 
-
 typedef struct Part {
     _Arr_Sequence seqs;
     // Chord keySignature;
     // Enum Instrument instrument;
 } Part;
+*/
+
+typedef _Arr_Seq Part;
 
 // Part[]
 typedef struct _Arr_Part {

@@ -11,7 +11,10 @@
 char _buffer[20];
 int _pitch_values[7] = {0,2,4,5,7,9,11};
 
-_Score_Singleton Score;
+
+void _render_part_as_midi(Part part) {
+
+}
 
 string _print_pitch(pitch p) {
     char c = '\0';
