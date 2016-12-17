@@ -48,6 +48,12 @@ lli logs/struct.bt.ll > logs/struct.bt.out
 diff -b logs/struct.bt.out pass/struct.out > logs/struct.diff
 ###### OK
 
+###### Testing weird
+../../src/beathoven < pass/weird.bt > logs/weird.bt.ll
+lli logs/weird.bt.ll > logs/weird.bt.out
+diff -b logs/weird.bt.out pass/weird.out > logs/weird.diff
+###### OK
+
 ###### Testing while
 ../../src/beathoven < pass/while.bt > logs/while.bt.ll
 Uncaught exception:
@@ -83,8 +89,7 @@ diff -b logs/duplicate-vardecl.bt.err fail/duplicate-vardecl.err > logs/duplicat
 ###### Testing shouldaccessstructtype
 ../../src/beathoven < fail/shouldaccessstructtype.bt 2> logs/shouldaccessstructtype.bt.err >> logs/globallog.log
 diff -b logs/shouldaccessstructtype.bt.err fail/shouldaccessstructtype.err > logs/shouldaccessstructtype.diff
-FAILED logs/shouldaccessstructtype.bt.err differs from fail/shouldaccessstructtype.err
-###### FAILED
+###### OK
 
 ###### Testing structfieldnotfound
 ../../src/beathoven < fail/structfieldnotfound.bt 2> logs/structfieldnotfound.bt.err >> logs/globallog.log
