@@ -159,7 +159,10 @@ let lookup_id id builder =
       with | Not_found ->
       try
         let v = Hashtbl.find formal_tbl s in
-        let alloca = codegen_allocate d s builder in
+        let alloca =
+          if _debug then print_endline ("lookup_id (formal_tbl): " ^ s);
+          codegen_allocate d s builder
+        in
         ignore (L.build_store v alloca builder);
         alloca
       with | Not_found ->
@@ -469,6 +472,7 @@ let codegen_def_func func =
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
+  if _debug then print_endline ("codegen_func: " ^ func.fname);
   let init_params llfunc formals =
     List.iteri ( fun i formal ->
         let n = snd formal in
@@ -530,7 +534,7 @@ let codegen_program program =
       (* main of modules *)
       is_main := true; codegen_func hd;
       (* functions in modules *)
-      is_main := false; List.iter codegen_func btmodule.funcs
+      is_main := false; List.iter codegen_func tl
   in
   List.iter def_funcs_and_structs btmodules; (* define language structs first *)
   codegen_builtin_funcs ();
