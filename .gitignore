@@ -3,6 +3,7 @@ src/_build
 src/stdlib.ll
 test/scanner/tokenize
 test/compiler/logs/*
+test/compiler/logs/globallog.log
 *.log
 
 scanner.ml
