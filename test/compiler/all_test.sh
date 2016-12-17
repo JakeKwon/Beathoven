@@ -190,20 +190,20 @@ printf "You have $totalerrors out of $totalfiles pass errors"
 printf "\n\n${CYAN}####  End of Pass Compiler Tests!  ####${NC}"
 
 
-# printf "\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
-# failfiles="fail/*.bt"
+printf "\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
+failfiles="fail/*.bt"
 
-# for file in $failfiles
-# do
-#   # printf ${file:5}
-#   totalfiles=$(($totalfiles + $one))
-#   TMP_LLI_FILE=$(mktemp "logs/${file:5}.ll")
-#   TMP_ERR_FILE=$(mktemp "logs/${file:5}.err")
+for file in $failfiles
+do
+  # printf ${file:5}
+  totalfiles=$(($totalfiles + $one))
+  TMP_LLI_FILE=$(mktemp "logs/${file:5}.ll")
+  TMP_ERR_FILE=$(mktemp "logs/${file:5}.err")
 
-#   # TMP_LLI_FILE= $(mktemp "ll.XXXX")
-#   # TMP_OUT_FILE= $(mktemp "out.XXXX")
+  # TMP_LLI_FILE= $(mktemp "ll.XXXX")
+  # TMP_OUT_FILE= $(mktemp "out.XXXX")
 
-#   CheckFail $file 2>> $globallog
-# done
-# printf "\n\n${CYAN}####  End of Fail Compiler Tests!  ####${NC}"
+  CheckFail $file 2>> $globallog
+done
+printf "\n\n${CYAN}####  End of Fail Compiler Tests!  ####${NC}"
 
