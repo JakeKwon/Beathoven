@@ -1,13 +1,8 @@
 sudo: required
 install: ./install.sh
 script: make test
-os: osx
+osx_image: xcode8.2
 before_install: 
-  - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
-    brew update;
-    brew install mono;
-    brew install pyenv;
-    pyenv install $PYTHON;
-    fi
+    brew update
 # uncomment and edit the following line if your project needs to run something other than `rake`:
 # script: bundle exec rspec spec
