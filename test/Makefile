@@ -10,9 +10,16 @@ all:
 test: build
 	# cd scanner; make; ./scanner_test.sh
 	# cd analyzer; ./testall.sh
-	cd compiler; ./pass_test.sh
+	cd compiler; ./all_test.sh
 test-only:
+	cd compiler; ./all_test.sh
+
+test-pass:
 	cd compiler; ./pass_test.sh
+
+test-fail:
+	cd compiler; ./fail_test.sh
+
 build:
 	cd ..; make all
 

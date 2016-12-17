@@ -1,11 +1,8 @@
 (*
  * Authors:
  *  - Ruonan Xu
-<<<<<<< HEAD
  *  - Jake Kwon
-=======
  *  - Eunice Kokor
->>>>>>> b8fea09a8cb47dacc624710ff72e1fefd7380f46
  *)
 
 let default_mname = "_bt"

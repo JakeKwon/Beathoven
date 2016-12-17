@@ -6,7 +6,11 @@ typedef struct pitch {
     int alter;
 } pitch;
 
-typedef struct duration {
+// typedef _pitch * pitch;
+
+typedef struct _duration {
     int a;
     int b;
-} duration;
+} _duration;
+
+typedef _duration * duration;
