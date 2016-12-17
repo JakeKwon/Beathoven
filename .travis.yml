@@ -1,3 +1,5 @@
+before_install:
+  - brew update
 
 install: ./install.sh
 script: make test
