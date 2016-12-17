@@ -25,7 +25,7 @@ open Sast
 
 module StringMap = Map.Make(String)
 
-let _debug = true
+let _debug = false
 
 let context = L.global_context () (* global data container *)
 let the_module = L.create_module context "Beathoven Codegen" (* container *)
