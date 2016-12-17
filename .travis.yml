@@ -1,5 +1,13 @@
 sudo: required
 install: ./install.sh
 script: make test
+os: osx
+before_install: 
+  - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+    brew update;
+    brew install mono;
+    brew install pyenv;
+    pyenv install $PYTHON;
+    fi
 # uncomment and edit the following line if your project needs to run something other than `rake`:
 # script: bundle exec rspec spec
