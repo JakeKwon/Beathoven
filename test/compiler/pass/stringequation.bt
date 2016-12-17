@@ -1,0 +1,6 @@
+string str_a = "a";
+string str_b = str_a;
+print(str_a == str_b); // so far 1
+str_b = "a";
+print("\n");
+print(str_a == str_b); // so far 0

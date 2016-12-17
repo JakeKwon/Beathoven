@@ -39,8 +39,16 @@ str_b = "a";
 print(str_a == str_b); // so far 0
 print("\n");
 
-// pitch
-pitch p = C4;
+// pitch and duration
+pitch pitch' = F6#;
+duration q = 2/8; // 1/4
+pitch p = pitch';
+print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
+
+
+// char
+char ch_a = 'a';
+print(ch_a);
 
 
 func bar(int i, int j) -> unit {

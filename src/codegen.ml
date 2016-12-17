@@ -1,6 +1,9 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Sona Roy
+ *  - Jake Kwon
+ *  - Eunice Kokor
  *)
 
 (*
@@ -14,13 +17,12 @@ Detailed documentation on the OCaml LLVM library:
   http://llvm.moe/ocaml/
 *)
 
-(*
-open Log
-*)
 module L = Llvm (* LLVM VMCore interface library *)
 open Sast
 
 module StringMap = Map.Make(String)
+
+let _debug = true
 
 let context = L.global_context () (* global data container *)
 let the_module = L.create_module context "Beathoven Codegen" (* container *)
@@ -69,13 +71,15 @@ let lookup_func fname =
 
 let rec lltype_of_datatype (d : A.datatype) =
   match d with
-    Primitive(Unit) -> void_t
+  | Primitive(Unit) -> void_t
   | Primitive(Int) -> i32_t
   | Primitive(Double) -> double_t
   | Primitive(String) -> str_t
   | Primitive(Bool) -> i1_t
+  | Primitive(Char) -> i8_t
+  | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
+  | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
   | Structtype(s) -> lookup_struct s
-  | Musictype(Pitch) -> lookup_struct "pitch"
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
 
@@ -92,7 +96,7 @@ let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
   | Structtype(_) -> L.pointer_type lltype
-  | Musictype(_) -> L.pointer_type lltype
+  (* TODO: Array *)
   | _ -> lltype
 
 let lltype_of_bind_list (bind_list : A.bind list) =
@@ -100,24 +104,34 @@ let lltype_of_bind_list (bind_list : A.bind list) =
 
 (* Declare local variable and remember its llvalue in local_tbl *)
 let codegen_local_allocate (typ : A.datatype) var_name builder =
+  if _debug then Log.debug ("codegen_local_allocate: " ^ var_name);
   let t = lltype_of_datatype typ in
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
 
-(* Declare global variable and remember its llvalue in tbl *)
-let codegen_global_allocate_to_tbl tbl (typ : A.datatype) var_name builder =
+(* Declare global variable and remember its llvalue in global_tbl *)
+let codegen_global_allocate (typ : A.datatype) var_name builder =
+  if _debug then Log.debug ("codegen_global_allocate: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
-  Hashtbl.add tbl var_name alloca;
+  Hashtbl.add global_tbl var_name alloca;
   alloca
 
-let codegen_global_allocate (typ : A.datatype) var_name builder =
-  (codegen_global_allocate_to_tbl global_tbl) typ var_name builder
-and codegen_literal_allocate (typ : A.datatype) var_name builder =
-  (codegen_global_allocate_to_tbl literal_tbl) typ var_name builder
+let codegen_lit_alloca (typ : A.datatype) var_name builder =
+  let lltype = (* Actual type of literals *)
+    match typ with
+    | Primitive(Duration) -> lookup_struct "_duration"
+    | Primitive(Pitch) -> lookup_struct "_pitch"
+    | _ -> lltype_of_datatype typ
+  in
+  let zeroinitializer = L.const_null lltype in
+  let alloca = L.define_global var_name zeroinitializer the_module in
+  Hashtbl.add literal_tbl var_name alloca;
+  alloca (* ptr of lltype *)
 
 let codegen_allocate (typ : A.datatype) var_name builder =
+  if _debug then Log.debug ("codegen_allocate: " ^ var_name);
   if !is_main then codegen_global_allocate typ var_name builder
   else codegen_local_allocate typ var_name builder
 
@@ -131,7 +145,7 @@ let load_id id builder =
         try Hashtbl.find local_tbl s
         with | Not_found ->
         try
-          let v = Hashtbl.find formal_tbl s in (* what value does formal save of non-primitive?? *)
+          let v = Hashtbl.find formal_tbl s in
           isloaded := true; v
         with | Not_found ->
         try Hashtbl.find global_tbl s
@@ -150,7 +164,10 @@ let lookup_id id builder =
       with | Not_found ->
       try
         let v = Hashtbl.find formal_tbl s in
-        let alloca = codegen_allocate d s builder in
+        let alloca =
+          if _debug then Log.debug ("lookup_id (formal_tbl): " ^ s);
+          codegen_allocate d s builder
+        in
         ignore (L.build_store v alloca builder);
         alloca
       with | Not_found ->
@@ -158,27 +175,51 @@ let lookup_id id builder =
       with Not_found -> raise (Exceptions.VariableNotDefined s))
   | _ -> raise (Exceptions.Impossible("lookup_id"))
 
-let get_struct_alloca name d (l : (string * L.llvalue) list) builder =
-  (* literals *)
+let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
   try Hashtbl.find literal_tbl name
   with | Not_found ->
-    let alloca = codegen_literal_allocate d name builder in
+    let alloca = codegen_lit_alloca d name builder in
     let set_struct_field i (field, llvalue) =
       let field' = L.build_struct_gep alloca i (name ^ "." ^ field) builder in
       ignore(L.build_store llvalue field' builder)
     in
     List.iteri set_struct_field l;
     alloca
-(* TODO: initializer(better way)
+(* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
+
+(*
+let cast_literal_alloca name d ptr_lit builder =
+  (* Store ptr_lit in a tmp variable  *)
+  let alloca = codegen_allocate d (".pl_" ^ name) builder in
+  ignore(L.build_store ptr_lit alloca builder);
+  L.build_load alloca ".ptrlit" builder
+  (* TODO: alternative, bitcast?? ptr_lit *)
+ *)
 
 (* -------------------------------------------- *)
 
 let codegen_pitch k o a builder =
   let pitch = (Core.Std.Char.to_string k) ^ (string_of_int o) ^ "_" ^ (string_of_int a) in
-  get_struct_alloca pitch (A.Musictype(Pitch))
-    [("key", null_str); ("octave", L.const_int i32_t o); ("alter", L.const_int i32_t a)] builder
+  let ptr_lit = get_literal_alloca pitch (A.Primitive(Pitch))
+      [("key", L.const_int i8_t (Char.code k)); ("octave", L.const_int i32_t o);
+       ("alter", L.const_int i32_t a)] builder in
+  ptr_lit (* primitive: _pitch* *)
+
+let codegen_duration a b builder =
+  let gcd' =
+    let rec gcd a b = if b = 0 then a else gcd b (a mod b) in
+    gcd a b
+  in
+  let a = a / gcd' and b = b / gcd' in
+  let duration = (string_of_int a) ^ "/" ^ (string_of_int b) in
+  let ptr_lit = get_literal_alloca duration (A.Primitive(Duration))
+      [("a", L.const_int i32_t a); ("b", L.const_int i32_t b)] builder
+  in
+  ptr_lit (* primitive: _duration* *)
+  (* Seems there is no need to cast, since when assign we simply store it. *)
+  (* cast_literal_alloca duration (A.Primitive(Duration)) ptr_lit builder *)
 
 (* ----- Functions ----- *)
 
@@ -188,8 +229,9 @@ let rec codegen_print expr_list builder =
     let llval_and_fmt_of_expr expr = (* -> fmt : string *)
       let print_fmt_of_datatype (t : A.datatype) =
         match t with
-          Primitive(Int) -> "%d"
+        | Primitive(Int) -> "%d"
         | Primitive(String) -> "%s"
+        | Primitive(Char) -> "%c"
         | Primitive(Bool) ->
           (* print_endline (L.string_of_llvalue (List.nth llval_expr_list !idx)); *)
           "%d" (* TODO: print "true" or "false" *)
@@ -214,8 +256,12 @@ let rec codegen_print expr_list builder =
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
+  (if _debug then
+     Log.debug ("codegen_funccall(" ^ fname ^ "): ");
+   let helper ll = Log.debug (L.string_of_llvalue ll) in
+   Array.iter helper actuals);
   match d with
-    A.Primitive(A.Unit) -> L.build_call f actuals "" builder
+  | A.Primitive(A.Unit) -> L.build_call f actuals "" builder
   | _ -> L.build_call f actuals "tmp" builder
 
 (* ----- Assignment ----- *)
@@ -226,11 +272,11 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
     rhs
   in
   let memcpy rhs = (* rhs is non-primitive, so rhs is ref *)
-    let size_ll =
+    let size_ll = (* the size of the type which rhs_p points to *)
       let codegen_sizeof e builder =
         let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
         let size_ll = L.size_of lltype in
-        (* (**debug**) print_endline (L.string_of_llvalue size_ll); *)
+        Log.debug ("rhs_size: " ^ (L.string_of_llvalue size_ll));
         (* L.build_bitcast size_ll size_t "size" builder *)
         size_ll
       in
@@ -238,17 +284,20 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
     in
     let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
     let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+    (* set the value of what lhs_p points_to *)
     ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
     rhs_p
   in
   let d = Analyzer.get_type_from_expr rhs_expr in
   let rhs = codegen_expr builder rhs_expr in
+  Log.debug ("lhs: " ^ (L.string_of_llvalue lhs) ^ "\n rhs: " ^ (L.string_of_llvalue rhs));
   match d with
   | Primitive(_) -> store rhs
   | _ -> memcpy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
-  codegen_assign_with_lhs (codegen_expr_ref builder lhs_expr) rhs_expr builder
+  let lhs = codegen_expr_ref builder lhs_expr in
+  codegen_assign_with_lhs lhs rhs_expr builder
 
 (* ----- Struct ----- *)
 
@@ -359,8 +408,9 @@ and codegen_expr builder = function
   | LitInt i -> L.const_int i32_t i
   | LitDouble d -> L.const_float double_t d
   | LitStr s -> L.build_global_stringptr s "tmp" builder
-  | LitPitch(k, o, a) -> codegen_pitch k o a builder (* ref *)
-  | LitDuration(a, b) -> null_ll (* TODO: codegen_duration a b builder *)
+  | LitChar c -> L.const_int i8_t (Char.code c)
+  | LitPitch(k, o, a) -> codegen_pitch k o a builder (* load *)
+  | LitDuration(a, b) -> codegen_duration a b builder (* load *)
   | Noexpr -> null_ll
   | Null -> null_ll
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -376,7 +426,8 @@ and codegen_expr builder = function
 
 and codegen_expr_ref builder expr =
   match expr with
-  | Id(_, _) -> lookup_id expr builder (* Structtype, Arraytype *)
+  (* Structtype, Arraytype, pitch, duration *)
+  | Id(_, _) -> lookup_id expr builder
   | StructField(e, f, _) -> codegen_structfield e f true builder
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d true builder
   | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
@@ -448,8 +499,10 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
-  let _print_pitch_t = L.function_type str_t [| get_bind_type (A.Musictype(Pitch)) |] in
-  let _ = L.declare_function "_print_pitch" _print_pitch_t the_module in
+  let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
+  let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
+  let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in
+  let _ = L.declare_function "_str_of_duration" _str_of_duration_t the_module in
   ()
 
 let codegen_def_func func =
@@ -458,6 +511,7 @@ let codegen_def_func func =
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
+  if _debug then Log.debug ("codegen_func: " ^ func.fname);
   let init_params llfunc formals =
     List.iteri ( fun i formal ->
         let n = snd formal in
@@ -519,7 +573,7 @@ let codegen_program program =
       (* main of modules *)
       is_main := true; codegen_func hd;
       (* functions in modules *)
-      is_main := false; List.iter codegen_func btmodule.funcs
+      is_main := false; List.iter codegen_func tl
   in
   List.iter def_funcs_and_structs btmodules; (* define language structs first *)
   codegen_builtin_funcs ();

@@ -1,0 +1,16 @@
+Struct sth {
+    int a;
+    string b;
+    int c;
+}
+
+Struct sth s;
+Struct sth t;
+s.a = 17; // assign field
+s.b = "struct string\n";
+t = s; // copy structs
+t.b = "struct s changed\n";
+print(s.a);
+print(s.b);
+print(t.a);
+print(t.b);

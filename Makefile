@@ -11,6 +11,12 @@ test: clean
 tests:
 	cd test; make test-only
 
+test-fail:
+	cd test; make test-fail
+
+test-pass:
+	cd test; make test-pass
+
 .PHONY: clean
 clean:
 	cd src; make clean

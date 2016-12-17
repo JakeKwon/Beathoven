@@ -1,6 +1,9 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Jake Kwon
+ *  - Sona Roy
+ *  - Eunice Kokor
  *)
 
 (*
@@ -16,13 +19,13 @@ let get_global_func_name mname fname =
   if mname = A.default_mname && fname = A.default_fname
   then "main" (* main entry *)
   (* We use '.' to separate types so llvm will recognize the function name
-  and it won't conflict *)
+     and it won't conflict *)
   else mname ^ "." ^ fname
 
 let get_global_name mname n =
   (* TODO: maybe need another module name for user main, instead of
-  default_mname. Since user ids are not visible to all. Work on this during
-  stdlib.bt *)
+     default_mname. Since user ids are not visible to all. Work on this during
+     stdlib.bt *)
   (* if mname = A.default_mname then n else  *)
   mname ^ "." ^ n
 
@@ -55,14 +58,14 @@ type env = {
 (* Initialize builtin_types *)
 let (builtin_types_list : A.struct_decl list) =
   [{
-    A.sname = "pitch";
-    A.fields = [(A.Primitive(String), "key"); (A.Primitive(Int), "octave");
+    A.sname = "_pitch";
+    A.fields = [(A.Primitive(Char), "key"); (A.Primitive(Int), "octave");
                 (A.Primitive(Int), "alter");];
   };
-  {
-    A.sname = "duration";
-    A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
-  };]
+   {
+     A.sname = "_duration";
+     A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
+   };]
 
 let (builtin_types : A.struct_decl StringMap.t) =
   let add_to_map (builtin_type : A.struct_decl) map =
@@ -76,15 +79,21 @@ let (builtin_funcs : func_decl StringMap.t) =
     {
       fname = name; body = [];
       returnType = returnType;
+      (* Note that formal types here correspond to codegen/get_bind_type,
+      codegen_builtin_funcs, and function parameters in stdlib.c *)
       formals = List.map (fun typ -> (typ, "")) formalsType;
     }
   in
-  let unit_t = A.Primitive(Unit) in
+  let unit_t = A.Primitive(Unit) and string_t = A.Primitive(String)
+  and pitch_t = A.Primitive(Pitch) and duration_t = A.Primitive(Duration)
+  in
   let map = StringMap.empty in
   let map = StringMap.add "print"
-    (get_func_decl "printf" unit_t []) map in
-  let map = StringMap.add "print_pitch"
-      (get_func_decl "_print_pitch" (Primitive(String)) [ A.Musictype(Pitch) ]) map in
+      (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "str_of_pitch"
+      (get_func_decl "_str_of_pitch" string_t [ pitch_t ]) map in
+  let map = StringMap.add "str_of_duration"
+      (get_func_decl "_str_of_duration" string_t [ duration_t ]) map in
   map
 (*
 let add_reserved_functions =

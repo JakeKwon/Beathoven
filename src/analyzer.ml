@@ -1,6 +1,9 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Jake Kwon
+ *  - Eunice Kokor
+ *  - Sona Roy
  *)
 
 open Ast
@@ -37,9 +40,10 @@ let get_type_from_expr (expr : S.expr) =
   | LitBool(_) -> A.Primitive(Bool)
   | LitInt(_) -> A.Primitive(Int)
   | LitDouble(_) -> A.Primitive(Double)
+  | LitChar(_) -> A.Primitive(Char)
   | LitStr(_) -> A.Primitive(String)
-  | LitPitch(_,_,_) -> A.Musictype(Pitch)
-  | LitDuration(_,_) -> A.Musictype(Duration)
+  | LitPitch(_,_,_) -> A.Primitive(Pitch)
+  | LitDuration(_,_) -> A.Primitive(Duration)
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
@@ -70,6 +74,7 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitBool(b) -> env, S.LitBool(b)
   | LitInt(i) -> env, S.LitInt(i)
   | LitDouble(f) -> env, S.LitDouble(f)
+  | LitChar(c) -> env, S.LitChar(c)
   | LitStr(s) -> env, S.LitStr(s)
   | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
   | LitDuration(a, b) -> env, S.LitDuration(a, b)

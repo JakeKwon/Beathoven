@@ -1,6 +1,8 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *  - Jake Kwon
+ *  - Eunice Kokor
  *)
 
 let default_mname = "_bt"
@@ -12,10 +14,12 @@ type primitive =
   | Int
   | Double
   | String
-
-type musictype =
-    Pitch
+  | Char
+  (* primitive music type *)
+  | Pitch
   | Duration
+
+type musictype = Seq
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
@@ -39,6 +43,7 @@ type expr =
   | StructField of expr * string
   | LitBool of bool
   | LitInt of int
+  | LitChar of char
   | LitDouble of float
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)

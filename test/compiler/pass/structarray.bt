@@ -1,0 +1,13 @@
+Struct sth {
+    int a;
+    string b;
+    int c;
+}
+
+Struct sth s;
+Struct sth t;
+
+s.b = "yo";
+Struct sth [] stharr = [s, t, t];
+print(stharr[0].b);
+print(s.b);

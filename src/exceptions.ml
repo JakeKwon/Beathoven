@@ -1,6 +1,7 @@
 (*
  * Authors:
  *  - Ruonan Xu
+ *	- Jake Kwon
  *)
 
 exception Impossible of string
@@ -37,14 +38,14 @@ exception FuncNotFound of string * string
 (* Array *)
 exception ArrayTypeNotMatch of string
 exception ShouldAccessArray of string
-(* Struct *)
+(* Struct :: Testing DONE *)
 exception UndefinedStructType of string
 exception ShouldAccessStructType of string
 exception StructFieldNotFound of string * string
 
 (* ------------------- Environment ------------------- *)
 
-(* ------------------- Codegen ------------------- *)
+(* ------------------- Codegen :: Testing DONE ------------------- *)
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrint
 exception ExpressionNotAssignable of string
