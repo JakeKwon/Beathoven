@@ -1,5 +1,15 @@
 sudo: required
-install: ./install.sh
+install:
+  - brew install opam
+  - brew install homebrew/versions/llvm38
+  - opam init
+  - opam config env
+  - opam install core
+  - opam install llvm.3.8
+  - opam install yojson
+
+before_script:
+  - sudo ln -s /usr/local/opt/llvm38/bin/lli-3.8 /usr/bin/lli
 script: make test
 osx_image: xcode8.2
 # uncomment and edit the following line if your project needs to run something other than `rake`:
