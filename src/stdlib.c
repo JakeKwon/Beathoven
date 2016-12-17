@@ -15,12 +15,6 @@ string _str_of_pitch(pitch p) {
     return _buffer;
 }
 
-// _duration d;
-//
-// duration _allocate_duration(int a, int b) {
-//     return &d;
-// }
-
 string _str_of_duration(duration d) {
     string _buffer = malloc(10); // garbage!
     sprintf(_buffer, "%d/%d", d->a, d->b);

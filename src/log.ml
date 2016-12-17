@@ -48,11 +48,14 @@ let string_of_color color =
 
 let print (level : log_level) (fmt : string) =
   let prefix = (string_of_color (color_of_level level)) ^ (string_of_color Bold) ^
-    (string_of_level level) ^ ":" ^ (string_of_color Reset) in
+               (string_of_level level) ^ ":" ^ (string_of_color Reset) in
   let printer =
     if int_of_level level >= int_of_level min_level
     then Printf.eprintf else (Printf.ifprintf stderr) in
   printer "%s %s\n%!" prefix fmt
+  (* some info about format 6:
+     [Gagallium : The 6 parameters of (’a, ’b, ’c, ’d, ’e, ’f) format6](http://gallium.inria.fr/blog/format6/)
+  *)
 
 let error fmt = print Error fmt
 let warn fmt = print Warn fmt
