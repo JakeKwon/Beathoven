@@ -6,6 +6,12 @@ lli logs/all.bt.ll > logs/all.bt.out
 diff -b logs/all.bt.out pass/all.out > logs/all.diff
 ###### OK
 
+###### Testing array
+../../src/beathoven < pass/array.bt > logs/array.bt.ll
+lli logs/array.bt.ll > logs/array.bt.out
+diff -b logs/array.bt.out pass/array.out > logs/array.diff
+###### OK
+
 ###### Testing bool
 ../../src/beathoven < pass/bool.bt > logs/bool.bt.ll
 lli logs/bool.bt.ll > logs/bool.bt.out
@@ -58,6 +64,12 @@ lli logs/struct.bt.ll > logs/struct.bt.out
 diff -b logs/struct.bt.out pass/struct.out > logs/struct.diff
 ###### OK
 
+###### Testing structarray
+../../src/beathoven < pass/structarray.bt > logs/structarray.bt.ll
+lli logs/structarray.bt.ll > logs/structarray.bt.out
+diff -b logs/structarray.bt.out pass/structarray.out > logs/structarray.diff
+###### OK
+
 ###### Testing weird
 ../../src/beathoven < pass/weird.bt > logs/weird.bt.ll
 lli logs/weird.bt.ll > logs/weird.bt.out
@@ -79,39 +91,5 @@ Called from file "beathoven.ml", line 41, characters 25-53
 lli logs/while.bt.ll > logs/while.bt.out
 'main' function not found in module.
 diff -b logs/while.bt.out pass/while.out > logs/while.diff
-###### OK
-
-###### Testing assignment
-../../src/beathoven < fail/assignment.bt 2> logs/assignment.bt.err >> logs/globallog.log
-diff -b logs/assignment.bt.err fail/assignment.err > logs/assignment.diff
-###### OK
-
-###### Testing duplicate-func
-../../src/beathoven < fail/duplicate-func.bt 2> logs/duplicate-func.bt.err >> logs/globallog.log
-diff -b logs/duplicate-func.bt.err fail/duplicate-func.err > logs/duplicate-func.diff
-###### OK
-
-###### Testing duplicate-vardecl
-../../src/beathoven < fail/duplicate-vardecl.bt 2> logs/duplicate-vardecl.bt.err >> logs/globallog.log
-diff -b logs/duplicate-vardecl.bt.err fail/duplicate-vardecl.err > logs/duplicate-vardecl.diff
-###### OK
-
-###### Testing shouldaccessstructtype
-../../src/beathoven < fail/shouldaccessstructtype.bt 2> logs/shouldaccessstructtype.bt.err >> logs/globallog.log
-diff -b logs/shouldaccessstructtype.bt.err fail/shouldaccessstructtype.err > logs/shouldaccessstructtype.diff
-###### OK
-
-###### Testing structfieldnotfound
-../../src/beathoven < fail/structfieldnotfound.bt 2> logs/structfieldnotfound.bt.err >> logs/globallog.log
-diff -b logs/structfieldnotfound.bt.err fail/structfieldnotfound.err > logs/structfieldnotfound.diff
-###### OK
-
-###### Testing type_addition
-../../src/beathoven < fail/type_addition.bt 2> logs/type_addition.bt.err >> logs/globallog.log
-diff -b logs/type_addition.bt.err fail/type_addition.err > logs/type_addition.diff
-###### OK
-
-###### Testing undefinedstruct
-../../src/beathoven < fail/undefinedstruct.bt 2> logs/undefinedstruct.bt.err >> logs/globallog.log
-diff -b logs/undefinedstruct.bt.err fail/undefinedstruct.err > logs/undefinedstruct.diff
-###### OK
+FAILED logs/while.bt.out differs from pass/while.out
+###### FAILED

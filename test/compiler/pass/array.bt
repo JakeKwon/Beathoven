@@ -1,0 +1,6 @@
+int [] arr;
+arr = [];
+arr = [2, 4, 6, 8, 10];
+print(arr[3]);
+arr[3] = 9;
+print(arr[3], " array is good\n");
