@@ -1,0 +1,7 @@
+Struct sth {
+    int a;
+    string b;
+    int c;
+}
+Struct sth s;
+s.d = 17;

@@ -1,0 +1,2 @@
+Struct sth s;
+s.a = 17; // assign field
