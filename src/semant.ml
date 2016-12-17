@@ -1,3 +1,10 @@
+(*
+ * Authors:
+ *  - Jake Kwon
+ *  - Ruonan Xu
+ *  - Eunice Kokor
+ *)
+
 open Ast;;
 (* open Environment;; *)
 
