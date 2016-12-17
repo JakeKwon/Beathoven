@@ -7,3 +7,11 @@ print(1);
 print(y);
 y = x;
 print(y);
+
+
+bool c;
+c = (2 <= 2);
+print(c);
+c = (2 != 2);
+print(c);
+print("\n");
