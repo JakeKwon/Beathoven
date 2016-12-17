@@ -5,7 +5,7 @@
  *  - Eunice Kokor
  *)
 
-(* open Printf *)
+open Printf
 
 type action = Compile | Help | Raw | Sast
 
@@ -31,12 +31,12 @@ let _ =
         [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)]
     else Compile in
   let lexbuf = Lexing.from_channel stdin in
-  (* try *)
+  try
     let ast = Parser.program Scanner.token lexbuf in
     let sast = Analyzer.analyze_ast ast in
     (*let prog = Generator.gen_program ast in *)
     match action with
-      Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
+    | Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
     | Raw -> () 
     | Compile -> let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
@@ -47,16 +47,14 @@ let _ =
       in fprintf file "%s\n\n%s\n%s\n"
         stdlib prog (Utils.conclude_program ()); close_out file *)
     | Help -> print_string get_help
-  (* with
-    (* Must add rule for Analyzer *)
+  with
+    (* Must add rule for Analyzer *)(* 
     | Scanner.Illegal_Character(m) ->
       let line_num, column_num, _ = get_pos_and_tok lexbuf in
         eprintf
           "\x1b[31mSyntax error\x1b[0m, line %d at column %d: %s\n"
-          line_num column_num m
+          line_num column_num m *)
     | Parsing.Parse_error ->
         let line_num, column_num, token = get_pos_and_tok lexbuf in
-        eprintf
-        "\x1b[31mSyntax error\x1b[0m, line %d at column %d: '%s'\n"
-        line_num column_num token
- *)
+        let errormsg = "parser error line " ^ string_of_int line_num ^ " at column " ^ string_of_int column_num ^ ": " ^ token in
+        print_string (errormsg)
