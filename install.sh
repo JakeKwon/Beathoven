@@ -16,7 +16,7 @@ echo "Running... $*"
  eval $*
 }
 
-# Install $BREW
+Install $BREW
 Install $OPAM
 Install $OPAMINIT
 Install $LLVM
