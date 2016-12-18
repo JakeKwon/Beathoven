@@ -445,11 +445,17 @@ and codegen_expr_ref builder expr =
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
+  | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
     builder
   | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
+
+and codegen_ret d expr builder =
+  match expr with
+    Noexpr -> L.build_ret_void builder
+    | _ -> L.build_ret (codegen_expr builder expr) builder
 
 and codegen_if_stmt exp then_ (else_:stmt) builder =
   let cond_val = codegen_expr builder exp in
