@@ -55,4 +55,4 @@ let _ =
     | Parsing.Parse_error ->
         let line_num, column_num, token = get_pos_and_tok lexbuf in
         let errormsg = "parser error line " ^ string_of_int line_num ^ " at column " ^ string_of_int column_num ^ ": " ^ token in
-        print_string (errormsg)
+        Log.error (errormsg)

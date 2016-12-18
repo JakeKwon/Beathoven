@@ -18,6 +18,7 @@ type expr =
   | LitStr of string
   | LitPitch of char * int * int
   | LitDuration of int * int
+  | LitNote of expr * expr 
   | Null
   | Binop of expr * A.binary_operator * expr * A.datatype
   | Uniop of A.unary_operator * expr * A.datatype

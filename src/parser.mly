@@ -60,17 +60,34 @@
 
 %%
 
-literals:
+literal_duration:
+  | LIT_INT SLASH LIT_INT { LitDuration($1, $3) }
+
+literal_pitch:
+  | LIT_PITCH { LitPitch($1.[0],
+    (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
+    (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
+
+literal_note:
+  | literal_pitch COLON literal_duration { LitNote($1, $3) }
+  | literal_pitch COLON { LitNote($1, LitDuration(1, 4)) } /* don't have this in LRM!! */
+  | COLON literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
+
+literal_nonmusic:
   /*| NULL { Null }*/
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
   | LIT_DOUBLE { LitDouble($1) }
   | LIT_STR { LitStr($1) }
   | LIT_CHAR { LitChar($1) }
-  | LIT_PITCH { LitPitch($1.[0],
-      (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
-      (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
-  | LIT_INT SLASH LIT_INT { LitDuration($1, $3) }
+  /* these are still Primitive() */
+  | literal_pitch { $1 }
+  | literal_duration { $1 }
+
+literal:
+  | literal_nonmusic { $1 }
+  /* Don't forget to include all literal_music in expr!! */
+  | literal_note { $1 }
 
 
 primitive:
@@ -86,6 +103,7 @@ primitive:
 
 datatype_nonarray:
     primitive { Primitive($1) }
+  | NOTE { Musictype(Note) }
   /*| musictype { Musictype($1) }*/
   | STRUCT ID { Structtype($2) }
 
@@ -93,8 +111,11 @@ datatype:
     datatype_nonarray { $1 }
   | datatype_nonarray LBRACK RBRACK { Arraytype($1) }
 
-
 /* ------------------- Expressions ------------------- */
+
+ids:
+    ID { Id($1) }
+  | expr DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
 
 index_range: /* Python-like array access */
     expr COLON expr { ($1, $3) }
@@ -102,36 +123,41 @@ index_range: /* Python-like array access */
   | expr COLON { ($1, Noexpr) }
   | COLON { (LitInt(0), Noexpr) }
 
+expr_array:
+  | LBRACK expr_list RBRACK { LitArray($2) }
+  | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
+
 expr:
-    literals { $1 }
+  | literal_nonmusic { $1 }
+  /* Note that ID can still have whatever type, such as Arraytype and Musictype  */
   | ids { $1 }
   | MINUS expr { Uniop (Neg, $2) }
-  | expr PLUS   expr { Binop($1, Add, $3) }
-  | expr MINUS  expr { Binop($1, Sub, $3) }
-  | expr TIMES  expr { Binop($1, Mult, $3) }
+  | expr PLUS expr { Binop($1, Add, $3) }
+  | expr MINUS expr { Binop($1, Sub, $3) }
+  | expr TIMES expr { Binop($1, Mult, $3) }
   | expr DIVIDE expr { Binop($1, Div, $3) }
-  | expr MOD    expr { Binop($1, Mod, $3) }
+  | expr MOD expr { Binop($1, Mod, $3) }
   | expr EQ expr { Binop($1, Equal, $3) }
   | expr NEQ expr { Binop($1, Neq, $3) }
   | expr LT expr { Binop($1, Less, $3) }
   | expr LTE expr { Binop($1, Leq, $3) }
   | expr GT expr { Binop($1, Greater, $3) }
   | expr GTE expr { Binop($1, Geq, $3) }
-  | expr ASSIGN expr { Assign($1, $3) }
-  | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
+  | ID LPAREN expr_with_note_list RPAREN { FuncCall($1, $3)}
   /*
   | NOT expr { Unop (Not, $2) }
   | expr AND expr { Binop($1, And, $3) }
   | expr OR expr { Binop($1, Or, $3) }
 */
-  | LBRACK expr_list RBRACK { LitArray($2) }
   | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
-  | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LPAREN expr RPAREN { $2 }
+  | expr ASSIGN expr_array { Assign($1, $3) }
+  /* this has shift/reduce error. Why?? | expr_array { $1 }*/
 
-ids:
-    ID { Id($1) }
-  | expr DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
+expr_with_note:
+  | expr { $1 }
+  | literal_note { $1 }
+  | expr ASSIGN expr_with_note { Assign($1, $3) }
 
 formal_list: /* bind list */
     /* nothing */ { [] }
@@ -141,12 +167,20 @@ formal_rev_list:
     datatype ID { [($1, $2)] }
   | formal_rev_list COMMA datatype ID { ($3, $4) :: $1 }
 
-field_list: /* bind list or var_decl ?? */
+field_list:
   | field_rev_list { List.rev $1 }
 
 field_rev_list:
     datatype ID SEP { [($1, $2)] }
   | field_rev_list datatype ID SEP { ($2, $3) :: $1 }
+
+expr_with_note_list:
+  | { [] }
+  | expr_with_note_rev_list { List.rev $1 }
+
+expr_with_note_rev_list:
+    expr_with_note { [$1] }
+  | expr_with_note_rev_list COMMA expr_with_note { $3 :: $1 }
 
 expr_list:
     /* nothing */ { [] }
@@ -160,9 +194,9 @@ expr_rev_list:
 /* ------------------- Statements ------------------- */
 
 stmt:
-    expr SEP { Expr($1) }
+    expr_with_note SEP { Expr($1) }
   | var_decl { $1 }
-  | RETURN expr SEP { Return($2) }
+  | RETURN expr_with_note SEP { Return($2) }
   | RETURN SEP { Return(Noexpr) }
   | LBRACE stmt_list RBRACE { Block($2) }
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
@@ -185,7 +219,8 @@ stmt_rev_list:
 
 var_decl:
     datatype ID SEP { VarDecl($1, $2, Noexpr) }
-  | datatype ID ASSIGN expr SEP { VarDecl($1, $2, $4) }
+  | datatype ID ASSIGN expr_with_note SEP { VarDecl($1, $2, $4) }
+  | datatype ID ASSIGN expr_array SEP { VarDecl($1, $2, $4) }
 
 /* ------------------- Structs ------------------- */
 
@@ -240,6 +275,9 @@ btmodule_list:
 
 program:
   main_module EOF { [$1] }
-  /*main_module btmodule_list EOF { $1, $2 }*/ /* rev?? */
 
-/*type fname = Constructor | FName of string*/
+
+/*
+p.s. parser is still clean in this version without Musictype(Note).
+https://github.com/JakeKwon/Beathoven/blob/68ec6cee97ef888fca6f21b298821769553c513c/src/parser.mly
+*/
