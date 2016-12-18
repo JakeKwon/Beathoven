@@ -42,6 +42,7 @@ pitch pitch' = F6#;
 duration q = 2/8; // 1/4
 pitch p = pitch';
 print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
+pitch r = 2;
 
 // Note
 Note note;

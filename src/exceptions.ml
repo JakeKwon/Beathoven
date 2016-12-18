@@ -27,6 +27,7 @@ exception DuplicateVariable of string
 (* Vardecl *)
 exception UnitTypeError
 exception VardeclTypeMismatch of string * string
+exception InvalidPitchAssignment of string
 (* Operators *)
 exception InvalidBinopExpression of string
 (* Assign *)
