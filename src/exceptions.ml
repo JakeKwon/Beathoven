@@ -35,6 +35,7 @@ exception AssignTypeMismatch of string * string
 exception DuplicateFunction of string
 exception CannotUseBuiltinFuncName of string
 exception FuncNotFound of string * string
+exception ParamNumberNotMatch of string
 (* Array *)
 exception ArrayTypeNotMatch of string
 exception ShouldAccessArray of string
