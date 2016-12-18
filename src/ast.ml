@@ -19,7 +19,7 @@ type primitive =
   | Pitch
   | Duration
 
-type musictype = Seq
+type musictype = Note | Seq
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
@@ -48,6 +48,7 @@ type expr =
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)
   | LitDuration of int * int
+  | LitNote of expr * expr (* pitch * duration *)
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr

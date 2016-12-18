@@ -65,6 +65,10 @@ let (builtin_types_list : A.struct_decl list) =
    {
      A.sname = "_duration";
      A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
+   };
+   {
+     A.sname = "Note";
+     A.fields = [(A.Primitive(Pitch), "p");(A.Primitive(Duration), "d");];
    };]
 
 let (builtin_types : A.struct_decl StringMap.t) =
@@ -94,6 +98,8 @@ let (builtin_funcs : func_decl StringMap.t) =
       (get_func_decl "_str_of_pitch" string_t [ pitch_t ]) map in
   let map = StringMap.add "str_of_duration"
       (get_func_decl "_str_of_duration" string_t [ duration_t ]) map in
+  let map = StringMap.add "str_of_Note"
+      (get_func_decl "_str_of_Note" string_t [ A.Musictype(Note) ]) map in
   map
 (*
 let add_reserved_functions =
