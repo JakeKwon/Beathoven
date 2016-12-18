@@ -35,8 +35,14 @@ let _ =
     (*let prog = Generator.gen_program ast in *)
     match action with
     | Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
-    | Raw -> ()
-    | Compile -> let m = Codegen.codegen_program sast in
+    | Raw -> let output_file = Sys.argv.(2) in
+          let file = open_out output_file in
+          let m = Codegen.codegen_program sast in
+      (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
+
+          Printf.fprintf file "%s\n" (Llvm.string_of_llmodule m); close_out file
+    | Compile ->
+    let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)
       (* let output_file = Sys.argv.(2) and stdlib_file = Sys.argv.(3) in

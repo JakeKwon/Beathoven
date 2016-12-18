@@ -14,6 +14,9 @@ if [ "$#" -eq 3 ]; then
     if [ "$1" == "-c" ]; then
         cat $LIST_LIB $DIST_LIB $2 | $BEAT_FILE $1 > $3
         exit 0
+    elif [ "$1" == "-r" ]; then
+        $BEAT_FILE $1 $3 < $2
+        exit 0
     else
         printf "ERROR: invalid arguments supplied for command $0 $1\n" 1>&2
         exit 1
