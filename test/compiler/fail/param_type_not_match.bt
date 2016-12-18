@@ -1,0 +1,7 @@
+func bar(int i, int j) -> unit {
+    i = 3;
+    print(i);
+    print(" by bar\n");
+}
+
+bar("hello",2);

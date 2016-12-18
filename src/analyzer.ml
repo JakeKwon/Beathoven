@@ -261,16 +261,12 @@ and analyze_funccall env s el =
     let check_params (actuals : S.expr list) (formals : A.bind list) =
       if List.length actuals = List.length formals (* && *)
       then
-        (* TODO: type checks as well ?list.iter typecheck each returntype? *)
         let paramList = List.map2 (fun i j -> get_type_from_expr i = fst j) actuals formals in
         if List.mem false paramList
         then
-          false
+          raise (Exceptions.ParamTypeNotMatch "types of paramater differ")
         else
           true
-        (* let
-        List.iter actuals.head = formals.head
-        true *)
       else raise (Exceptions.ParamNumberNotMatch "numbers of paramater differ")
     in
     if check_params sast_el func.formals
