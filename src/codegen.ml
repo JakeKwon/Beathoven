@@ -550,7 +550,9 @@ let codegen_def_func func =
   ignore(L.define_function func.fname func_t the_module) (* llfunc *)
 
 let codegen_func func =
-  if _debug then Log.debug ("codegen_func: " ^ func.fname);
+  Log.debug ("codegen_func: " ^ func.fname);
+  Hashtbl.clear formal_tbl;
+  Hashtbl.clear local_tbl;
   let init_params llfunc formals =
     List.iteri ( fun i formal ->
         let n = snd formal in
@@ -562,14 +564,13 @@ let codegen_func func =
   let llfunc = lookup_func func.fname in
   (* An instance of the IRBuilder class used in generating LLVM instructions *)
   let llbuilder = L.builder_at_end context (L.entry_block llfunc) in
-  Hashtbl.clear formal_tbl;
-  Hashtbl.clear local_tbl;
-  init_params llfunc func.formals;
-  ignore (codegen_stmt llbuilder (Block(func.body)));
+  let _ = init_params llfunc func.formals in
+  let llbuilder = codegen_stmt llbuilder (Block(func.body)) in
   (* Finish off the function. *)
   if func.returnType = A.Primitive(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
+  (* TODO: return 0 for main.  *)
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
 let codegen_def_struct (s : A.struct_decl) =

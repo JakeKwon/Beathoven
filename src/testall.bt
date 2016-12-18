@@ -1,5 +1,5 @@
 /*
- * Check the history of this file 
+ * Check the history of this file
  * https://github.com/JakeKwon/Beathoven/commits/master/src/testall.bt
  * to see how our language developed over time
  */
@@ -61,6 +61,13 @@ print(str_of_Note(F4:),' ', str_of_Note(note2), ' ', str_of_Note(note), '\n');
 char ch_a = 'a';
 print("char: ", ch_a, '\n');
 
+// while
+int x = 0;
+while (x < 5) {
+    print(x);
+    x = x + 1;
+}
+print('\n');
 
 func bar(int i, int j) -> unit {
     i = 3;
