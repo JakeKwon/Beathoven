@@ -17,8 +17,8 @@ int _pitch_values[7] = {0,2,4,5,7,9,11};
 
 string _str_of_pitch(pitch p) {
 
-    char c = '\0';
     string _buffer = malloc(4); // garbage!
+    char c = '\0';
     if (p->alter == 1) c = '#';
     else if (p->alter == -1) c = 'b';
     sprintf(_buffer, "%c%d%c", p->key, p->octave, c);
@@ -72,11 +72,13 @@ void _make_midi_from_midi_text(){
 //     return &d;
 // }
 
+
 string _str_of_duration(duration d) {
     string _buffer = malloc(10); // garbage!
     sprintf(_buffer, "%d/%d", d->a, d->b);
     return _buffer;
 }
+
 
 int _get_midi_pitch(pitch p) {
   int note_number_index = 0;
@@ -93,6 +95,19 @@ int _get_midi_pitch(pitch p) {
 }
 
 
+
+
+string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
+    string _buffer = malloc(14); // garbage!
+    pitch p = note->p;
+    duration d = note->d;
+    if (p->alter == 1)
+        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
+    else if (p->alter == -1)
+        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
+    else sprintf(_buffer, "%c%d:%d/%d", p->key, p->octave, d->a, d->b);
+    return _buffer;
+}
 
 /*
 extern struct pitch p;

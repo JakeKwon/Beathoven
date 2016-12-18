@@ -1,2 +1,5 @@
 // pitch
 pitch p = C4;
+pitch q;
+q = C4;
+pitch r = 2;

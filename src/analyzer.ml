@@ -44,6 +44,7 @@ let get_type_from_expr (expr : S.expr) =
   | LitStr(_) -> A.Primitive(String)
   | LitPitch(_,_,_) -> A.Primitive(Pitch)
   | LitDuration(_,_) -> A.Primitive(Duration)
+  | LitNote(_,_) -> A.Musictype(Note)
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
@@ -78,6 +79,9 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitStr(s) -> env, S.LitStr(s)
   | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
   | LitDuration(a, b) -> env, S.LitDuration(a, b)
+  | LitNote(p, d) -> let _, pitch = build_sast_expr env p
+    and _, duration = build_sast_expr env d in
+    env, S.LitNote(pitch, duration)
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2
@@ -261,9 +265,13 @@ and analyze_funccall env s el =
     let check_params (actuals : S.expr list) (formals : A.bind list) =
       if List.length actuals = List.length formals (* && *)
       then
-        (* TODO: type checks as well ?list.iter typecheck each returntype? *)
-        true
-      else false
+        let paramList = List.map2 (fun i j -> get_type_from_expr i = fst j) actuals formals in
+        if List.mem false paramList
+        then
+          raise (Exceptions.ParamTypeNotMatch "types of paramater differ")
+        else
+          true
+      else raise (Exceptions.ParamNumberNotMatch "numbers of paramater differ")
     in
     if check_params sast_el func.formals
     then
@@ -310,6 +318,15 @@ let build_sast_vardecl env t1 s e =
       match t1, t2 with
       | Arraytype(d), Arraytype(Primitive(Unit)) ->
         S.LitArray([], d) (* it means e is [] *)
+      | Primitive(Pitch), Primitive(Int) -> 
+        ( match sast_expr with 
+          | LitInt(d) -> 
+            if d = 0 then S.LitPitch('H',4,0)
+            (* ((d+4) mod 7) + 62) gives right note for each integer input *)
+            else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (((d+4) mod 7) + 62),4,0)
+            else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
+          | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
+        )
       | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
         else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in

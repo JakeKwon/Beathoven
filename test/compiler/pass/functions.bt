@@ -17,7 +17,13 @@ func foo(int a) -> unit {
     print(" by foo\n");
 }
 
+func returnMe(int c) -> int {
+    return c;
+}
+
 printHello();
 printHello();
 bar(1,2);
+int d = returnMe(5);
+print(d);
 

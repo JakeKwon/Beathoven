@@ -1,0 +1,5 @@
+duration p = 2/8; // 1/4
+duration q;
+q = 1/2;
+//print("duration p is ",str_of_duration(p), "\n");
+//print("duration q is ",str_of_duration(q));

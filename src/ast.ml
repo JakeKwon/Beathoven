@@ -5,6 +5,7 @@
  *  - Eunice Kokor
  *)
 
+let beathoven_lib = "stdlib.bt"
 let default_mname = "_bt"
 let default_fname = "_main"
 
@@ -19,7 +20,7 @@ type primitive =
   | Pitch
   | Duration
 
-type musictype = Seq
+type musictype = Note | Seq
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
@@ -48,6 +49,7 @@ type expr =
   | LitStr of string
   | LitPitch of char * int * int (* step * octave * alter *)
   | LitDuration of int * int
+  | LitNote of expr * expr (* pitch * duration *)
   | Null
   | Binop of expr * binary_operator * expr
   | Uniop of unary_operator * expr
@@ -62,9 +64,9 @@ type stmt =
     Block of stmt list
   | Expr of expr
   | VarDecl of datatype * string * expr
+  | Return of expr
   | If of expr * stmt * stmt
   | While of expr * stmt
-  | Return of expr
   | Break
   | Continue
   | Struct of struct_decl
@@ -82,5 +84,7 @@ type btmodule = {
   (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
+
+type include_list = string list
 
 type program = btmodule list
