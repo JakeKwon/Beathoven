@@ -1,3 +1,9 @@
+/*
+ * Check the history of this file 
+ * https://github.com/JakeKwon/Beathoven/commits/master/src/testall.bt
+ * to see how our language developed over time
+ */
+
 // Struct can only be defined outside funcs
 Struct sth {
     int a;

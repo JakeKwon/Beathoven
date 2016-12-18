@@ -12,8 +12,6 @@ Translation Environments
 open Sast
 module StringMap = Map.Make (String)
 
-(* include ?? *)
-let beathoven_lib = "stdlib.bt"
 
 let get_global_func_name mname fname =
   if mname = A.default_mname && fname = A.default_fname

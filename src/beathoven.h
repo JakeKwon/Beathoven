@@ -6,7 +6,6 @@
 /*
 1. Structs with names starting with '_' are invisible to users.
 2. struct Part and its fields are visible to users.
-3. This language shouldn't be implemented in LLVM, not even C.
 */
 
 /* Basic types */
@@ -24,7 +23,7 @@ typedef struct _Arr_int {
 
 // Musictype(Pitch)
 typedef struct _pitch {
-    char key;
+    char key; // Rest: LitPitch('H',_,_)
     int octave;
     int alter;
 } _pitch;
