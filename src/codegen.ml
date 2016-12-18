@@ -453,61 +453,29 @@ let rec codegen_stmt builder = function
     builder
   | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
 
-and codegen_for null_expr1 cond_ null_expr2 body_ builder =
-(*
-init_ == null_expr1
-inc_ ==  null_expr2
-*)
-  let (br_block) = ref (L.block_of_value (L.const_int i32_t 0)) in
-  let (cont_block) = ref (L.block_of_value (L.const_int i32_t 0)) in
-  let is_loop = ref false in
-
-  let old_val = !is_loop in
-  is_loop := true;
-
-  let the_function = L.block_parent (L.insertion_block builder) in
-
-    let _ = codegen_expr builder null_expr1 in
-
-    let loop_bb = L.append_block context "loop" the_function in
-    let inc_bb = L.append_block context "inc" the_function in
-    let cond_bb = L.append_block context "cond" the_function in
-    let after_bb = L.append_block context "afterloop" the_function in
-
-    let _ = if not old_val then
-      cont_block := inc_bb;
-      br_block := after_bb;
-    in
-
-    ignore (L.build_br cond_bb builder);
-
-  L.position_at_end loop_bb builder;
-
-  ignore (codegen_stmt builder body_);
-
-  let bb = L.insertion_block builder in
-  L.move_block_after bb inc_bb;
-  L.move_block_after inc_bb cond_bb;
-  L.move_block_after cond_bb after_bb;
-  ignore(L.build_br inc_bb builder);
-
-  L.position_at_end inc_bb builder;
-
-  let _ = codegen_expr builder null_expr2 in
-  ignore(L.build_br cond_bb builder);
-
-  L.position_at_end cond_bb builder;
-
-  let cond_val = codegen_expr builder cond_ in
-  ignore (L.build_cond_br cond_val loop_bb after_bb builder);
-
-  L.position_at_end after_bb builder;
-
-  is_loop := old_val;
 
 and codegen_while cond_ body_ builder =
-  let null_expr = Null in
-  codegen_for null_expr cond_ null_expr body_ builder
+  let add_terminal builder f =
+  match L.block_terminator (L.insertion_block builder) with
+  Some _ -> ()
+  | None -> ignore(f builder) in
+
+
+    let the_function = L.block_parent (L.insertion_block builder) in
+    let pred_bb = L.append_block context "while" the_function in
+    ignore(L.build_br pred_bb builder);
+
+    let body_bb = L.append_block context "while_body" the_function in
+    add_terminal (codegen_stmt (L.builder_at_end context body_bb) body_)
+      (L.build_br pred_bb);
+
+    let pred_builder = L.builder_at_end context body_bb in
+    let bool_val = codegen_expr builder cond_ in
+
+    let merge_bb = L.append_block context "merge" the_function in
+    ignore(L.build_cond_br bool_val body_bb merge_bb pred_builder);
+    L.builder_at_end context merge_bb
+
 
 and codegen_ret d expr builder =
   match expr with
@@ -541,6 +509,7 @@ and codegen_if_stmt exp then_ (else_:stmt) builder =
   (* Codegen of 'else' can change the current block, update else_bb for the
    * phi. *)
   let new_else_bb = L.insertion_block builder in
+
 
 
   let merge_bb = L.append_block context "ifcont" the_function in
