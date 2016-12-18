@@ -26,6 +26,45 @@ string _str_of_pitch(pitch p) {
     return _buffer;
 }
 
+void _write_sequence_midi_text(Seq input_sequence){
+
+  int midi_pitches[input_sequence.len];
+  float midi_durations[input_sequence.len];
+
+  FILE *file_pointer;
+  char sentenc[1000];
+  file_pointer = fopen("/Users/manubete/Desktop/plt/Beathoven/bet_midi_library/midi_text.txt","w");
+
+  if(file_pointer == NULL){
+      printf("Error! \n");
+      exit(1);
+  }
+
+  int i;
+
+  for(i=0; i < input_sequence.len; i++){
+    midi_pitches[i] = _get_midi_pitch(input_sequence.arr[i].p);
+    midi_durations[i] = (double)(input_sequence.arr[i].d->a) / input_sequence.arr[i].d->b;
+  }
+
+  for(i=0; i < input_sequence.len; i++){
+    fprintf(file_pointer, "%d,", midi_pitches[i]);
+  }
+  fprintf(file_pointer, "-1\n");
+
+  for(i=0; i < input_sequence.len; i++){
+    fprintf(file_pointer, "%f,", midi_durations[i]);
+  }
+  fprintf(file_pointer, "-1\n");
+
+  fclose(file_pointer);
+
+}
+
+void _make_midi_from_midi_text(){
+  const char * script = "./betmidi.sh";
+  system(script);
+}
 
 // _duration d;
 //

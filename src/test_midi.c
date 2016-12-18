@@ -36,64 +36,109 @@ sprintf(str_number_pitch,"%d\n", final_pitch_number);
 puts(str_number_pitch);
 
 
-// make and test sequence, 60 - 62 - 52 - 47 - 48, C4 - D4 - E4 - B3 - C4
+// make other pitch, make into sequence and test with library functions
+_pitch second_pitch_struct;
 
-FILE *file_pointer;
-char sentenc[1000];
-file_pointer = fopen("/Users/manubete/Desktop/plt/Beathoven/bet_midi_library/midi_text.txt","w");
+second_pitch_struct.key = 'D';
+second_pitch_struct.octave = 4;
+second_pitch_struct.alter = 0;
 
-if(file_pointer == NULL){
-    printf("Error! \n");
-    exit(1);
-}
+_duration second_duration_struct;
 
-char pitches[5] = {'C','D','E','B','C'};
-int octaves[5] = {4,4,4,3,4};
+second_duration_struct.a = 1;
+second_duration_struct.b = 4;
 
-int midi_pitches[5];
-float midi_duration[5];
+pitch second_test_pitch = &second_pitch_struct;
+duration second_test_duration = &second_duration_struct;
 
-_pitch seq_pitch_struct;
-_duration seq_duration_struct;
-
-pitch seq_test_pitch = &seq_pitch_struct;
-duration seq_test_duration = &seq_duration_struct;
-
-Note seq_test_note;
-int i;
-
-  for( i = 0; i < 5; i++ ){
-    seq_pitch_struct.key = pitches[i];
-    seq_pitch_struct.octave = octaves[i];
-    seq_pitch_struct.alter = 0;
+Note second_test_note;
+second_test_note.p = second_test_pitch;
+second_test_note.d = second_test_duration;
 
 
-    seq_duration_struct.a = 1;
-    seq_duration_struct.b = 4;
+Seq test_sequence;
+int len = 2;
+Note note_arr[2];
+note_arr[0] = test_note;
+note_arr[1] = second_test_note;
+
+test_sequence.arr = note_arr;
+test_sequence.len = 2;
+
+_write_sequence_midi_text(test_sequence);
+_make_midi_from_midi_text();
 
 
-    seq_test_note.p = seq_test_pitch;
-    seq_test_note.d = seq_test_duration;
+Note n = F:;
+[n, ]
+{F:  }
+arr[1:3]
 
-    midi_pitches[i] = _get_midi_pitch(seq_test_note.p);
-    midi_duration[i] = (double)seq_test_note.d->a;
 
-    printf("midi duration: %.2f \n", midi_duration[i]);
-    printf("Midi note pitch: %d \n", midi_pitches[i]);
 
-  }
+// make and test sequence, 60 - 62 - 52 - 47 - 48, C4 - D4 - E4 - B3 - C4 ------------------------
 
-  // write all pitches
-  for( i = 0; i < 5; i++){
-    fprintf(file_pointer, "%d,", midi_pitches[i]);
-  }
-    fprintf(file_pointer, "-1\n");
+// FILE *file_pointer;
+// char sentenc[1000];
+// file_pointer = fopen("/Users/manubete/Desktop/plt/Beathoven/bet_midi_library/midi_text.txt","w");
 
-  // write all durations
-  for( i = 0; i < 5; i++){
-    fprintf(file_pointer, "%f,", midi_duration[i]);
-  }
-    fprintf(file_pointer, "-1\n");
+// if(file_pointer == NULL){
+//     printf("Error! \n");
+//     exit(1);
+// }
+
+// char pitches[5] = {'C','D','E','B','C'};
+// int octaves[5] = {4,4,4,3,4};
+
+// int midi_pitches[5];
+// float midi_duration[5];
+
+// _pitch seq_pitch_struct;
+// _duration seq_duration_struct;
+
+// pitch seq_test_pitch = &seq_pitch_struct;
+// duration seq_test_duration = &seq_duration_struct;
+
+// Note seq_test_note;
+// int i;
+
+//   for( i = 0; i < 5; i++ ){
+//     seq_pitch_struct.key = pitches[i];
+//     seq_pitch_struct.octave = octaves[i];
+//     seq_pitch_struct.alter = 0;
+
+
+//     seq_duration_struct.a = 1;
+//     seq_duration_struct.b = 4;
+
+
+//     seq_test_note.p = seq_test_pitch;
+//     seq_test_note.d = seq_test_duration;
+
+//     midi_pitches[i] = _get_midi_pitch(seq_test_note.p);
+//     midi_duration[i] = (double)seq_test_note.d->a;
+
+//     printf("midi duration: %.2f \n", midi_duration[i]);
+//     printf("Midi note pitch: %d \n", midi_pitches[i]);
+
+//   }
+
+//   // write all pitches
+//   for( i = 0; i < 5; i++){
+//     fprintf(file_pointer, "%d,", midi_pitches[i]);
+//   }
+//     fprintf(file_pointer, "-1\n");
+
+//   // write all durations
+//   for( i = 0; i < 5; i++){
+//     fprintf(file_pointer, "%f,", midi_duration[i]);
+//   }
+//     fprintf(file_pointer, "-1\n");
+
+//   fclose(file_pointer);
+
+
+
 // Note c4_seq_test_note_ii;
 // c4_seq_test_note_ii.p = c4_test_pitch;
 
