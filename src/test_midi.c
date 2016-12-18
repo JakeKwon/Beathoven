@@ -69,10 +69,10 @@ _write_sequence_midi_text(test_sequence);
 _make_midi_from_midi_text();
 
 
-Note n = F:;
-[n, ]
-{F:  }
-arr[1:3]
+// Note n = F:;
+// [n, ]
+// {F:  }
+// arr[1:3]
 
 
 
