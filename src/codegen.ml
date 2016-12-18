@@ -446,11 +446,68 @@ let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
   | Return(e, d) -> ignore(codegen_ret d e builder); builder
+  | While(e, s) -> ignore(codegen_while e s builder); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
     builder
   | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
+
+and codegen_for null_expr1 cond_ null_expr2 body_ builder =
+(*
+init_ == null_expr1
+inc_ ==  null_expr2
+*)
+  let br_block = ref (L.block_of_value (L.const_int i32_t 0)) in
+  let (cont_block) = ref (L.block_of_value (L.const_int i32_t 0)) in
+  let is_loop = ref false in
+
+  let old_val = !is_loop in
+  is_loop := true;
+
+  let the_function = L.block_parent (L.insertion_block builder) in
+
+    let _ = codegen_expr builder null_expr1 in
+
+    let loop_bb = L.append_block context "loop" the_function in
+    let inc_bb = L.append_block context "inc" the_function in
+    let cond_bb = L.append_block context "cond" the_function in
+    let after_bb = L.append_block context "afterloop" the_function in
+
+    let _ = if not old_val then
+      cont_block := inc_bb;
+      br_block := after_bb;
+    in
+
+    ignore (L.build_br cond_bb builder);
+
+  L.position_at_end loop_bb builder;
+
+  ignore (codegen_stmt builder body_);
+
+  let bb = L.insertion_block builder in
+  L.move_block_after bb inc_bb;
+  L.move_block_after inc_bb cond_bb;
+  L.move_block_after cond_bb after_bb;
+  ignore(L.build_br inc_bb builder);
+
+  L.position_at_end inc_bb builder;
+
+  let _ = codegen_expr builder null_expr2 in
+  ignore(L.build_br cond_bb builder);
+
+  L.position_at_end cond_bb builder;
+
+  let cond_val = codegen_expr builder cond_ in
+  ignore (L.build_cond_br cond_val loop_bb after_bb builder);
+
+  L.position_at_end after_bb builder;
+
+  is_loop := old_val;
+
+and codegen_while cond_ body_ builder =
+  let null_expr = Null in
+  codegen_for null_expr cond_ null_expr body_ builder
 
 and codegen_ret d expr builder =
   match expr with
