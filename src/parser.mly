@@ -152,6 +152,8 @@ expr:
   | expr ASSIGN expr_array { Assign($1, $3) }
   /* | expr_array { $1 } This has shift/reduce error. Why?? My mind stucks now */
 
+/*TODO: expr_with_array: */
+
 expr_with_note:
   | expr { $1 }
   | literal_note { $1 }

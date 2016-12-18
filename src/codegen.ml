@@ -43,6 +43,7 @@ let is_main = ref false
 (* All vardecls in main adopt global name and
    are defined as global variables in codegen. *)
 let global_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
+(* Use our own literal lookup instead of L.lookup_global  *)
 let literal_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 100
 
 let local_tbl:(string, L.llvalue) Hashtbl.t = Hashtbl.create 50
@@ -103,6 +104,7 @@ let get_bind_type d =
 let lltype_of_bind_list (bind_list : A.bind list) =
   List.map (fun (d, _) -> get_bind_type d) bind_list
 
+
 (* Declare local variable and remember its llvalue in local_tbl *)
 let codegen_local_allocate (typ : A.datatype) var_name builder =
   if _debug then Log.debug ("codegen_local_allocate: " ^ var_name);
@@ -119,22 +121,11 @@ let codegen_global_allocate (typ : A.datatype) var_name builder =
   Hashtbl.add global_tbl var_name alloca;
   alloca
 
-let codegen_lit_alloca isPermanent (typ : A.datatype) var_name builder =
-  let lltype = (* Actual type of literals *)
-    match typ with
-    | Primitive(Duration) -> lookup_struct "_duration"
-    | Primitive(Pitch) -> lookup_struct "_pitch"
-    | _ -> lltype_of_datatype typ
-  in
-  let zeroinitializer = L.const_null lltype in
-  let alloca = L.define_global var_name zeroinitializer the_module in
-  if isPermanent then Hashtbl.add literal_tbl var_name alloca;
-  alloca (* ref lltype *)
-
 let codegen_allocate (typ : A.datatype) var_name builder =
   if _debug then Log.debug ("codegen_allocate: " ^ var_name);
   if !is_main then codegen_global_allocate typ var_name builder
   else codegen_local_allocate typ var_name builder
+
 
 (* Return the value for a variable or formal argument *)
 (* duplicate name in formal will be overwritten by local *)
@@ -176,6 +167,20 @@ let lookup_id id builder =
       with Not_found -> raise (Exceptions.VariableNotDefined s))
   | _ -> raise (Exceptions.Impossible("lookup_id"))
 
+
+let codegen_lit_alloca isPermanent (typ : A.datatype) var_name builder =
+  let lltype = (* Actual type of literals *)
+    match typ with
+    | Primitive(Duration) -> lookup_struct "_duration"
+    | Primitive(Pitch) -> lookup_struct "_pitch"
+    | _ -> lltype_of_datatype typ
+  in
+  let zeroinitializer = L.const_null lltype in
+  let alloca = L.define_global var_name zeroinitializer the_module in
+  if isPermanent then Hashtbl.add literal_tbl var_name alloca;
+  (* TODO: temp using L.build_alloca *)
+  alloca (* ref lltype *)
+
 let get_lit_alloca isPermanent name d (l : (string * L.llvalue) list) builder =
   let alloca = codegen_lit_alloca isPermanent d name builder in
   let set_struct_field i (field, llvalue) =
@@ -190,18 +195,10 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
   try Hashtbl.find literal_tbl name
   with | Not_found ->
     get_lit_alloca true name d l builder
-    (* An alternative is to use initializer (but need a table for initializer, )
+(* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
-(*
-let cast_literal_alloca name d ptr_lit builder =
-  (* Store ptr_lit in a tmp variable  *)
-  let alloca = codegen_allocate d (".pl_" ^ name) builder in
-  ignore(L.build_store ptr_lit alloca builder);
-  L.build_load alloca ".ptrlit" builder
-  (* TODO: alternative, bitcast?? ptr_lit *)
- *)
 
 (* -------------------------------------------- *)
 
@@ -223,8 +220,8 @@ let codegen_duration a b builder =
       [("a", L.const_int i32_t a); ("b", L.const_int i32_t b)] builder
   in
   ptr_lit (* primitive: _duration* *)
-  (* Seems there is no need to cast, since when assign we simply store it. *)
-  (* cast_literal_alloca duration (A.Primitive(Duration)) ptr_lit builder *)
+(* Seems there is no need to cast, since when assign we simply store it. *)
+(* cast_literal_alloca duration (A.Primitive(Duration)) ptr_lit builder *)
 
 (* ----- Functions ----- *)
 
@@ -407,6 +404,8 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
    | Neg -> L.build_neg
    | Not -> L.build_not) e1' "tmp" builder
 
+(* ----- Expressions ----- *)
+
 (* Construct code for an expression; return its llvalue.
    For non-primitive type, the returned llvalue is ref.
 *)
@@ -442,50 +441,49 @@ and codegen_expr_ref builder expr =
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d true builder
   | _ -> raise (Exceptions.ExpressionNotAssignable(Pprint.string_of_expr expr))
 
+
+(* ----- Statements ----- *)
+
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
-  | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
     builder
-  | If (e, s1, s2) -> codegen_if_stmt e s1 s2 builder
+  | Return(e, d) -> ignore(codegen_ret d e builder); builder
+  | If(e, s1, s2) -> codegen_if e s1 s2 builder
+  | While(pred, body) -> codegen_while pred body builder
+  | Break -> builder (*TODO*)
+  | Continue -> builder (*TODO*)
+  | _ -> Core.Std.failwith "[Impossible] Struct declaration are skiped in analyzer"
 
 and codegen_ret d expr builder =
   match expr with
     Noexpr -> L.build_ret_void builder
-    | _ -> L.build_ret (codegen_expr builder expr) builder
+  | _ -> L.build_ret (codegen_expr builder expr) builder
 
-and codegen_if_stmt exp then_ (else_:stmt) builder =
+and codegen_if exp then_ (else_:stmt) builder =
   let cond_val = codegen_expr builder exp in
-
   (* Grab the first block so that we might later add the conditional branch
    * to it at the end of the function. *)
   let start_bb = L.insertion_block builder in
   let the_function = L.block_parent start_bb in
-
   let then_bb = L.append_block context "then" the_function in
-
   (* Emit 'then' value. *)
   L.position_at_end then_bb builder;
   let _(* then_val *) = codegen_stmt builder then_ in
-
   (* Codegen of 'then' can change the current block, update then_bb for the
    * phi. We create a new name because one is used for the phi node, and the
    * other is used for the conditional branch. *)
   let new_then_bb = L.insertion_block builder in
-
   (* Emit 'else' value. *)
   let else_bb = L.append_block context "else" the_function in
   L.position_at_end else_bb builder;
   let _ (* else_val *) = codegen_stmt builder else_ in
-
   (* Codegen of 'else' can change the current block, update else_bb for the
    * phi. *)
   let new_else_bb = L.insertion_block builder in
-
-
   let merge_bb = L.append_block context "ifcont" the_function in
   L.position_at_end merge_bb builder;
   (* let then_bb_val = value_of_block new_then_bb in *)
@@ -507,6 +505,29 @@ and codegen_if_stmt exp then_ (else_:stmt) builder =
 
   (* else_bb_val *) (* phi *)
   builder
+
+and codegen_while condition body builder =
+  let the_function = L.block_parent (L.insertion_block builder) in
+  let add_terminal builder' f =
+    match L.block_terminator (L.insertion_block builder') with
+    | Some ll -> Log.debug ("codegen_while: " ^ (L.string_of_llvalue ll))
+    | None -> ignore (f builder') (* Add a terminal, a branch *)
+  in
+  (* Insert condition block *)
+  let cond_bb = L.append_block context "loop_cond" the_function in
+  let body_bb = L.append_block context "loop_body" the_function in
+  let merge_bb = L.append_block context "loop_merge" the_function in
+  (* br label %loop_cond *)
+  let _ = L.build_br cond_bb builder in
+  (* Build loop_cond block *)
+  let cond_builder = L.builder_at_end context cond_bb in
+  let cond_val = codegen_expr cond_builder condition in
+  let _ = L.build_cond_br cond_val body_bb merge_bb cond_builder in
+  (* Build loop_body block *)
+  let body_builder = codegen_stmt (L.builder_at_end context body_bb) body in
+  add_terminal body_builder (L.build_br cond_bb);
+  L.builder_at_end context merge_bb
+
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)

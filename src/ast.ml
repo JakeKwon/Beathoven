@@ -64,9 +64,9 @@ type stmt =
     Block of stmt list
   | Expr of expr
   | VarDecl of datatype * string * expr
+  | Return of expr
   | If of expr * stmt * stmt
   | While of expr * stmt
-  | Return of expr
   | Break
   | Continue
   | Struct of struct_decl
