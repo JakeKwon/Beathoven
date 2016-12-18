@@ -79,6 +79,7 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(Char) -> i8_t
   | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
   | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
+  | Musictype(Note) -> lookup_struct "Note"
   | Structtype(s) -> lookup_struct s
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
@@ -95,9 +96,9 @@ and lookup_array (d : A.datatype) =
 let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
-  | Structtype(_) -> L.pointer_type lltype
+  | Primitive(_) -> lltype
   (* TODO: Array *)
-  | _ -> lltype
+  | _ -> L.pointer_type lltype
 
 let lltype_of_bind_list (bind_list : A.bind list) =
   List.map (fun (d, _) -> get_bind_type d) bind_list
@@ -118,7 +119,7 @@ let codegen_global_allocate (typ : A.datatype) var_name builder =
   Hashtbl.add global_tbl var_name alloca;
   alloca
 
-let codegen_lit_alloca (typ : A.datatype) var_name builder =
+let codegen_lit_alloca isPermanent (typ : A.datatype) var_name builder =
   let lltype = (* Actual type of literals *)
     match typ with
     | Primitive(Duration) -> lookup_struct "_duration"
@@ -127,8 +128,8 @@ let codegen_lit_alloca (typ : A.datatype) var_name builder =
   in
   let zeroinitializer = L.const_null lltype in
   let alloca = L.define_global var_name zeroinitializer the_module in
-  Hashtbl.add literal_tbl var_name alloca;
-  alloca (* ptr of lltype *)
+  if isPermanent then Hashtbl.add literal_tbl var_name alloca;
+  alloca (* ref lltype *)
 
 let codegen_allocate (typ : A.datatype) var_name builder =
   if _debug then Log.debug ("codegen_allocate: " ^ var_name);
@@ -175,17 +176,21 @@ let lookup_id id builder =
       with Not_found -> raise (Exceptions.VariableNotDefined s))
   | _ -> raise (Exceptions.Impossible("lookup_id"))
 
+let get_lit_alloca isPermanent name d (l : (string * L.llvalue) list) builder =
+  let alloca = codegen_lit_alloca isPermanent d name builder in
+  let set_struct_field i (field, llvalue) =
+    let field' = L.build_struct_gep alloca i (name ^ "." ^ field) builder in
+    ignore(L.build_store llvalue field' builder)
+  in
+  List.iteri set_struct_field l;
+  alloca
+
+(* These literals have unique id and will be stored in literal_tbl *)
 let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
   try Hashtbl.find literal_tbl name
   with | Not_found ->
-    let alloca = codegen_lit_alloca d name builder in
-    let set_struct_field i (field, llvalue) =
-      let field' = L.build_struct_gep alloca i (name ^ "." ^ field) builder in
-      ignore(L.build_store llvalue field' builder)
-    in
-    List.iteri set_struct_field l;
-    alloca
-(* An alternative is to use initializer (but need a table for initializer, )
+    get_lit_alloca true name d l builder
+    (* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
@@ -301,6 +306,11 @@ and codegen_assign lhs_expr rhs_expr builder =
 
 (* ----- Struct ----- *)
 
+and codegen_note pitch duration builder =
+  let p = codegen_expr builder pitch and d = codegen_expr builder duration in
+  null_ll
+  (* TODO *)
+
 and codegen_structfield struct_expr fid isref builder =
   let struct_ll = codegen_expr builder struct_expr in
   (* let struct_ll = lookup_id sid builder in *)
@@ -411,6 +421,7 @@ and codegen_expr builder = function
   | LitChar c -> L.const_int i8_t (Char.code c)
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* load *)
   | LitDuration(a, b) -> codegen_duration a b builder (* load *)
+  | LitNote(p, d) -> codegen_note p d builder
   | Noexpr -> null_ll
   | Null -> null_ll
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder

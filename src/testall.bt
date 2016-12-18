@@ -7,15 +7,13 @@ Struct sth {
 
 Struct sth s;
 Struct sth t;
-s.a = 17; // assign field
-s.b = "struct string\n";
+s.a = 1; // assign field
+s.b = " t string\n";
 t = s; // copy structs
-//print(t.a, t.b, "\n"); // load field
-print(t.a);
-print(t.b);
-s.b = "struct s changed\n";
-print(t.b);
+print(t.a, t.b); // load field
+s.b = "string s changed\n";
 print(s.b);
+print(t.b);
 
 // Array is Python-like
 int [] arr;
@@ -27,9 +25,9 @@ print(arr[3], " array is good\n");
 
 // Array of structs
 Struct sth [] sth_arr = [s, t, t];
-s.b = "struct s back\n";
-print(sth_arr[0].b);
-print(sth_arr[1].b);
+s.b = "struct s should not back\n";
+print("s'copy in arr: ", sth_arr[0].b);
+print("t'copy in arr: ", sth_arr[1].b);
 
 // String equation
 string str_a = "a";
@@ -48,7 +46,7 @@ print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
 
 // char
 char ch_a = 'a';
-print(ch_a);
+print("char: ", ch_a, '\n');
 
 
 func bar(int i, int j) -> unit {
@@ -67,7 +65,6 @@ func foo(int a) -> unit {
 int a = 1;
 int b = 1 + 2;
 bar(a, b);
-print(a);
 
 // pitch p;
 
@@ -75,3 +72,4 @@ bool c;
 c = (2 <= 2);
 c = (2 != 2);
 print("\n");
+//*/

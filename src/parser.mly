@@ -151,6 +151,8 @@ expr:
 */
   | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
   | LPAREN expr RPAREN { $2 }
+  | expr ASSIGN expr_array { Assign($1, $3) }
+  /* this has shift/reduce error. Why?? | expr_array { $1 }*/
 
 expr_with_note:
   | expr { $1 }

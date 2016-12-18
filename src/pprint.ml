@@ -23,6 +23,7 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Char) -> "char"
   | Primitive(Pitch) -> "pitch"
   | Primitive(Duration) -> "duration"
+  | Musictype(Note) -> "Note"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
 (* TODO J: other datatypes  *)
@@ -85,6 +86,10 @@ let rec json_of_expr expr =
       `Assoc [("pitch", `String p)]
     | LitDuration(a, b) ->
       `Assoc [("duration", `String ((string_of_int a) ^ "/" ^ (string_of_int b)))]
+    | LitNote(p, d) -> `Assoc [("Note",
+                                `Assoc [("pitch", (json_of_expr p));
+                                        ("duration", (json_of_expr d));
+                                       ])]
     | Binop(e1, op, e2, d) -> `Assoc [("binop",
                                        `Assoc [("lhs", (json_of_expr e1));
                                                ("op", `String (string_of_op op));

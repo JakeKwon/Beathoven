@@ -44,6 +44,7 @@ let get_type_from_expr (expr : S.expr) =
   | LitStr(_) -> A.Primitive(String)
   | LitPitch(_,_,_) -> A.Primitive(Pitch)
   | LitDuration(_,_) -> A.Primitive(Duration)
+  | LitNote(_,_) -> A.Musictype(Note)
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
@@ -78,6 +79,9 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitStr(s) -> env, S.LitStr(s)
   | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
   | LitDuration(a, b) -> env, S.LitDuration(a, b)
+  | LitNote(p, d) -> let _, pitch = build_sast_expr env p
+    and _, duration = build_sast_expr env d in
+    env, S.LitNote(pitch, duration)
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2

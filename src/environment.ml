@@ -65,6 +65,10 @@ let (builtin_types_list : A.struct_decl list) =
    {
      A.sname = "_duration";
      A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
+   };
+   {
+     A.sname = "Note";
+     A.fields = [(A.Primitive(Pitch), "p");(A.Primitive(Duration), "d");];
    };]
 
 let (builtin_types : A.struct_decl StringMap.t) =
