@@ -308,8 +308,7 @@ and codegen_assign lhs_expr rhs_expr builder =
 
 and codegen_note pitch duration builder =
   let p = codegen_expr builder pitch and d = codegen_expr builder duration in
-  null_ll
-  (* TODO *)
+  get_lit_alloca false ".litNote" (A.Musictype(Note)) [("p", p); ("d", d)] builder
 
 and codegen_structfield struct_expr fid isref builder =
   let struct_ll = codegen_expr builder struct_expr in
@@ -412,7 +411,7 @@ and codegen_unop (op : Sast.A.unary_operator) e1 builder =
    For non-primitive type, the returned llvalue is ref.
 *)
 and codegen_expr builder = function
-    Id(_, _) as id -> load_id id builder
+  | Id(_, _) as id -> load_id id builder
   | StructField(e, f, _) -> codegen_structfield e f false builder (* load *)
   | LitBool b -> L.const_int i1_t (if b then 1 else 0)
   | LitInt i -> L.const_int i32_t i
@@ -421,7 +420,7 @@ and codegen_expr builder = function
   | LitChar c -> L.const_int i8_t (Char.code c)
   | LitPitch(k, o, a) -> codegen_pitch k o a builder (* load *)
   | LitDuration(a, b) -> codegen_duration a b builder (* load *)
-  | LitNote(p, d) -> codegen_note p d builder
+  | LitNote(p, d) -> codegen_note p d builder (* ref  *)
   | Noexpr -> null_ll
   | Null -> null_ll
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
@@ -514,6 +513,8 @@ let codegen_builtin_funcs () =
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
   let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in
   let _ = L.declare_function "_str_of_duration" _str_of_duration_t the_module in
+  let _str_of_Note_t = L.function_type str_t [| get_bind_type (A.Musictype(Note)) |] in
+  let _ = L.declare_function "_str_of_Note" _str_of_Note_t the_module in
   ()
 
 let codegen_def_func func =

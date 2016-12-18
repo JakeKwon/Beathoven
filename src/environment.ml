@@ -98,6 +98,8 @@ let (builtin_funcs : func_decl StringMap.t) =
       (get_func_decl "_str_of_pitch" string_t [ pitch_t ]) map in
   let map = StringMap.add "str_of_duration"
       (get_func_decl "_str_of_duration" string_t [ duration_t ]) map in
+  let map = StringMap.add "str_of_Note"
+      (get_func_decl "_str_of_Note" string_t [ A.Musictype(Note) ]) map in
   map
 (*
 let add_reserved_functions =

@@ -43,6 +43,12 @@ duration q = 2/8; // 1/4
 pitch p = pitch';
 print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
 
+// Note
+Note note;
+Note note2 = F4:1/8;
+note = :1/1;
+print(str_of_Note(F4:),' ', str_of_Note(note2), ' ', str_of_Note(note), '\n');
+
 
 // char
 char ch_a = 'a';
