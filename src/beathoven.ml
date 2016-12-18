@@ -32,7 +32,6 @@ let _ =
   try
     let ast = Parser.program Scanner.token lexbuf in
     let sast = Analyzer.analyze_ast ast in
-    (*let prog = Generator.gen_program ast in *)
     match action with
     | Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
     | Raw -> ()

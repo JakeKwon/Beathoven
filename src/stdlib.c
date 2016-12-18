@@ -22,7 +22,7 @@ string _str_of_duration(duration d) {
 }
 
 
-string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter 
+string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
     string _buffer = malloc(14); // garbage!
     pitch p = note->p;
     duration d = note->d;

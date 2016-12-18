@@ -5,6 +5,7 @@
  *  - Eunice Kokor
  *)
 
+let beathoven_lib = "stdlib.bt"
 let default_mname = "_bt"
 let default_fname = "_main"
 
@@ -83,5 +84,7 @@ type btmodule = {
   (* TODO: usr_type Enum *)
   funcs : func_decl list;
 }
+
+type include_list = string list
 
 type program = btmodule list
