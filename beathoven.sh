@@ -2,6 +2,7 @@
 
 MYDIR="$(dirname "$(which "$0")")"
 BEAT_FILE="$MYDIR/src/beathoven"
+pwd
 cp $MYDIR/src/stdlib.bc .
 
 if [ ! -f $BEAT_FILE ]; then

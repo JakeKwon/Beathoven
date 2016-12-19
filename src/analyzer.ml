@@ -318,6 +318,15 @@ let build_sast_vardecl env t1 s e =
       match t1, t2 with
       | Arraytype(d), Arraytype(Primitive(Unit)) ->
         S.LitArray([], d) (* it means e is [] *)
+      | Primitive(Pitch), Primitive(Int) -> 
+        ( match sast_expr with 
+          | LitInt(d) -> 
+            if d = 0 then S.LitPitch('H',4,0)
+            (* ((d+4) mod 7) + 62) gives right note for each integer input *)
+            else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (((d+4) mod 7) + 62),4,0)
+            else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
+          | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
+        )
       | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
         else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in

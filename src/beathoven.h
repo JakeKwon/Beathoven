@@ -6,12 +6,12 @@
 /*
 1. Structs with names starting with '_' are invisible to users.
 2. struct Part and its fields are visible to users.
-3. This language shouldn't be implemented in LLVM, not even C.
 */
 
 /* Basic types */
 
 typedef char * string;
+
 
 // Arraytype(Int)
 typedef struct _Arr_int {
@@ -24,11 +24,12 @@ typedef struct _Arr_int {
 
 // Musictype(Pitch)
 typedef struct _pitch {
-    char key;
+    char key; // Rest: LitPitch('H',_,_)
     int octave;
     int alter;
 } _pitch;
 typedef const _pitch * pitch; // since _pitch is literal
+
 
 // Musictype(Duration)
 typedef struct _duration {
@@ -36,6 +37,7 @@ typedef struct _duration {
     int b;
 } _duration;
 typedef const _duration * duration;
+
 
 // Musictype(Note)
 typedef struct Note {
@@ -51,6 +53,7 @@ typedef struct Chord {
     // or
     //Note notes[4];
 } Chord;
+
 typedef struct _note_or_chord {
     int type;
     union {
@@ -64,6 +67,7 @@ typedef struct _note_or_chord {
     // } ele;
     // But, avoid pointers unless it's inevitable
 } _Seq_ele;
+
 */
 
 /* Composite music types */
@@ -74,6 +78,7 @@ typedef struct Seq {
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
+
 
 typedef struct _Sequence {
     Seq seq;
@@ -93,6 +98,7 @@ typedef struct Part {
     // Chord keySignature;
     // Enum Instrument instrument;
 } Part;
+
 
 // Part[]
 typedef struct _Arr_Part {

@@ -12,8 +12,6 @@ Translation Environments
 open Sast
 module StringMap = Map.Make (String)
 
-(* include ?? *)
-let beathoven_lib = "stdlib.bt"
 
 let get_global_func_name mname fname =
   if mname = A.default_mname && fname = A.default_fname
@@ -94,6 +92,8 @@ let (builtin_funcs : func_decl StringMap.t) =
   let map = StringMap.empty in
   let map = StringMap.add "print"
       (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "render_as_midi"
+      (get_func_decl "render_as_midi" unit_t [ A.Arraytype(A.Musictype(Note)) ]) map in (* TODO: add the param *)
   let map = StringMap.add "str_of_pitch"
       (get_func_decl "_str_of_pitch" string_t [ pitch_t ]) map in
   let map = StringMap.add "str_of_duration"

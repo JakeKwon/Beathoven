@@ -1,2 +1,3 @@
-string weird = "/";
+// move this to test/fail
+string weird = "\";
 print(weird);
