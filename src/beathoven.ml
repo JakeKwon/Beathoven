@@ -23,11 +23,10 @@ let get_pos_and_tok lexbuf =
 
 
 let _ =
-  let action =
-    if Array.length Sys.argv > 1 then
-      List.assoc Sys.argv.(1)
-        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)]
-    else Compile in
+  let action = List.assoc Sys.argv.(1)
+        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)] in
+  if action = Help then print_endline get_help
+    else
   let lexbuf = Lexing.from_channel stdin in
   try
     let ast = Parser.program Scanner.token lexbuf in
