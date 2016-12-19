@@ -1,0 +1,11 @@
+int x = 0;
+
+while (x < 3) {
+  if (x == 2){
+    print("y\n");
+  }
+  else {
+    print("x\n");
+  }
+  x=x+1;
+}
