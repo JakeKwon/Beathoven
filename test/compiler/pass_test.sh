@@ -78,7 +78,6 @@ RunFail() {
 Compare() {
     # generatedfiles="$generatedfiles $3"
     printf "Comparing... $* \n"
-    printf "diff -b $1 $2 > $3\n"
     echo diff -b $1 $2 ">" $3 1>&2
     diff -b "$1" "$2" > "$3" 2>&1 || {
         SignalError "$1 differs. See globallog.log file for breakdown."
@@ -107,7 +106,10 @@ Check(){
 
     # Run "$MICROC" "<" $1 ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
-    Run "$BEAT" "<" $1 ">" "$TMP_LLI_FILE"
+    # Run "$BEAT" "<" $1 ">" "$TMP_LLI_FILE"
+
+    Run $BEAT $1 $TMP_LLI_FILE
+
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # printf $TMP_OUT_FILE ${reffile}.out logs/${basename}.diff
     Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
