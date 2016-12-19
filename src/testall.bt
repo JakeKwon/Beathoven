@@ -75,7 +75,7 @@ while (x < 5) {
 print('\n');
 
 func bar(int i, int j) -> unit {
-    i = 3;
+    i = j = 3; // assignment 
     for (i = 0; i < 10; i = i + 1) {
         print(i);
     }
@@ -89,7 +89,7 @@ func foo(int a) -> unit {
     print(" by foo\n");
 }
 
-int a = 1;
+int a;
 int b = 1 + 2;
 bar(a, b);
 

@@ -10,7 +10,7 @@
 %}
 
 /* Token and type specifications */
-%token <int> LIT_INT
+%token <int> LIT_INT LIT_INT_DOTS
 %token <bool> LIT_BOOL
 %token <string> LIT_STR
 %token <float> LIT_DOUBLE
@@ -28,7 +28,7 @@
 %token COLON DOT COMMA
 %token NOT AND OR
 %token RARROW
-%token SLASH PARALLEL APOSTROPHE
+%token SLASH PARALLEL APOSTROPHE DOTS
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
@@ -67,15 +67,15 @@ literal_pitch:
     (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
     (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
 
-literal_note_complete:
-  | LIT_INT APOSTROPHE literal_duration { LitNote(LitInt($1), $3) }
-  | literal_pitch APOSTROPHE literal_duration { LitNote($1, $3) }
+literal_note_complete: /* Maybe I should parse Note literals in scanner with regex */
+  | LIT_INT_DOTS literal_duration { LitNote(LitInt($1), $2) } /* For 5..1/4 */
+  | LIT_INT DOTS literal_duration { LitNote(LitInt($1), $3) } /* For 5 ..1/4 */
+  | literal_pitch DOTS literal_duration { LitNote($1, $3) }
 
 literal_note:
     literal_note_complete { $1 }
-  | LIT_INT APOSTROPHE { LitNote(LitInt($1), LitDuration(1, 4)) } /* don't have this in LRM!! */
-  | literal_pitch APOSTROPHE { LitNote($1, LitDuration(1, 4)) } /* don't have this in LRM!! */
-  | APOSTROPHE literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
+    /* LitSeq only supports complete literal note */
+  | DOTS literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
 
 literal:
   /*| NULL { Null }*/
@@ -145,24 +145,32 @@ expr:
   | ids ASSIGN expr { Assign($1, $3) }
   | ids LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LBRACK expr_list RBRACK { LitArray($2) }
-  | PARALLEL note_list OCTAVE_LOWER { LitSeq($2) }
+  | LT note_list GT { LitSeq($2) }
   | LPAREN expr RPAREN { $2 }
 
 
-/* ------------------- Expressions List ------------------- */
+/* ------------------- Note List ------------------- */
 
 note_list:
   | note_rev_list { List.rev $1 }
 
+note:
+    ids { $1 }
+  | LIT_INT { LitNote(LitInt($1), LitDuration(1, 4)) }
+  | literal_pitch { LitNote($1, LitDuration(1, 4)) }
+  | literal_note_complete { $1 }
+  | ids DOTS literal_duration { LitNote($1, $3) }
+  | ids DOTS ids { LitNote($1, $3) }
+  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) }
+  | LIT_INT DOTS ids { LitNote(LitInt($1), $3) }
+  | literal_pitch DOTS ids { LitNote($1, $3) }
+  /* TODO: LitInt(), ids are not yet supported for Note */
+
 note_rev_list:
     /* nothing */ { [] }
-  | note_rev_list ids { $2 :: $1 }
-  | note_rev_list LIT_INT { LitNote(LitInt($2), LitDuration(1, 4)) :: $1 }
-  | note_rev_list literal_pitch { LitNote($2, LitDuration(1, 4)) :: $1 }
-  | note_rev_list literal_note_complete { $2 :: $1 }
-  /* TODO: LitInt() is not yet supported for Note */
-  /*| note_rev_list literal_duration { LitNote(LitPitch('C', 4, 0), $2) :: $1 }*/
+  | note_rev_list note { $2 :: $1 } /* note that id can be whatever datatype */
 
+/* ------------------- Expressions List ------------------- */
 
 expr_list:
     /* nothing */ { [] }
