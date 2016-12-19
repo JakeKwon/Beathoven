@@ -51,6 +51,7 @@ let get_type_from_expr (expr : S.expr) =
   | Assign(_,_,d) -> d
   | FuncCall(_,_,d)-> d
   | Noexpr -> A.Primitive(Unit)
+  | LitSeq(_) -> Musictype(Seq)
   | LitArray(_,d) -> Arraytype(d)
   | ArrayIdx(_,_,d) -> d
   | ArraySub(_,_,_,d) -> d
@@ -59,7 +60,18 @@ let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
 
-(* ------------------- debug ------------------- *)
+(* -------------------  ------------------- *)
+
+let get_litpitch (sast_expr : S.expr) =
+  match sast_expr with
+  | LitInt(d) ->
+    if d = 0 then S.LitPitch('H',4,0)
+    (* ((d+4) mod 7) + 62) gives right note for each integer input *)
+    else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (( (d+1) mod 7 + 65)),4,0)
+    else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
+  | LitPitch(_,_,_) -> sast_expr
+  | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
+
 
 let get_map_size map =
   StringMap.fold (fun k v i -> i + 1) map 0
@@ -79,9 +91,7 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitStr(s) -> env, S.LitStr(s)
   | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
   | LitDuration(a, b) -> env, S.LitDuration(a, b)
-  | LitNote(p, d) -> let _, pitch = build_sast_expr env p
-    and _, duration = build_sast_expr env d in
-    env, S.LitNote(pitch, duration)
+  | LitNote(p, d) -> analyze_note env p d
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2
@@ -89,6 +99,7 @@ let rec build_sast_expr env (expr : A.expr) =
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
+  | LitSeq(el) -> analyze_seq env el
   | LitArray(el) -> analyze_array env el
   | ArrayIdx(a, e) -> analyze_arrayidx env a e
   | ArraySub(a, e1, e2) -> analyze_arraysub env a e1 e2
@@ -118,8 +129,35 @@ and analyze_struct env e f =
   let field_id = S.Id(snd field_bind, fst field_bind) in
   env, S.StructField(sast_expr, field_id, fst field_bind)
 
+and analyze_note env p d =
+    let _, pitch = build_sast_expr env p in
+    let pitch = get_litpitch pitch in
+    let _, duration = build_sast_expr env d in
+    env, S.LitNote(pitch, duration)
 (* ----- Array ----- *)
 
+and analyze_seq env (expr_list:A.expr list) =
+  let _, sast_expr_list = build_sast_expr_list env expr_list in
+  if List.length sast_expr_list = 0 then
+    env, S.LitSeq([])
+  else
+    let flattened_sast_expr_list =
+      let flatten_seq l (expr : S.expr) =
+        match get_type_from_expr expr with
+        | A.Musictype(Note) -> expr :: l
+        | A.Musictype(Seq) -> (
+            match expr with
+            | LitSeq(el) -> (List.rev el) @ l
+            | _ -> expr :: l
+          )
+        (* Future: Chord *)
+        | _ -> Log.error "[TypeNotMatch] Element of Seq should have Note type"; l
+      in
+      List.rev (List.fold_left flatten_seq [] sast_expr_list)
+    in
+    env, S.LitSeq(flattened_sast_expr_list)
+
+(* TODO: update it *)
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
@@ -318,15 +356,7 @@ let build_sast_vardecl env t1 s e =
       match t1, t2 with
       | Arraytype(d), Arraytype(Primitive(Unit)) ->
         S.LitArray([], d) (* it means e is [] *)
-      | Primitive(Pitch), Primitive(Int) -> 
-        ( match sast_expr with 
-          | LitInt(d) -> 
-            if d = 0 then S.LitPitch('H',4,0)
-            (* ((d+4) mod 7) + 62) gives right note for each integer input *)
-            else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (((d+4) mod 7) + 62),4,0)
-            else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
-          | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
-        )
+      | Primitive(Pitch), Primitive(Int) -> get_litpitch sast_expr
       | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
         else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in

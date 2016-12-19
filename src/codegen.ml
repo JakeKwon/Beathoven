@@ -81,15 +81,17 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
   | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
   | Musictype(Note) -> lookup_struct "Note"
+  | Musictype(Seq) -> lookup_array (A.Musictype(Note)) (* Future: note/chord *)
   | Structtype(s) -> lookup_struct s
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
 
+(* Create the struct for Arraytype(d), {int size; d* ptr; } *)
 and lookup_array (d : A.datatype) =
   try Hashtbl.find array_tbl d
   with | Not_found ->
     let struct_t = L.named_struct_type context ("Arr_" ^ (Pprint.string_of_datatype d)) in
-    let type_array = [|i32_t; L.pointer_type (lltype_of_datatype d)|] in (* size; ptr of d*)
+    let type_array = [|i32_t; L.pointer_type (lltype_of_datatype d)|] in
     L.struct_set_body struct_t type_array is_struct_packed;
     Hashtbl.add array_tbl d struct_t;
     struct_t
@@ -98,7 +100,6 @@ let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
   | Primitive(_) -> lltype
-  (* TODO: Array *)
   | _ -> L.pointer_type lltype
 
 let lltype_of_bind_list (bind_list : A.bind list) =
@@ -429,6 +430,7 @@ and codegen_expr builder = function
      | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
+  | LitSeq(el) -> codegen_array el (A.Musictype(Note)) builder (* ref *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
   | ArraySub(a, idx1, idx2, d) -> L.const_null i32_t (* TODO *)

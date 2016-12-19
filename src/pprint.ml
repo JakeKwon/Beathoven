@@ -24,6 +24,7 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Pitch) -> "pitch"
   | Primitive(Duration) -> "duration"
   | Musictype(Note) -> "Note"
+  | Musictype(Seq) -> "Seq"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
 (* TODO J: other datatypes  *)
@@ -113,6 +114,7 @@ let rec json_of_expr expr =
                                            ])]
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
+    | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))]
     | LitArray(el, d) -> `Assoc [("Array",
                                   `Assoc [("elements", `List (List.map json_of_expr el));
                                           tuple_of_datatype d

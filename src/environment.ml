@@ -53,7 +53,7 @@ type env = {
   mutable env_in_while : bool;
 }
 
-(* Initialize builtin_types *)
+(* Initialize builtin_types. *)
 let (builtin_types_list : A.struct_decl list) =
   [{
     A.sname = "_pitch";

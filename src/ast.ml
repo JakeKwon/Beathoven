@@ -56,6 +56,7 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
+  | LitSeq of expr list 
   | LitArray of expr list
   | ArrayIdx of expr * expr
   | ArraySub of expr * expr * expr

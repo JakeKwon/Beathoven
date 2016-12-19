@@ -18,13 +18,14 @@ type expr =
   | LitStr of string
   | LitPitch of char * int * int
   | LitDuration of int * int
-  | LitNote of expr * expr 
+  | LitNote of expr * expr
   | Null
   | Binop of expr * A.binary_operator * expr * A.datatype
   | Uniop of A.unary_operator * expr * A.datatype
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
+  | LitSeq of expr list 
   | LitArray of expr list * A.datatype (* element type *)
   | ArrayIdx of expr * expr * A.datatype
   | ArraySub of expr * expr * expr * A.datatype
