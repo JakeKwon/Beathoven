@@ -69,11 +69,14 @@ literal_pitch:
     (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
 
 literal_note:
+  /* TODO: LitInt() is not yet supported for pitch */
+  | LIT_INT COLON literal_duration { LitNote(LitInt($1), $3) }
   | literal_pitch COLON literal_duration { LitNote($1, $3) }
+  | LIT_INT COLON { LitNote(LitInt($1), LitDuration(1, 4)) } /* don't have this in LRM!! */
   | literal_pitch COLON { LitNote($1, LitDuration(1, 4)) } /* don't have this in LRM!! */
   | COLON literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
 
-literal_nonmusic:
+literal:
   /*| NULL { Null }*/
   | LIT_BOOL { LitBool($1) }
   | LIT_INT { LitInt($1) }
@@ -83,11 +86,6 @@ literal_nonmusic:
   /* these are still Primitive() */
   | literal_pitch { $1 }
   | literal_duration { $1 }
-
-literal:
-  | literal_nonmusic { $1 }
-  /* Don't forget to include all literal_music in expr!! */
-  | literal_note { $1 }
 
 
 primitive:
@@ -128,7 +126,7 @@ expr_array:
   | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
 
 expr:
-  | literal_nonmusic { $1 }
+  | literal { $1 }
   /* Note that ID can still have whatever type, such as Arraytype and Musictype  */
   | ids { $1 }
   | MINUS expr { Uniop (Neg, $2) }
@@ -152,27 +150,16 @@ expr:
   | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
   | LPAREN expr RPAREN { $2 }
   | expr ASSIGN expr_array { Assign($1, $3) }
-  /* this has shift/reduce error. Why?? | expr_array { $1 }*/
+  /* | expr_array { $1 } This has shift/reduce error. Why?? My mind stucks now */
+
+/*TODO: expr_with_array: */
 
 expr_with_note:
   | expr { $1 }
   | literal_note { $1 }
   | expr ASSIGN expr_with_note { Assign($1, $3) }
 
-formal_list: /* bind list */
-    /* nothing */ { [] }
-  | formal_rev_list { List.rev $1 }
-
-formal_rev_list:
-    datatype ID { [($1, $2)] }
-  | formal_rev_list COMMA datatype ID { ($3, $4) :: $1 }
-
-field_list:
-  | field_rev_list { List.rev $1 }
-
-field_rev_list:
-    datatype ID SEP { [($1, $2)] }
-  | field_rev_list datatype ID SEP { ($2, $3) :: $1 }
+/* ------------------- Expressions List ------------------- */
 
 expr_with_note_list:
   | { [] }
@@ -224,6 +211,13 @@ var_decl:
 
 /* ------------------- Structs ------------------- */
 
+field_list:
+  | field_rev_list { List.rev $1 }
+
+field_rev_list:
+    datatype ID SEP { [($1, $2)] }
+  | field_rev_list datatype ID SEP { ($2, $3) :: $1 }
+
 struct_decl:
   STRUCT ID LBRACE field_list RBRACE
   {
@@ -235,6 +229,14 @@ struct_and_stmt:
   | struct_decl { Struct($1) }
 
 /* ------------------- Functions ------------------- */
+
+formal_list: /* bind list */
+    /* nothing */ { [] }
+  | formal_rev_list { List.rev $1 }
+
+formal_rev_list:
+    datatype ID { [($1, $2)] }
+  | formal_rev_list COMMA datatype ID { ($3, $4) :: $1 }
 
 func_decl:
   FUNC ID LPAREN formal_list RPAREN RARROW datatype LBRACE stmt_list RBRACE
@@ -256,26 +258,28 @@ mbody:
 
 /* ------------------- Modules ------------------- */
 
-main_module:
+include_decl:
+  | USING ID SEP { ($2, true) }
+  | MODULE ID SEP { ($2, false) }
+
+include_rev_list:
+    include_decl { [$1] }
+  | include_rev_list include_decl { $2::$1 }
+
+btmodule:
   mbody
   {
     { mname = default_mname; funcs = $1 }
   }
 
-btmodule:
-  MODULE ID LBRACE mbody RBRACE
-  {
-    { mname = $2; funcs = $4 }
-  }
-
-btmodule_list:
-    /* nothing */ { [] }
-  | btmodule btmodule_list { $1::$2 } /* rev?? */
-
+  include_list:
+    | include_rev_list  { (beathoven_lib, true) :: (List.rev $1)}
 
 program:
-  main_module EOF { [$1] }
+  | btmodule EOF { [$1] }
+  | include_list btmodule EOF { [$2] }
 
+/* TODO: right now include_list must be on the top */
 
 /*
 p.s. parser is still clean in this version without Musictype(Note).

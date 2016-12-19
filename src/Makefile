@@ -19,7 +19,7 @@ CLIB = stdlib
 .PHONY : $(TARGET).native
 
 $(TARGET).native :
-	@clang -c -emit-llvm $(CLIB).c # clang-3.8
+	@clang-3.8 -c -emit-llvm $(CLIB).c # clang-3.8
 	$(OCAMLBUILD) $(FLAGS) $(TARGET).native
 	@mv $(TARGET).native $(TARGET)
 
