@@ -13,12 +13,9 @@ exception Lexing_error of string
 exception ReturntypeNotMatch of string
 exception FuncCallCheckFail of string
 exception CheckFbodyFail of string
-exception IfComparisonNotBool of string
 exception ReturnTypeMismatch of string * string
-exception InvalidForStatementType of string
 exception CannotCallBreakOutsideOfLoop
 exception CannotCallContinueOutsideOfLoop
-exception InvalidWhileStatementType
 exception InvalidUnaryOperation
 
 (* Variables  *)
@@ -45,6 +42,8 @@ exception ShouldAccessArray of string
 exception UndefinedStructType of string
 exception ShouldAccessStructType of string
 exception StructFieldNotFound of string * string
+(* Statement *)
+exception InvalidConditionType
 
 (* ------------------- Environment ------------------- *)
 

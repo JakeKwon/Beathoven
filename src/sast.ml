@@ -25,7 +25,7 @@ type expr =
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
-  | LitSeq of expr list 
+  | LitSeq of expr list
   | LitArray of expr list * A.datatype (* element type *)
   | ArrayIdx of expr * expr * A.datatype
   | ArraySub of expr * expr * expr * A.datatype
@@ -35,6 +35,7 @@ type stmt =
   | Expr of expr * A.datatype
   | If of expr * stmt * stmt
   | While of expr * stmt
+  | For of expr * expr * expr * stmt
   | Return of expr * A.datatype
   | Break
   | Continue

@@ -447,7 +447,7 @@ and codegen_expr_ref builder expr =
 (* ----- Statements ----- *)
 
 let rec codegen_stmt builder = function
-    Block sl -> List.fold_left codegen_stmt builder sl
+  | Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
@@ -456,6 +456,12 @@ let rec codegen_stmt builder = function
   | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | If(e, s1, s2) -> codegen_if e s1 s2 builder
   | While(pred, body) -> codegen_while pred body builder
+  | For(e1, e2, e3, body) -> codegen_stmt builder (* this way not works well with Continue *)
+                               (Block [
+                                   Expr(e1, Analyzer.get_type_from_expr e1);
+                                   While(e2,
+                                         Block [body;
+                                                Expr(e3, Analyzer.get_type_from_expr e1)]) ] )
   | Break -> builder (*TODO*)
   | Continue -> builder (*TODO*)
   | _ -> Core.Std.failwith "[Impossible] Struct declaration are skiped in analyzer"
@@ -530,7 +536,6 @@ and codegen_while condition body builder =
   add_terminal body_builder (L.build_br cond_bb);
   L.builder_at_end context merge_bb
 
-
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
   let printf_t = L.var_arg_function_type i32_t [| str_t |] in
@@ -574,7 +579,7 @@ let codegen_func func =
   if func.returnType = A.Primitive(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
-  (* TODO: return 0 for main.  *)
+(* TODO: return 0 for main.  *)
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
 let codegen_def_struct (s : A.struct_decl) =
