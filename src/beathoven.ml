@@ -23,19 +23,24 @@ let get_pos_and_tok lexbuf =
 
 
 let _ =
-  let action =
-    if Array.length Sys.argv > 1 then
-      List.assoc Sys.argv.(1)
-        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)]
-    else Compile in
+  let action = List.assoc Sys.argv.(1)
+        [("-c", Compile) ; ("-h", Help) ; ("-r", Raw); ("-s", Sast)] in
+  if action = Help then print_endline get_help
+    else
   let lexbuf = Lexing.from_channel stdin in
   try
     let ast = Parser.program Scanner.token lexbuf in
     let sast = Analyzer.analyze_ast ast in
     match action with
     | Sast -> print_string (Yojson.Basic.pretty_to_string (Pprint.json_of_program sast))
-    | Raw -> ()
-    | Compile -> let m = Codegen.codegen_program sast in
+    | Raw -> let output_file = Sys.argv.(2) in
+          let file = open_out output_file in
+          let m = Codegen.codegen_program sast in
+      (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
+
+          Printf.fprintf file "%s\n" (Llvm.string_of_llmodule m); close_out file
+    | Compile ->
+    let m = Codegen.codegen_program sast in
       (* Llvm_analysis.assert_valid_module m; *) (* Useful built-in check *)
       print_string (Llvm.string_of_llmodule m)
       (* let output_file = Sys.argv.(2) and stdlib_file = Sys.argv.(3) in

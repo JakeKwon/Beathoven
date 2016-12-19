@@ -1,0 +1,6 @@
+func returnMe(int c) -> unit {
+    return c;
+}
+
+int d = returnMe(5);
+print(d);
