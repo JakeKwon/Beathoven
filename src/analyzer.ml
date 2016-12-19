@@ -66,17 +66,22 @@ let check_condition (e : S.expr) =
   | _ -> raise (Exceptions.InvalidConditionType)
 
 let get_litpitch (sast_expr : S.expr) =
-  match sast_expr with
-  | LitInt(d) ->
-    if d = 0 then S.LitPitch('H',4,0)
-    (* ((d+4) mod 7) + 62) gives right note for each integer input *)
-    else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (( (d+1) mod 7 + 65)),4,0)
-    else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
-  | LitPitch(_,_,_) -> sast_expr
-  | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
+  match get_type_from_expr sast_expr with
+  | A.Primitive(Pitch) -> sast_expr
+  | A.Primitive(Int) -> (
+      match sast_expr with
+      | LitInt(d) ->
+        if d = 0 then S.LitPitch('H',4,0)
+        (* ((d+4) mod 7) + 62) gives right note for each integer input *)
+        else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (( (d+1) mod 7 + 65)),4,0)
+        else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
+      | Id(_) -> sast_expr (* TODO: codegen !! *)
+      | _ -> raise (Exceptions.Impossible "get_litpitch")
+    )
+  | _ -> Log.error "[InvalidPitchAssignment]"; sast_expr
 
 (* let get_map_size map =
-  StringMap.fold (fun k v i -> i + 1) map 0 *)
+   StringMap.fold (fun k v i -> i + 1) map 0 *)
 
 (* ------------------- build sast from ast ------------------- *)
 
@@ -148,6 +153,7 @@ and analyze_seq env (expr_list:A.expr list) =
       let flatten_seq l (expr : S.expr) =
         match get_type_from_expr expr with
         | A.Musictype(Note) -> expr :: l
+        | A.Primitive(Pitch) -> S.LitNote(expr, LitDuration(1, 4)) :: l
         | A.Musictype(Seq) -> (
             match expr with
             | LitSeq(el) -> (List.rev el) @ l
@@ -198,6 +204,7 @@ and analyze_arrayidx env a e =
   let ele_type =
     match get_type_from_expr sast_arr with
     | Arraytype(d) -> d
+    | Musictype(Seq) -> Musictype(Note)
     | _ as d -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
   in
   let _, idx = build_sast_expr env e in
@@ -284,14 +291,16 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-  match t1, t2 with
-  | Arraytype(d), Arraytype(Primitive(Unit)) ->
-    let rhs = S.LitArray([], d) in (* it means e2 is [] *)
-    env, S.Assign(lhs, rhs, t1)
-  | _ ->
-    if t1 = t2 then env, S.Assign(lhs, rhs, t1)
+  let rhs =
+    if t1 = t2 then rhs
     else
-      raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+      match t1, t2 with
+      | Arraytype(d), Arraytype(Primitive(Unit)) -> S.LitArray([], d) (* it means e2 is [] *)
+      | Musictype(Note), _ -> S.LitNote(get_litpitch rhs, S.LitDuration(1, 4))
+      | _ ->
+        raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+  in
+  env, S.Assign(lhs, rhs, t1)
 
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
@@ -355,12 +364,15 @@ let build_sast_vardecl env t1 s e =
     let _, sast_expr = build_sast_expr env e in
     let t2 = get_type_from_expr sast_expr in
     let sast_expr =
-      match t1, t2 with
-      | Arraytype(d), Arraytype(Primitive(Unit)) ->
-        S.LitArray([], d) (* it means e is [] *)
-      | Primitive(Pitch), Primitive(Int) -> get_litpitch sast_expr
-      | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
-        else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+      if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
+      else
+        match t1, t2 with
+        | Arraytype(d), Arraytype(Primitive(Unit)) ->
+          S.LitArray([], d) (* it means e is [] *)
+        | Primitive(Pitch), Primitive(Int) -> get_litpitch sast_expr
+        | Musictype(Note), _ -> S.LitNote(get_litpitch sast_expr, LitDuration(1, 4))
+        | _ ->
+          raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in
     env.var_map <- StringMap.add s t1 env.var_map;
     if env.ismain then (* add variable to module fields *)

@@ -430,6 +430,7 @@ and codegen_expr builder = function
      | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
+  (* Note that in Analyzer all legal types will be converted to Note types in a LitSeq  *)
   | LitSeq(el) -> codegen_array el (A.Musictype(Note)) builder (* ref *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)

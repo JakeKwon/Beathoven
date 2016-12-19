@@ -48,6 +48,7 @@
 %right NOT
 %right RBRACK
 %left LBRACK DOT
+%nonassoc DOTS
 /*
 %left OCTAVE_RAISE OCTAVE_LOWER
 */
@@ -69,8 +70,6 @@ literal_pitch:
 
 literal_note_complete: /* Maybe I should parse Note literals in scanner with regex */
   | LIT_INT_DOTS literal_duration { LitNote(LitInt($1), $2) } /* For 5..1/4 */
-  | LIT_INT DOTS literal_duration { LitNote(LitInt($1), $3) } /* For 5 ..1/4 */
-  | literal_pitch DOTS literal_duration { LitNote($1, $3) }
 
 literal_note:
     literal_note_complete { $1 }
@@ -126,6 +125,7 @@ index_range: /* Python-like array access */
 expr:
   | literal { $1 }
   | ids { $1 }
+  | expr DOTS expr { LitNote($1, $3) }
   | MINUS expr { Uniop (Neg, $2) }
   | expr PLUS expr { Binop($1, Add, $3) }
   | expr MINUS expr { Binop($1, Sub, $3) }
@@ -145,7 +145,7 @@ expr:
   | ids ASSIGN expr { Assign($1, $3) }
   | ids LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LBRACK expr_list RBRACK { LitArray($2) }
-  | LT note_list GT { LitSeq($2) }
+  | LT note_list GT { LitSeq($2) } /* expr_list will have a lot of conflicts */
   | LPAREN expr RPAREN { $2 }
 
 
@@ -159,9 +159,11 @@ note:
   | LIT_INT { LitNote(LitInt($1), LitDuration(1, 4)) }
   | literal_pitch { LitNote($1, LitDuration(1, 4)) }
   | literal_note_complete { $1 }
+  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) }
+  | LIT_INT DOTS literal_duration { LitNote(LitInt($1), $3) } /* For 5 ..1/4 */
+  | literal_pitch DOTS literal_duration { LitNote($1, $3) }
   | ids DOTS literal_duration { LitNote($1, $3) }
   | ids DOTS ids { LitNote($1, $3) }
-  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) }
   | LIT_INT DOTS ids { LitNote(LitInt($1), $3) }
   | literal_pitch DOTS ids { LitNote($1, $3) }
   /* TODO: LitInt(), ids are not yet supported for Note */
