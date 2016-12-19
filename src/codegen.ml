@@ -114,19 +114,20 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
-  (* TODO: L.build_array_alloca *)
+(* TODO: L.build_array_alloca *)
 
-(* Declare global variable and remember its llvalue in global_tbl *)
-let codegen_global_allocate (typ : A.datatype) var_name builder =
-  if _debug then Log.debug ("codegen_global_allocate: " ^ var_name);
+(* Declare global variable and remember its llvalue
+in global_tbl if it's not a temporary variable *)
+let codegen_global_allocate (typ : A.datatype) var_name builder isPermanent =
+  Log.debug ("codegen_global_allocate: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
-  Hashtbl.add global_tbl var_name alloca;
+  if isPermanent then Hashtbl.add global_tbl var_name alloca;
   alloca
 
 let codegen_allocate (typ : A.datatype) var_name builder =
   if _debug then Log.debug ("codegen_allocate: " ^ var_name);
-  if !is_main then codegen_global_allocate typ var_name builder
+  if !is_main then codegen_global_allocate typ var_name builder true
   else codegen_local_allocate typ var_name builder
 
 
@@ -202,6 +203,9 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
 
+let get_ids_tmp = function
+  | Id(s, _) -> "." ^ s
+  | StructField(_, s, _) -> ".struct." ^ s
 
 (* -------------------------------------------- *)
 
@@ -264,7 +268,7 @@ and codegen_len el builder =
   else (
     let arr_struct_p = codegen_expr builder (List.hd el) in
     let arr_struct_p = L.build_pointercast arr_struct_p void_p ".void_p" builder in
-    L.build_call (lookup_func "len") [| arr_struct_p |] ".len" builder)
+    L.build_call (lookup_func "len") [| arr_struct_p |] ".arrlen" builder)
 
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
@@ -320,51 +324,51 @@ and codegen_note pitch duration builder =
 
 and codegen_structfield struct_expr fid isref builder =
   let struct_ll = codegen_expr builder struct_expr in
-  (* let struct_ll = lookup_id sid builder in *)
-  let f = match fid with Id(f, _) -> f in
-  let field_index =
+  let tmp_name = fid in (* TODO: get_ids_tmp *)
+  let field_index = (* TODO: separate *)
     let field =
       let global_field_name = function
-        | A.Structtype(s) -> s ^ "." ^ f
+        | A.Structtype(s) -> s ^ "." ^ tmp_name
         | _ -> raise (Exceptions.Impossible("Must be structtype unless Analyzer fails"))
       in
       global_field_name (Analyzer.get_type_from_expr struct_expr)
     in
     Hashtbl.find struct_field_indexes field
   in
-  let p = L.build_struct_gep struct_ll field_index f builder in
+  let p = L.build_struct_gep struct_ll field_index tmp_name builder in
   if isref then p
-  else L.build_load p f builder
+  else L.build_load p tmp_name builder
 
 (* ----- Array ----- *)
+
+and codegen_raw_array el d builder = (* d is element_type *)
+  (* garbage!! no GC *)
+  let len =
+    let length =
+      List.fold_left (fun count expr ->
+          match Analyzer.get_type_from_expr expr with
+          | Arraytype(_) ->
+            count + 1 (* TODO: update!! codegen_expr expr *)
+          | _ -> count + 1
+        ) 0 el
+    in
+    L.const_int i32_t length
+  in
+  let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
+  let i = ref 0 in
+  List.iter (fun e ->
+      let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
+      ignore(codegen_assign_with_lhs ptr e builder);
+      incr i;
+    ) el;
+  len, arr (* return llvalue of ptr of element_type *)
 
 and codegen_array el d builder =
   if d = A.Primitive(Unit) then null_ll (* TODO: null!! skip unknown empty array [] *)
   else
-    let len, arr = (* codegen_raw_array el element_type builder *)
-      (* no GC *)
-      let len =
-        let length =
-          List.fold_left (fun count expr ->
-              match Analyzer.get_type_from_expr expr with
-              | Arraytype(_) ->
-                count + 1 (* TODO: codegen_expr expr *)
-              | _ -> count + 1
-            ) 0 el
-        in
-        L.const_int i32_t length
-      in
-      let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
-      let i = ref 0 in
-      List.iter (fun e ->
-          let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
-          ignore(codegen_assign_with_lhs ptr e builder);
-          incr i;
-        ) el;
-      len, arr (* return llvalue of ptr of element_type *)
-    in
+    let len, arr = codegen_raw_array el d builder in
     let lit_name = ".litarr_" ^ (Pprint.string_of_datatype d) in
-    let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder in
+    let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder false in
     let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
     let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
     ignore(L.build_store len arr_len builder);
@@ -376,8 +380,8 @@ and codegen_arrayidx a idx d isref builder =
   let arr_s = codegen_expr builder a in
   (* TODO: check idx in range  *)
   let arr_p =
-    let ptr_p = L.build_struct_gep arr_s 1 (".ptr_p") builder in
-    L.build_load ptr_p ".arr_p" builder
+    let ptr_p = L.build_struct_gep arr_s 1 (".arrp_p") builder in
+    L.build_load ptr_p ".arrp" builder
   in
   let p = L.build_gep arr_p [| idx_ll |] ".arridx" builder in
   if isref then p
@@ -386,8 +390,21 @@ and codegen_arrayidx a idx d isref builder =
     | A.Primitive(_) -> L.build_load p ".val" builder
     | _ -> p
 
+and codegen_arraysub a idx1 idx2 d builder =
+  (* TODO: [:], [1:], [:-1] *)
+  let arr_idx1 = codegen_arrayidx a idx1 d true builder in
+  (* TODO: check idx1 < idx2  *)
+  (* codegen_assign_with_lhs  *)
+  let len_ll = codegen_binop idx2 A.Sub idx1 builder in
+  let newarr = L.build_array_malloc (lltype_of_datatype d) len_ll ".arrcopy" builder in
+  let lit_name = "foo" in
+  let arr_p = L.build_struct_gep newarr 1 (lit_name ^ ".p") builder in
+  (* copy original array elements to new array *)
+  ignore(L.build_call (lookup_func "memcpy") [|newarr; arr_idx1; len_ll |] "" builder);
 
-(* ----- Operators ----- *)
+
+
+  (* ----- Operators ----- *)
 
 and codegen_binop e1 (op : A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
@@ -436,16 +453,16 @@ and codegen_expr builder = function
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
-    | "printf" -> codegen_print el builder
-    | "len" -> codegen_len el builder
-    | _ -> codegen_funccall fname el d builder )
+     | "printf" -> codegen_print el builder
+     | "len" -> codegen_len el builder
+     | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
   (* Note that in Analyzer all legal types will be converted to Note types in a LitSeq  *)
   | LitSeq(el) -> codegen_array el (A.Musictype(Note)) builder (* ref *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
-  | ArraySub(a, idx1, idx2, d) -> L.const_null i32_t (* TODO *)
+  | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder; null_ll (* ref *)
 
 and codegen_expr_ref builder expr =
   match expr with
@@ -478,59 +495,6 @@ let rec codegen_stmt builder = function
   | Break -> builder (*TODO*)
   | Continue -> builder (*TODO*)
   | _ -> Core.Std.failwith "[Impossible] Struct declaration are skiped in analyzer"
-
-and codegen_for null_expr1 cond_ null_expr2 body_ builder =
-(*
-init_ == null_expr1
-inc_ ==  null_expr2
-*)
-  let br_block = ref (L.block_of_value (L.const_int i32_t 0)) in
-  let (cont_block) = ref (L.block_of_value (L.const_int i32_t 0)) in
-  let is_loop = ref false in
-
-  let old_val = !is_loop in
-  is_loop := true;
-
-  let the_function = L.block_parent (L.insertion_block builder) in
-
-    let _ = codegen_expr builder null_expr1 in
-
-    let loop_bb = L.append_block context "loop" the_function in
-    let inc_bb = L.append_block context "inc" the_function in
-    let cond_bb = L.append_block context "cond" the_function in
-    let after_bb = L.append_block context "afterloop" the_function in
-
-    let _ = if not old_val then
-      cont_block := inc_bb;
-      br_block := after_bb;
-    in
-
-    ignore (L.build_br cond_bb builder);
-
-  L.position_at_end loop_bb builder;
-
-  ignore (codegen_stmt builder body_);
-
-  let bb = L.insertion_block builder in
-  L.move_block_after bb inc_bb;
-  L.move_block_after inc_bb cond_bb;
-  L.move_block_after cond_bb after_bb;
-  ignore(L.build_br inc_bb builder);
-
-  L.position_at_end inc_bb builder;
-
-  let _ = codegen_expr builder null_expr2 in
-  ignore(L.build_br cond_bb builder);
-
-  L.position_at_end cond_bb builder;
-
-  let cond_val = codegen_expr builder cond_ in
-  ignore (L.build_cond_br cond_val loop_bb after_bb builder);
-
-  L.position_at_end after_bb builder;
-
-  is_loop := old_val;
-
 
 and codegen_ret d expr builder =
   match expr with
@@ -670,7 +634,6 @@ let codegen_struct (s : A.struct_decl) =
              |] in
  *)
 
-
 let linker filename =
   (* let llctx = L.global_context () in *)
   let llmem = L.MemoryBuffer.of_file filename in
@@ -698,14 +661,3 @@ let codegen_program program =
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
   the_module
-
-
-
-(* Batteries  *)
-
-(* Invoke "f builder" if the current block doesn't already
-   have a terminal (e.g., a branch). *)
-(* let add_terminal builder f =
-   match L.block_terminator (L.insertion_block builder) with
-    Some _ -> ()
-   | None -> ignore (f builder) in *)

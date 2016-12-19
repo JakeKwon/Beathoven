@@ -5,6 +5,7 @@
  *)
 
 exception Impossible of string
+exception ErrorReportedByLog
 
 (* ------------------- Scanner ------------------- *)
 exception Lexing_error of string
@@ -45,17 +46,12 @@ exception StructFieldNotFound of string * string
 (* Statement *)
 exception InvalidConditionType
 
-(* ------------------- Environment ------------------- *)
-
 (* ------------------- Codegen :: Testing DONE ------------------- *)
+ (* TODO: Only runtime error should be here. *)
 exception LLVMFunctionNotFound of string
 exception InvalidTypePassedToPrint
 exception ExpressionNotAssignable of string
 
-
 (*
-   exception VarAlreadyDeclared;;
-   exception VarNotDeclared;;
-   exception IncorrectFunctionParameterTypes;;
-   exception IncorrectArrayAssignmentSize;;
+   exception IncorrectArrayAssignmentSize
 *)

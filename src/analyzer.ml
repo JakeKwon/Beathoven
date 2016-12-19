@@ -133,8 +133,7 @@ and analyze_struct env e f =
     with | Not_found -> raise(Exceptions.StructFieldNotFound(
         (string_of_datatype struct_type), f))
   in
-  let field_id = S.Id(snd field_bind, fst field_bind) in
-  env, S.StructField(sast_expr, field_id, fst field_bind)
+  env, S.StructField(sast_expr, snd field_bind, fst field_bind)
 
 and analyze_note env p d =
   let _, pitch = build_sast_expr env p in
@@ -214,11 +213,16 @@ and analyze_arrayidx env a e =
 and analyze_arraysub env a e1 e2 =
   let _, sast_arr = build_sast_expr env a in
   let d = get_type_from_expr sast_arr in
+  let get_sast_index e =
+    let _, idx = build_sast_expr env e in
+    let t = get_type_from_expr idx in
+    if t = Primitive(Int) || t = Primitive(Unit) then idx
+    else (Log.error "[IndexTypeMismatch]"; idx)
+  in
   match d with
-  | Arraytype(_) -> (
-      let _, idx1 = build_sast_expr env e1 in
-      let _, idx2 = build_sast_expr env e2 in
-      (* TODO J: check Python-like idx *)
+  | Arraytype(_) | Musictype(Seq) -> (
+      let idx1 = get_sast_index e1 and
+      idx2 = get_sast_index e2 in
       env, S.ArraySub(sast_arr, idx1, idx2, d)
     )
   | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
@@ -308,6 +312,7 @@ and analyze_funccall env s el =
     let func = StringMap.find s builtin_funcs in
     env, S.FuncCall(func.fname, sast_el, func.returnType)
   (* TODO: check builtin funcs *)
+  (* such as, len() only accepts arrays *)
   with | Not_found ->
   try
     let fname = get_global_func_name env.name s in

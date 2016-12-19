@@ -10,7 +10,7 @@ module A = Ast
 
 type expr =
     Id of string * A.datatype
-  | StructField of expr * expr * A.datatype (* Id * Id * datatype *)
+  | StructField of expr * string * A.datatype (* Id * Id * datatype *)
   | LitBool of bool
   | LitInt of int
   | LitChar of char
@@ -40,8 +40,6 @@ type stmt =
   | Break
   | Continue
   | VarDecl of A.datatype * string * expr
-(*| SFor of sexpr * sexpr * sexpr * sstmt
- *)
 
 
 type func_decl = {

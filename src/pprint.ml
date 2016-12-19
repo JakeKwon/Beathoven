@@ -74,7 +74,7 @@ let rec json_of_expr expr =
       Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
     | StructField(e1, e2, d) -> `Assoc [("StructField",
                                          `Assoc [("struct", (json_of_expr e1));
-                                                 ("field", (json_of_expr e2));
+                                                 ("field", `String e2);
                                                  tuple_of_datatype d;
                                                 ])]
     | LitBool(b) -> `Assoc [("bool", `Bool b)]
