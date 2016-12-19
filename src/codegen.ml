@@ -117,7 +117,7 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
 (* TODO: L.build_array_alloca *)
 
 (* Declare global variable and remember its llvalue
-in global_tbl if it's not a temporary variable *)
+   in global_tbl if it's not a temporary variable *)
 let codegen_global_allocate (typ : A.datatype) var_name builder isPermanent =
   Log.debug ("codegen_global_allocate: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
@@ -283,12 +283,20 @@ and codegen_funccall fname el d builder =
 
 (* ----- Assignment ----- *)
 
+and memcpy (lhs : L.llvalue) (rhs : L.llvalue) (size : L.llvalue) builder =
+  let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
+  let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+  Log.debug ("memcpy(): \n" ^ (L.string_of_llvalue lhs_p) ^ "\n" ^
+    (L.string_of_llvalue rhs_p) ^ "\n" ^ (L.string_of_llvalue size));
+  ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size |] "" builder);
+  lhs_p
+
 and codegen_assign_with_lhs lhs rhs_expr builder =
   let store rhs =
     ignore(L.build_store rhs lhs builder);
     rhs
   in
-  let memcpy rhs = (* rhs is non-primitive, so rhs is ref *)
+  let copy rhs = (* rhs is non-primitive, so rhs is ref *)
     let size_ll = (* the size of the type which rhs_p points to *)
       let codegen_sizeof e builder =
         let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
@@ -299,18 +307,15 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
       in
       codegen_sizeof rhs_expr builder
     in
-    let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
-    let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
     (* set the value of what lhs_p points_to *)
-    ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
-    rhs_p
+    memcpy lhs rhs size_ll builder (* rhs_p *)
   in
   let d = Analyzer.get_type_from_expr rhs_expr in
   let rhs = codegen_expr builder rhs_expr in
   Log.debug ("lhs: " ^ (L.string_of_llvalue lhs) ^ "\n rhs: " ^ (L.string_of_llvalue rhs));
   match d with
   | Primitive(_) -> store rhs
-  | _ -> memcpy rhs
+  | _ -> copy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
   let lhs = codegen_expr_ref builder lhs_expr in
@@ -363,17 +368,20 @@ and codegen_raw_array el d builder = (* d is element_type *)
     ) el;
   len, arr (* return llvalue of ptr of element_type *)
 
+and codegen_set_array_struct d name (len : L.llvalue) (arr : L.llvalue) builder =
+  let alloca = codegen_global_allocate d name builder false in
+  let arr_len = L.build_struct_gep alloca 0 (name ^ ".len") builder in
+  let arr_p = L.build_struct_gep alloca 1 (name ^ ".p") builder in
+  ignore(L.build_store len arr_len builder);
+  ignore(L.build_store arr arr_p builder);
+  alloca
+
 and codegen_array el d builder =
   if d = A.Primitive(Unit) then null_ll (* TODO: null!! skip unknown empty array [] *)
   else
     let len, arr = codegen_raw_array el d builder in
     let lit_name = ".litarr_" ^ (Pprint.string_of_datatype d) in
-    let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder false in
-    let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
-    let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
-    ignore(L.build_store len arr_len builder);
-    ignore(L.build_store arr arr_p builder);
-    alloca
+    codegen_set_array_struct (A.Arraytype(d)) lit_name len arr builder
 
 and codegen_arrayidx a idx d isref builder =
   let idx_ll = codegen_expr builder idx in
@@ -392,19 +400,24 @@ and codegen_arrayidx a idx d isref builder =
 
 and codegen_arraysub a idx1 idx2 d builder =
   (* TODO: [:], [1:], [:-1] *)
-  let arr_idx1 = codegen_arrayidx a idx1 d true builder in
+  let ele_type =
+    match d with
+    | A.Arraytype(d) -> d
+    | A.Musictype(Seq) -> A.Musictype(Note)
+  in
+  let ele_lltype = lltype_of_datatype ele_type in
+  let arr_idx1 = codegen_arrayidx a idx1 ele_type true builder in
   (* TODO: check idx1 < idx2  *)
-  (* codegen_assign_with_lhs  *)
-  let len_ll = codegen_binop idx2 A.Sub idx1 builder in
-  let newarr = L.build_array_malloc (lltype_of_datatype d) len_ll ".arrcopy" builder in
-  let lit_name = "foo" in
-  let arr_p = L.build_struct_gep newarr 1 (lit_name ^ ".p") builder in
+  let new_len = codegen_binop idx2 A.Sub idx1 builder in
+  let len_cast = L.build_intcast new_len size_t ".new_len" builder in
+  let new_arr = L.build_array_malloc ele_lltype new_len ".arrsub_p" builder in
   (* copy original array elements to new array *)
-  ignore(L.build_call (lookup_func "memcpy") [|newarr; arr_idx1; len_ll |] "" builder);
+  let size_ele = L.size_of ele_lltype in
+  let size = L.build_mul len_cast size_ele ".size" builder in
+  let _ = memcpy new_arr arr_idx1 size builder in
+  codegen_set_array_struct d ".arrsub" new_len new_arr builder
 
-
-
-  (* ----- Operators ----- *)
+(* ----- Operators ----- *)
 
 and codegen_binop e1 (op : A.binary_operator) e2 builder =
   let e1' = codegen_expr builder e1
@@ -462,7 +475,7 @@ and codegen_expr builder = function
   | LitSeq(el) -> codegen_array el (A.Musictype(Note)) builder (* ref *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
-  | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder; null_ll (* ref *)
+  | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder (* ref *)
 
 and codegen_expr_ref builder expr =
   match expr with
