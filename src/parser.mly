@@ -188,6 +188,10 @@ expr_rev_list:
     expr { [$1] }
   | expr_rev_list COMMA expr { $3 :: $1 }
 
+expr_opt:
+    /* nothing */ { Noexpr }
+  | expr_with_note { $1 }
+
 
 /* ------------------- Statements ------------------- */
 
@@ -199,10 +203,7 @@ stmt:
   | LBRACE stmt_list RBRACE { Block($2) }
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
   | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
-  /*
-  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
-   { For($3, $5, $7, $9) }
-  */
+  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt { For($3, $5, $7, $9) }
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
   | CONTINUE SEP { Continue }

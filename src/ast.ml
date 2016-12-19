@@ -56,7 +56,7 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
-  | LitSeq of expr list 
+  | LitSeq of expr list
   | LitArray of expr list
   | ArrayIdx of expr * expr
   | ArraySub of expr * expr * expr
@@ -68,6 +68,7 @@ type stmt =
   | Return of expr
   | If of expr * stmt * stmt
   | While of expr * stmt
+  | For of expr * expr * expr * stmt
   | Break
   | Continue
   | Struct of struct_decl

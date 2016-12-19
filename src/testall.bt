@@ -6,7 +6,7 @@
 
 // render midi using Note array
 Note note = F:8/4;
-Note [] seq = [note, note];
+Seq seq = {note, note};
 seq = {1:, 1:, 5:, 5:, 6:, 6:, 5:2/4};
 render_as_midi(seq);
 
@@ -76,7 +76,9 @@ print('\n');
 
 func bar(int i, int j) -> unit {
     i = 3;
-    print(i);
+    for (i = 0; i < 10; i = i + 1) {
+        print(i);
+    }
     print(" by bar\n");
     foo(j + 2);
 }
