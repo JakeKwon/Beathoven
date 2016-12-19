@@ -70,6 +70,7 @@ rule token = parse
   | "->" { RARROW }
   | '/' { SLASH }
   | "::" { SCORE_RESOLUTION }
+  | ''' { APOSTROPHE }
   | '^' { OCTAVE_RAISE }
   | '_' { OCTAVE_LOWER }
   | "=>" { MATCHCASE }

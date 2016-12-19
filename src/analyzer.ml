@@ -424,7 +424,6 @@ and build_sast_while e s env =
   let old_val = env.env_in_while in
   env.env_in_while <- true;
   let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
   let _, body = build_sast_stmt env s in
   check_condition se;
   env.env_in_while <- old_val;
