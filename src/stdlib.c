@@ -55,7 +55,7 @@ void _write_sequence_midi_text(Seq input_sequence){
 
   for(i=0; i < input_sequence.len; i++){
     midi_pitches[i] = _get_midi_pitch(input_sequence.arr[i].p);
-    midi_durations[i] = (double)(input_sequence.arr[i].d->a) / input_sequence.arr[i].d->b;
+    midi_durations[i] = 4.0 * (input_sequence.arr[i].d->a) / input_sequence.arr[i].d->b;
   }
 
   for(i=0; i < input_sequence.len; i++){

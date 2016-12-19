@@ -122,15 +122,10 @@ index_range: /* Python-like array access */
   | COLON { (LitInt(0), Noexpr) }
 
 expr_array:
+  /* this can not be one of expr or stmt, otherwise conflicts. */
   | LBRACK expr_with_note_list RBRACK { LitArray($2) }
   | LBRACE note_list RBRACE { LitSeq($2) }
   | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
-
-/*
-by introducing
-`expr_with_note`.
-I have no idea how to make it support both arr[id1:id2] and [pitch':dur', pitch':dur'].
-*/
 
 expr:
   | literal { $1 }
@@ -157,9 +152,8 @@ expr:
   | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
   | LPAREN expr RPAREN { $2 }
   | expr ASSIGN expr_array { Assign($1, $3) }
-  /* | expr_array { $1 } This has shift/reduce error. Why?? My mind stucks now */
 
-/*TODO: expr_with_array: */
+/* TODO: expr_with_array: */
 
 /* To resolve the conflicts of arr[id1:id2] and pitch':dur' */
 expr_with_note:
