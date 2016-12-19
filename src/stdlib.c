@@ -16,9 +16,13 @@ char _buffer[20];
 int _pitch_values[7] = {0,2,4,5,7,9,11};
 
 
+int len(ptr_t arr_struct_p) {
+    // return arr_struct_p->len;
+    // return 0;
+    return *((int *) arr_struct_p);
+}
 
 string _str_of_pitch(pitch p) {
-
     string _buffer = malloc(4); // garbage!
     char c = '\0';
     if (p->alter == 1) c = '#';
@@ -28,6 +32,23 @@ string _str_of_pitch(pitch p) {
     return _buffer;
 }
 
+string _str_of_duration(duration d) {
+    string _buffer = malloc(10); // garbage!
+    sprintf(_buffer, "%d/%d", d->a, d->b);
+    return _buffer;
+}
+
+string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
+    string _buffer = malloc(14); // garbage!
+    pitch p = note->p;
+    duration d = note->d;
+    if (p->alter == 1)
+        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
+    else if (p->alter == -1)
+        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
+    else sprintf(_buffer, "%c%d:%d/%d", p->key, p->octave, d->a, d->b);
+    return _buffer;
+}
 
 void _write_sequence_midi_text(Seq input_sequence){
 
@@ -82,20 +103,6 @@ void render_as_midi(Seq * input_sequence){
     _make_midi_from_midi_text();
 }
 
-// _duration d;
-//
-// duration _allocate_duration(int a, int b) {
-//     return &d;
-// }
-
-
-string _str_of_duration(duration d) {
-    string _buffer = malloc(10); // garbage!
-    sprintf(_buffer, "%d/%d", d->a, d->b);
-    return _buffer;
-}
-
-
 int _get_midi_pitch(pitch p) {
   int note_number_index = 0;
 
@@ -107,22 +114,6 @@ int _get_midi_pitch(pitch p) {
   int note_number = ((p->octave + 1)*12) + _pitch_values[note_number_index] + (p->alter);
 
   return note_number;
-
-}
-
-
-
-
-string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
-    string _buffer = malloc(14); // garbage!
-    pitch p = note->p;
-    duration d = note->d;
-    if (p->alter == 1)
-        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
-    else if (p->alter == -1)
-        sprintf(_buffer, "%c%d#:%d/%d", p->key, p->octave, d->a, d->b);
-    else sprintf(_buffer, "%c%d:%d/%d", p->key, p->octave, d->a, d->b);
-    return _buffer;
 }
 
 /*

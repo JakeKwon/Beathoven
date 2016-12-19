@@ -36,6 +36,7 @@ and void_t = L.void_type context
 let str_t = L.pointer_type i8_t
 let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
+let void_p = L.pointer_type size_t
 let null_ll = L.const_null i32_t
 and null_str = L.const_null str_t
 
@@ -113,6 +114,7 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
+  (* TODO: L.build_array_alloca *)
 
 (* Declare global variable and remember its llvalue in global_tbl *)
 let codegen_global_allocate (typ : A.datatype) var_name builder =
@@ -256,12 +258,20 @@ let rec codegen_print expr_list builder =
   build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
    *)
 
+
+and codegen_len el builder =
+  if List.length el <> 1 then (Log.error "[ParamNumberNotMatch]"; null_ll)
+  else (
+    let arr_struct_p = codegen_expr builder (List.hd el) in
+    let arr_struct_p = L.build_pointercast arr_struct_p void_p ".void_p" builder in
+    L.build_call (lookup_func "len") [| arr_struct_p |] ".len" builder)
+
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
   (if _debug then
      Log.debug ("codegen_funccall(" ^ fname ^ "): ");
-   let helper ll = Log.debug (L.string_of_llvalue ll) in
+   let helper ll = Log.debug ("- " ^ L.string_of_llvalue ll) in
    Array.iter helper actuals);
   match d with
   | A.Primitive(A.Unit) -> L.build_call f actuals "" builder
@@ -426,8 +436,9 @@ and codegen_expr builder = function
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
-       "printf" -> codegen_print el builder
-     | _ -> codegen_funccall fname el d builder )
+    | "printf" -> codegen_print el builder
+    | "len" -> codegen_len el builder
+    | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
   (* Note that in Analyzer all legal types will be converted to Note types in a LitSeq  *)
@@ -599,7 +610,9 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
-  let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.Musictype(Note))) |] in (* TODO: add param *)
+  let len_t = L.function_type i32_t [| void_p |] in
+  let _ = L.declare_function "len" len_t the_module in
+  let render_as_midi_t = L.function_type void_t [| ptr_t |] in (* TODO: add param *)
   let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in
   let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in

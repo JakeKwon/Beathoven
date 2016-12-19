@@ -76,6 +76,7 @@ let (builtin_types : A.struct_decl StringMap.t) =
   List.fold_right add_to_map builtin_types_list StringMap.empty
 
 (* Initialize builtin_funcs *)
+(* This is part is only for function checking, such as parameters type checking *)
 let (builtin_funcs : func_decl StringMap.t) =
   let get_func_decl name (returnType : A.datatype) formalsType =
     {
@@ -86,12 +87,15 @@ let (builtin_funcs : func_decl StringMap.t) =
       formals = List.map (fun typ -> (typ, "")) formalsType;
     }
   in
-  let unit_t = A.Primitive(Unit) and string_t = A.Primitive(String)
+  let unit_t = A.Primitive(Unit) and int_t = A.Primitive(Int)
+  and string_t = A.Primitive(String)
   and pitch_t = A.Primitive(Pitch) and duration_t = A.Primitive(Duration)
   in
   let map = StringMap.empty in
   let map = StringMap.add "print"
       (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "len"
+      (get_func_decl "len" int_t [ ]) map in (* TODO: add the param *)
   let map = StringMap.add "render_as_midi"
       (get_func_decl "render_as_midi" unit_t [ A.Arraytype(A.Musictype(Note)) ]) map in (* TODO: add the param *)
   let map = StringMap.add "str_of_pitch"
