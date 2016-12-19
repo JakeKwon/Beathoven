@@ -447,6 +447,7 @@ and codegen_expr_ref builder expr =
 let rec codegen_stmt builder = function
     Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
+  | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
@@ -484,6 +485,7 @@ and codegen_if exp then_ (else_:stmt) builder =
   (* Codegen of 'else' can change the current block, update else_bb for the
    * phi. *)
   let new_else_bb = L.insertion_block builder in
+
   let merge_bb = L.append_block context "ifcont" the_function in
   L.position_at_end merge_bb builder;
   (* let then_bb_val = value_of_block new_then_bb in *)
