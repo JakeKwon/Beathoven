@@ -7,6 +7,8 @@
 // clang -S -emit-llvm -c stdlib.c
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "beathoven.h"
 
 char _buffer[20];
@@ -26,6 +28,7 @@ string _str_of_pitch(pitch p) {
     return _buffer;
 }
 
+
 void _write_sequence_midi_text(Seq input_sequence){
 
   int midi_pitches[input_sequence.len];
@@ -33,7 +36,15 @@ void _write_sequence_midi_text(Seq input_sequence){
 
   FILE *file_pointer;
   char sentenc[1000];
-  file_pointer = fopen("/Users/manubete/Desktop/plt/Beathoven/bet_midi_library/midi_text.txt","w");
+  char cwd[1000];
+  if (getcwd(cwd, sizeof(cwd)) != NULL) {
+      fprintf(stdout, "Current working dir: %s\n", cwd);
+      strcat(cwd, "/../bet_midi_library/file_example.txt");
+  }
+   else
+       perror("getcwd() error");
+
+  file_pointer = fopen(cwd,"w");
 
   if(file_pointer == NULL){
       printf("Error! \n");
@@ -64,6 +75,11 @@ void _write_sequence_midi_text(Seq input_sequence){
 void _make_midi_from_midi_text(){
   const char * script = "./betmidi.sh";
   system(script);
+}
+
+void render_as_midi(Seq * input_sequence){
+    _write_sequence_midi_text(*input_sequence);
+    _make_midi_from_midi_text();
 }
 
 // _duration d;

@@ -536,6 +536,8 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
+  let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.Musictype(Note))) |] in (* TODO: add param *)
+  let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in
   let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
   let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in

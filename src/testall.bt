@@ -4,6 +4,11 @@
  * to see how our language developed over time
  */
 
+// render midi using Note array
+Note note = F:8/4;
+Note [] seq = [note, note];
+render_as_midi(seq);
+
 // Struct can only be defined outside funcs
 Struct sth {
     int a;
@@ -51,7 +56,6 @@ print(str_of_pitch(pitch'), ":", str_of_duration(q), "\n");
 pitch r = 2;
 
 // Note
-Note note;
 Note note2 = F4:1/8;
 note = :1/1;
 print(str_of_Note(F4:),' ', str_of_Note(note2), ' ', str_of_Note(note), '\n');
