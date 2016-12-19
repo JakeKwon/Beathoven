@@ -1,6 +1,7 @@
 src/beathoven
 src/_build
 src/stdlib.ll
+src/stdlib.cpp
 test/scanner/tokenize
 test/compiler/logs/*
 test/compiler/logs/globallog.log
@@ -13,6 +14,7 @@ stdlib.bc
 
 *foo.bt
 *foo.ll
+*foo.c
 
 *.cmi
 *.cmo

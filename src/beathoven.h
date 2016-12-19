@@ -11,14 +11,13 @@
 /* Basic types */
 
 typedef char * string;
-
+typedef void * ptr_t;
 
 // Arraytype(Int)
-typedef struct _Arr_int {
+typedef struct Arr_int {
     int len;
     int* arr;
-} _Arr_int;
-
+} Arr_int;
 
 /* Basic music types */
 
@@ -78,7 +77,6 @@ typedef struct Seq {
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
-
 
 typedef struct _Sequence {
     Seq seq;

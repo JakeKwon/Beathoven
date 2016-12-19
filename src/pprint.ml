@@ -24,6 +24,7 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Pitch) -> "pitch"
   | Primitive(Duration) -> "duration"
   | Musictype(Note) -> "Note"
+  | Musictype(Seq) -> "Seq"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
 (* TODO J: other datatypes  *)
@@ -113,6 +114,7 @@ let rec json_of_expr expr =
                                            ])]
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
+    | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))]
     | LitArray(el, d) -> `Assoc [("Array",
                                   `Assoc [("elements", `List (List.map json_of_expr el));
                                           tuple_of_datatype d
@@ -137,7 +139,11 @@ let rec json_of_stmt stmt =
     | Expr(e, d) -> `Assoc [("stmt_expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | If (e, s1, s2) -> `Assoc [("if", `Assoc [("cond", json_of_expr e); ("then", json_of_stmt s1)]); ("else", json_of_stmt s2)]
-    (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)
+    | For (e1, e2, e3, s) -> `Assoc [("for",
+                                      `Assoc [("init", json_of_expr e1);
+                                              ("cond", json_of_expr e2);
+                                              ("next", json_of_expr e3);
+                                              ("body", json_of_stmt s)])]
     | While (e, s) -> `Assoc [("while", `Assoc [("cond", json_of_expr e); ("body", json_of_stmt s)])]
     | Break -> `String "break"
     | Continue -> `String "continue"
