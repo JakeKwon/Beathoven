@@ -511,9 +511,6 @@ inc_ ==  null_expr2
 
   is_loop := old_val;
 
-and codegen_while cond_ body_ builder =
-  let null_expr = Null in
-  codegen_for null_expr cond_ null_expr body_ builder
 
 and codegen_ret d expr builder =
   match expr with

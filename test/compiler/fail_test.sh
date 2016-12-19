@@ -9,7 +9,7 @@ RED='\033[0;31m'
 
 INPUTS="pass/*.bt"
 LLI="lli"
-BEAT="../../src/beathoven"
+BEAT="../../beathoven.sh -c"
 
 printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 
