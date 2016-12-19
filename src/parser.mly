@@ -102,7 +102,7 @@ primitive:
 datatype_nonarray:
     primitive { Primitive($1) }
   | NOTE { Musictype(Note) }
-  /*| musictype { Musictype($1) }*/
+  | SEQ { Musictype(Seq) }
   | STRUCT ID { Structtype($2) }
 
 datatype:
@@ -122,8 +122,15 @@ index_range: /* Python-like array access */
   | COLON { (LitInt(0), Noexpr) }
 
 expr_array:
-  | LBRACK expr_list RBRACK { LitArray($2) }
+  | LBRACK expr_with_note_list RBRACK { LitArray($2) }
+  | LBRACE note_list RBRACE { LitSeq($2) }
   | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
+
+/*
+by introducing
+`expr_with_note`.
+I have no idea how to make it support both arr[id1:id2] and [pitch':dur', pitch':dur'].
+*/
 
 expr:
   | literal { $1 }
@@ -154,6 +161,7 @@ expr:
 
 /*TODO: expr_with_array: */
 
+/* To resolve the conflicts of arr[id1:id2] and pitch':dur' */
 expr_with_note:
   | expr { $1 }
   | literal_note { $1 }
@@ -168,6 +176,15 @@ expr_with_note_list:
 expr_with_note_rev_list:
     expr_with_note { [$1] }
   | expr_with_note_rev_list COMMA expr_with_note { $3 :: $1 }
+
+note_list:
+  | { [] }
+  | note_rev_list { List.rev $1 }
+
+note_rev_list:
+    expr_with_note { [$1] }
+  | note_rev_list COMMA expr_with_note { $3 :: $1 }
+/* want to replace COMMA with SPACE. need to change scanner */
 
 expr_list:
     /* nothing */ { [] }
@@ -202,7 +219,6 @@ stmt_list:
 stmt_rev_list:
     /* nothing */ { [] }
   | stmt_rev_list stmt { $2 :: $1 }
-  /*| stmt stmt_rev_list { $1 :: $2 }*/
 
 var_decl:
     datatype ID SEP { VarDecl($1, $2, Noexpr) }
@@ -280,6 +296,7 @@ program:
   | include_list btmodule EOF { [$2] }
 
 /* TODO: right now include_list must be on the top */
+/* Parser is stateless (no memory) */
 
 /*
 p.s. parser is still clean in this version without Musictype(Note).
