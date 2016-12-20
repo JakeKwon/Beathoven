@@ -43,11 +43,11 @@ LLIFail() {
 
 SignalError() {
     if [ $error -eq 0 ] ; then
-  printf "${RED}FAILURE${NC}"
+  printf "\n${RED}FAILURE${NC}\t"
   error=1
   totalerrors=$(($totalerrors + $one))
     fi
-    echo "  $1"
+    echo "$1"
 }
 
 
@@ -84,9 +84,11 @@ Compare() {
     if [ $helperPrint -eq 1 ] ; then
       printf "Comparing... $* \n"
     fi
-    echo diff -b $1 $2 ">" $3 1>&2
-    diff -b "$1" "$2" > "$3" 2>&1 || {
-        SignalError "Output differs. See $3 "
+
+    diff -b "$1" "$2" > "logs/$3" 2>&1 || {
+        echo diff -b $1 $2 "> logs/" $3 1>&2
+        SignalError "Output differs. See $3"
+        diff -b "$1" "$2" > "diffs/$3" 2>&1
         echo "FAILED $1 differs from $2" 1>&2
     }
 }
@@ -115,7 +117,7 @@ Check(){
     Run $BEAT $1 $TMP_LLI_FILE
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # printf $TMP_OUT_FILE ${reffile}.out logs/${basename}.diff
-    Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
+    Compare "$TMP_OUT_FILE" ${reffile}.out ${basename}.diff
     # printf "\nRunning $BEAT < $1 ${basename}.ll > ${basename}.ll\n"
 
     # Report the status and clean up the generated files
@@ -159,7 +161,7 @@ CheckFail() {
     rm TEMPORARY
     # rm "TEMPORARY"
     # Run "$LLI" "$TMP_LLI_FILE" "2>" "$TMP_OUT_FILE"
-    Compare "$TMP_ERR_FILE" ${reffile}.err logs/${basename}.diff
+    Compare "$TMP_ERR_FILE" ${reffile}.err ${basename}.diff
 
     # generatedfiles="$generatedfiles ${basename}.err ${basename}.diff" &&
     # RunFail "$MICROC" "<" $1 "2>" "${basename}.err" ">>" $globallog &&
@@ -193,12 +195,16 @@ do
 
   Check $file 2>> $globallog
 done
-printf "You have $totalerrors out of $totalfiles pass errors"
+printf "\nYou have $totalerrors out of $totalfiles PASS errors"
 printf "\n\n${CYAN}####  End of Pass Compiler Tests!  ####${NC}"
 
 
-printf "\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
+printf "\n\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
 failfiles="fail/*.bt"
+error=0
+totalfiles=0
+totalerrors=0
+
 
 for file in $failfiles
 do
@@ -212,5 +218,6 @@ do
 
   CheckFail $file 2>> $globallog
 done
+printf "\nYou have $totalerrors out of $totalfiles FAIL errors"
 printf "\n\n${CYAN}####  End of Fail Compiler Tests!  ####${NC}"
 

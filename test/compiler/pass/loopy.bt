@@ -1,5 +1,6 @@
 int x = 0;
 
+/* If else inside a while */
 while (x < 3) {
   if (x == 2){
     print("y\n");
@@ -8,4 +9,13 @@ while (x < 3) {
     print("x\n");
   }
   x=x+1;
+}
+
+/* while inside an if */
+if (true) {
+  int y = 7;
+  while (y >= 5){
+    print(y, "\n");
+    y = y - 1;
+  }
 }

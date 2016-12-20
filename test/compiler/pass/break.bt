@@ -1,0 +1,11 @@
+int x = 5;
+
+while (x < 10) {
+  if (x == 8){
+    print("should break");
+    break;
+  }
+  print(x, "\n");
+  x = x + 1;
+
+}
