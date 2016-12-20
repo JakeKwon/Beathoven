@@ -27,6 +27,7 @@ type expr =
   | Noexpr
   | LitSeq of expr list
   | LitArray of expr list * A.datatype (* element type *)
+  | ArrayConcat of expr list * A.datatype (* type of array *)
   | ArrayIdx of expr * expr * A.datatype
   | ArraySub of expr * expr * expr * A.datatype
 

@@ -62,6 +62,7 @@ let rec string_of_expr = function
   | FuncCall(f, el, _) ->
     f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
+  | LitArray(el, _) -> "Array: " ^ (String.concat ", " (List.map string_of_expr el))
 
 
 (* Print SAST tree representation *)
@@ -115,11 +116,15 @@ let rec json_of_expr expr =
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
     | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))]
-    | LitArray(el, d) -> `Assoc [("Array",
+    | LitArray(el, d) -> `Assoc [("LitArray",
                                   `Assoc [("elements", `List (List.map json_of_expr el));
                                           tuple_of_datatype d
                                          ])]
-    | ArrayIdx(a, idx, d) -> `Assoc [("ArrayEle",
+    | ArrayConcat(el, d) -> `Assoc [("ArrayConcat",
+                                     `Assoc [("arrays", `List (List.map json_of_expr el));
+                                             tuple_of_datatype d
+                                            ])]
+    | ArrayIdx(a, idx, d) -> `Assoc [("ArrayIdx",
                                       `Assoc [("Array", json_of_expr a);
                                               ("Idx", json_of_expr idx);
                                               tuple_of_datatype d

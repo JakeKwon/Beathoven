@@ -53,6 +53,7 @@ let get_type_from_expr (expr : S.expr) =
   | Noexpr -> A.Primitive(Unit)
   | LitSeq(_) -> Musictype(Seq)
   | LitArray(_,d) -> Arraytype(d)
+  | ArrayConcat(_,d) -> d
   | ArrayIdx(_,_,d) -> d
   | ArraySub(_,_,_,d) -> d
 
@@ -171,32 +172,45 @@ and analyze_array env (expr_list:A.expr list) =
   if List.length sast_expr_list = 0 then
     env, S.LitArray([], Primitive(Unit))
   else
-    let ele_type =
-      let ele_type = get_type_from_expr (List.hd sast_expr_list) in
+    let get_ele_type expr  =
+      let ele_type = get_type_from_expr expr  in
       match ele_type with
-      | Arraytype(d) -> d
-      | _ -> ele_type
+      | Arraytype(d) -> ele_type, d
+      | _ -> ele_type, ele_type
     in
+    let ele_type = ref (A.Primitive(Unit)) in
     let sast_expr_list =
-      let ele_type = ref (A.Primitive(Unit)) in
       let helper_array l (expr : S.expr) =
-        let d =
-          match get_type_from_expr expr with
-          | Arraytype(d) -> d
-          | _ as d -> d
-        in
-        if d = Primitive(Unit) then l (* expr is [] *)
+        let d, d' = get_ele_type expr in
+        if d' = Primitive(Unit) then l (* expr is [] *)
         else
-          (if !ele_type = Primitive(Unit) then ele_type := d;
-           if d = !ele_type then
-             match expr with
-             | LitArray(el, _) -> (List.rev el) @ l
-             | _ as e -> e :: l
-           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d)))
+          (if !ele_type = Primitive(Unit) then ele_type := d';
+           (* Note that d' is not Unit *)
+           if d = !ele_type then (
+             Log.debug (string_of_expr expr);
+             expr :: (fst l), snd l)
+           else if d' = !ele_type then
+             (
+               match expr with
+               | S.LitArray(el, _) -> (el @ (fst l), snd l)
+               | _ as e ->
+                let arrays =
+                  if List.length (fst l) = 0 then snd l
+                  else (S.LitArray(fst l, d') :: snd l)
+                in
+                ([] , e :: arrays)
+             )
+           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d'))
+          )
       in
-      List.rev (List.fold_left helper_array [] sast_expr_list)
+      let l = List.fold_left helper_array ([], []) (List.rev sast_expr_list) in
+      S.LitArray(fst l, !ele_type) :: snd l
     in
-    env, S.LitArray(sast_expr_list, ele_type)
+    let sast_litarray =
+      if List.length sast_expr_list = 1 then List.hd sast_expr_list
+      else S.ArrayConcat(sast_expr_list, Arraytype(!ele_type))
+    in
+    env, sast_litarray
 
 and analyze_arrayidx env a e =
   let _, sast_arr = build_sast_expr env a in
