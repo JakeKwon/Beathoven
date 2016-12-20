@@ -1,0 +1,6 @@
+duration w = 4/4;
+Seq seq1 = <1 1 5 5 6 6 5..2/4>;
+Seq seq2 = <4 4 3 3 2 2 1..2/4>;
+Seq seq3 = <5 5 4 4 3 3 2..2/4>;
+Seq seq = [seq1, seq2, seq3, seq3, seq1, seq2[0:len(seq2)-1], 1..w];
+render_as_midi(seq);
