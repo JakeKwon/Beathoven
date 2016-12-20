@@ -15,7 +15,7 @@ typedef void * ptr_t;
 
 // Arraytype(Int)
 typedef struct Arr_int {
-    int len;
+    size_t len;
     int* arr;
 } Arr_int;
 
@@ -73,7 +73,7 @@ typedef struct _note_or_chord {
 
 // Musictype(Seq)
 typedef struct Seq {
-    int len;
+    size_t len;
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
@@ -86,7 +86,7 @@ typedef struct _Sequence {
 
 // Sequence[]
 typedef struct _Arr_Sequence {
-    int len;
+    size_t len;
     _Sequence* arr;
 } _Arr_Sequence;
 
@@ -100,7 +100,7 @@ typedef struct Part {
 
 // Part[]
 typedef struct _Arr_Part {
-    int len;
+    size_t len;
     Part* arr;
 } _Arr_Part;
 

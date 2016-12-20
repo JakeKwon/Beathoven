@@ -16,10 +16,10 @@ char _buffer[20];
 int _pitch_values[7] = {0,2,4,5,7,9,11};
 
 
-int len(ptr_t arr_struct_p) {
+size_t len(ptr_t arr_struct_p) {
     // return arr_struct_p->len;
     // return 0;
-    return *((int *) arr_struct_p);
+    return *((size_t *) arr_struct_p);
 }
 
 string _str_of_pitch(pitch p) {

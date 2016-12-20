@@ -92,7 +92,7 @@ and lookup_array (d : A.datatype) =
   try Hashtbl.find array_tbl d
   with | Not_found ->
     let struct_t = L.named_struct_type context ("Arr_" ^ (Pprint.string_of_datatype d)) in
-    let type_array = [|i32_t; L.pointer_type (lltype_of_datatype d)|] in
+    let type_array = [|size_t; L.pointer_type (lltype_of_datatype d)|] in
     L.struct_set_body struct_t type_array is_struct_packed;
     Hashtbl.add array_tbl d struct_t;
     struct_t
@@ -207,6 +207,30 @@ let get_ids_tmp = function
   | Id(s, _) -> "." ^ s
   | StructField(_, s, _) -> ".struct." ^ s
 
+
+(* ------------------- Memory Access ------------------- *)
+
+let memcpy (lhs : L.llvalue) (rhs : L.llvalue) (size : L.llvalue) builder =
+  let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
+  let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+  Log.debug ("memcpy(): \n" ^ (L.string_of_llvalue lhs_p) ^ "\n" ^
+             (L.string_of_llvalue rhs_p) ^ "\n" ^ (L.string_of_llvalue size));
+  ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size |] "" builder);
+  lhs_p
+
+let codegen_arraycopy lhs rhs d len builder = (* L.llvalue *)
+  let len_cast = L.build_intcast len size_t ".lencast" builder in
+  let size_ele = L.size_of d in
+  let size = L.build_mul len_cast size_ele ".size" builder in
+  memcpy lhs rhs size builder
+
+let get_array_ptr arr_s idx_ll builder =
+  let arr_p =
+    let ptr_p = L.build_struct_gep arr_s 1 (".arrp_p") builder in
+    L.build_load ptr_p ".arrp" builder
+  in
+  L.build_gep arr_p [| idx_ll |] ".rawidx" builder
+
 (* -------------------------------------------- *)
 
 let codegen_pitch k o a builder =
@@ -283,14 +307,6 @@ and codegen_funccall fname el d builder =
 
 (* ----- Assignment ----- *)
 
-and memcpy (lhs : L.llvalue) (rhs : L.llvalue) (size : L.llvalue) builder =
-  let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
-  let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
-  Log.debug ("memcpy(): \n" ^ (L.string_of_llvalue lhs_p) ^ "\n" ^
-    (L.string_of_llvalue rhs_p) ^ "\n" ^ (L.string_of_llvalue size));
-  ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size |] "" builder);
-  lhs_p
-
 and codegen_assign_with_lhs lhs rhs_expr builder =
   let store rhs =
     ignore(L.build_store rhs lhs builder);
@@ -302,7 +318,6 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
         let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
         let size_ll = L.size_of lltype in
         Log.debug ("rhs_size: " ^ (L.string_of_llvalue size_ll));
-        (* L.build_bitcast size_ll size_t "size" builder *)
         size_ll
       in
       codegen_sizeof rhs_expr builder
@@ -347,29 +362,18 @@ and codegen_structfield struct_expr fid isref builder =
 (* ----- Array ----- *)
 
 and codegen_raw_array el d builder = (* d is element_type *)
+  let len = L.const_int size_t (List.length el) in
   (* garbage!! no GC *)
-  let len =
-    let length =
-      List.fold_left (fun count expr ->
-          match Analyzer.get_type_from_expr expr with
-          | Arraytype(_) ->
-            count + 1 (* TODO: update!! codegen_expr expr *)
-          | _ -> count + 1
-        ) 0 el
-    in
-    L.const_int i32_t length
-  in
   let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
-  let i = ref 0 in
-  List.iter (fun e ->
-      let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
+  List.iteri (fun i e ->
+      let ptr = L.build_gep arr [| (L.const_int i32_t i) |] ".idx" builder in
       ignore(codegen_assign_with_lhs ptr e builder);
-      incr i;
     ) el;
   len, arr (* return llvalue of ptr of element_type *)
 
 and codegen_set_array_struct d name (len : L.llvalue) (arr : L.llvalue) builder =
   let alloca = codegen_global_allocate d name builder false in
+  Log.debug ("codegen_set_array_struct: " ^ (L.string_of_llvalue alloca));
   let arr_len = L.build_struct_gep alloca 0 (name ^ ".len") builder in
   let arr_p = L.build_struct_gep alloca 1 (name ^ ".p") builder in
   ignore(L.build_store len arr_len builder);
@@ -387,11 +391,7 @@ and codegen_arrayidx a idx d isref builder =
   let idx_ll = codegen_expr builder idx in
   let arr_s = codegen_expr builder a in
   (* TODO: check idx in range  *)
-  let arr_p =
-    let ptr_p = L.build_struct_gep arr_s 1 (".arrp_p") builder in
-    L.build_load ptr_p ".arrp" builder
-  in
-  let p = L.build_gep arr_p [| idx_ll |] ".arridx" builder in
+  let p = get_array_ptr arr_s idx_ll builder in
   if isref then p
   else
     match d with
@@ -409,13 +409,52 @@ and codegen_arraysub a idx1 idx2 d builder =
   let arr_idx1 = codegen_arrayidx a idx1 ele_type true builder in
   (* TODO: check idx1 < idx2  *)
   let new_len = codegen_binop idx2 A.Sub idx1 builder in
-  let len_cast = L.build_intcast new_len size_t ".new_len" builder in
   let new_arr = L.build_array_malloc ele_lltype new_len ".arrsub_p" builder in
   (* copy original array elements to new array *)
-  let size_ele = L.size_of ele_lltype in
-  let size = L.build_mul len_cast size_ele ".size" builder in
-  let _ = memcpy new_arr arr_idx1 size builder in
+  let _ = codegen_arraycopy new_arr arr_idx1 ele_lltype new_len builder in
   codegen_set_array_struct d ".arrsub" new_len new_arr builder
+
+and codegen_concat_array el d builder =
+  (* garbage!! no GC *)
+  let len_list = (* len of each array *)
+    let get_len expr =
+      let len =
+        match expr with
+        | LitArray(el, _) -> L.const_int size_t (List.length el)
+        | _ -> codegen_len [expr] builder
+        (* L.build_bitcast () size_t ".cast" builder *)
+      in
+      Log.debug ("codegen_concat_array: " ^ (L.string_of_llvalue len)); len
+    in
+    List.map get_len el
+  in
+  let acc = ref (L.const_int size_t 0) in
+  let acc_len_array = (* start position of each array in the new array *)
+    let acc_len len =
+      let old_acc = !acc in
+      Log.debug (L.string_of_llvalue len);
+      acc := L.build_add !acc len ".add" builder;
+      old_acc
+    in
+    Array.of_list (List.map acc_len len_list)
+  in
+  let ele_lltype =
+    let ele_type = match d with
+      | A.Arraytype(d) -> d
+      | _ -> raise (Exceptions.Impossible "Analyzer assures that this is Arraytype" )
+    in
+    lltype_of_datatype ele_type
+  in
+  let new_arr = L.build_array_malloc ele_lltype !acc ".arrconcat_p" builder in
+  let expr_array = Array.of_list (List.map (codegen_expr builder) el) in
+  Log.debug ("codegen_concat_array: expr " ^ (L.string_of_llvalue (expr_array.(0))));
+  (List.iteri (fun i len ->
+       let arr_p = get_array_ptr (expr_array.(i)) (L.const_int i32_t 0) builder in
+       let ptr = L.build_gep new_arr [| acc_len_array.(i) |] ".concatidx" builder in
+       Log.debug ("codegen_concat_array: ptr " ^ (L.string_of_llvalue ptr));
+       ignore(codegen_arraycopy ptr arr_p ele_lltype len builder)
+     ) len_list);
+  codegen_set_array_struct d ".arrconcat" !acc new_arr builder
 
 (* ----- Operators ----- *)
 
@@ -476,6 +515,7 @@ and codegen_expr builder = function
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
   | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder (* ref *)
+  | ArrayConcat(el, d) -> codegen_concat_array el d builder (* ref *)
 
 and codegen_expr_ref builder expr =
   match expr with
@@ -587,7 +627,7 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
-  let len_t = L.function_type i32_t [| void_p |] in
+  let len_t = L.function_type size_t [| void_p |] in
   let _ = L.declare_function "len" len_t the_module in
   let render_as_midi_t = L.function_type void_t [| ptr_t |] in (* TODO: add param *)
   let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in
