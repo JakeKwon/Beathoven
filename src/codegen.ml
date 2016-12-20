@@ -375,7 +375,8 @@ and codegen_set_array_struct d name (len : L.llvalue) (arr : L.llvalue) builder 
   Log.debug ("codegen_set_array_struct: " ^ (L.string_of_llvalue alloca));
   let arr_len = L.build_struct_gep alloca 0 (name ^ ".len") builder in
   let arr_p = L.build_struct_gep alloca 1 (name ^ ".p") builder in
-  ignore(L.build_store len arr_len builder);
+  let len_cast = L.build_intcast len size_t ".lencast" builder in
+  ignore(L.build_store len_cast arr_len builder);
   ignore(L.build_store arr arr_p builder);
   alloca
 
@@ -418,7 +419,7 @@ and codegen_concat_array el d builder =
     let get_len expr =
       let len =
         match expr with
-        | LitArray(el, _) -> L.const_int size_t (List.length el)
+        | LitArray(el, _) -> L.const_int i32_t (List.length el)
         | _ -> codegen_len [expr] builder
         (* L.build_bitcast () size_t ".cast" builder *)
       in
@@ -426,7 +427,7 @@ and codegen_concat_array el d builder =
     in
     List.map get_len el
   in
-  let acc = ref (L.const_int size_t 0) in
+  let acc = ref (L.const_int i32_t 0) in
   let acc_len_array = (* start position of each array in the new array *)
     let acc_len len =
       let old_acc = !acc in
@@ -624,7 +625,7 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
-  let len_t = L.function_type size_t [| void_p |] in
+  let len_t = L.function_type i32_t [| void_p |] in
   let _ = L.declare_function "len" len_t the_module in
   let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.seq_ele_type)) |] in (* TODO: add param *)
   let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in

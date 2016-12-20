@@ -123,8 +123,9 @@ index_range: /* Python-like array access */
   | COLON { (LitInt(0), Noexpr) }
 
 expr:
-  | literal { $1 }
   | ids { $1 }
+  | literal { $1 }
+  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) } /* For 5..1/4 */
   | expr DOTS expr { LitNote($1, $3) }
   | MINUS expr { Uniop (Neg, $2) }
   | expr PLUS expr { Binop($1, Add, $3) }
