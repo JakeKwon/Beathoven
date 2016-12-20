@@ -159,7 +159,7 @@ CheckFail() {
     rm TEMPORARY
     # rm "TEMPORARY"
     # Run "$LLI" "$TMP_LLI_FILE" "2>" "$TMP_OUT_FILE"
-    Compare "$TMP_ERR_FILE" ${reffile}.err logs/${basename}.diff
+    Compare "$TMP_ERR_FILE" ${reffile}.err ${basename}.diff
 
     # generatedfiles="$generatedfiles ${basename}.err ${basename}.diff" &&
     # RunFail "$MICROC" "<" $1 "2>" "${basename}.err" ">>" $globallog &&
