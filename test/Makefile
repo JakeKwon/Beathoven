@@ -20,6 +20,12 @@ test-pass:
 test-fail:
 	cd compiler; ./fail_test.sh
 
+tests-pass: build
+	cd compiler; ./pass_test.sh
+
+tests-fail: build
+	cd compiler; ./fail_test.sh
+
 build:
 	cd ..; make all
 

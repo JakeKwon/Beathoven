@@ -11,3 +11,10 @@ s.b = "yo";
 Struct sth [] stharr = [s, t, t];
 print(stharr[0].b);
 print(s.b);
+
+/*
+Struct sth [] sth_arr = [s, t, t];
+s.b = "struct s should not back\n";
+print("s'copy in arr: ", sth_arr[0].b);
+print("t'copy in arr: ", sth_arr[1].b);
+*/

@@ -1,0 +1,3 @@
+Note note2 = F4:1/8;
+note = :1/1;
+print(str_of_Note(F4:),' ', str_of_Note(note2), ' ', str_of_Note(note), '\n');

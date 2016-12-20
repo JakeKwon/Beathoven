@@ -1,0 +1,9 @@
+Note note = F4..1/8;
+note = p;
+note = ..1/1;
+print(str_of_Note(F4..2/4),' ', str_of_Note(note), '\n');
+duration h = 1/2;
+
+// Seq element must be pitch or Note (or Chord)
+Seq seq = < 5..1/1 5 ..1/1  B5b ..1/4 1 p note C p..1/2  p..h 1 ..h 7..h F..h >;
+print(str_of_Note(seq[2]));
