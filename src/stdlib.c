@@ -86,7 +86,7 @@ void _write_sequence_midi_text(Seq input_sequence, int seqi){
   fprintf(file_pointer, "-1\n");
 
   for(i=0; i < input_sequence.len; i++){
-    fprintf(file_pointer, "%f,", midi_durations[i]);
+    fprintf(file_pointer, "%.2f,", midi_durations[i]);
   }
   fprintf(file_pointer, "-1\n");
 
