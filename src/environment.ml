@@ -65,6 +65,7 @@ let (builtin_types_list : A.struct_decl list) =
      A.fields = [(A.Primitive(Int), "a");(A.Primitive(Int), "b");];
    };
    {
+     (* TODO: if Note is just struct, why not declare it in stdlib.bt *)
      A.sname = "Note";
      A.fields = [(A.Primitive(Pitch), "p");(A.Primitive(Duration), "d");];
    };]
@@ -94,6 +95,8 @@ let (builtin_funcs : func_decl StringMap.t) =
   let map = StringMap.empty in
   let map = StringMap.add "print"
       (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "render_seqs_as_midi"
+      (get_func_decl "render_seqs_as_midi" unit_t []) map in
   let map = StringMap.add "len"
       (get_func_decl "len" int_t [ ]) map in (* TODO: add the param *)
   let map = StringMap.add "render_as_midi"
@@ -103,5 +106,5 @@ let (builtin_funcs : func_decl StringMap.t) =
   let map = StringMap.add "str_of_duration"
       (get_func_decl "_str_of_duration" string_t [ duration_t ]) map in
   let map = StringMap.add "str_of_Note"
-      (get_func_decl "_str_of_Note" string_t [ A.Musictype(Note) ]) map in
+      (get_func_decl "_str_of_Note" string_t [ A.Structtype("Note") ]) map in
   map

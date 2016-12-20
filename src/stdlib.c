@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include "beathoven.h"
 
 char _buffer[20];
@@ -48,7 +49,7 @@ string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
     return _buffer;
 }
 
-void _write_sequence_midi_text(Seq input_sequence){
+void _write_sequence_midi_text(Seq input_sequence, int seqi){
 
   int midi_pitches[input_sequence.len];
   float midi_durations[input_sequence.len];
@@ -63,7 +64,8 @@ void _write_sequence_midi_text(Seq input_sequence){
    else
        perror("getcwd() error");
 
-  file_pointer = fopen(cwd,"w");
+  if (seqi == 0) file_pointer = fopen(cwd, "w");
+  else file_pointer = fopen(cwd, "a");
 
   if(file_pointer == NULL){
       printf("Error! \n");
@@ -96,8 +98,25 @@ void _make_midi_from_midi_text(){
   system(script);
 }
 
+void render_seqs_as_midi(int num, ...) {
+    va_list valist;
+    int i;
+    /* initialize valist for num number of arguments */
+    va_start(valist, num);
+
+    /* access all the arguments assigned to valist */
+    for (i = 0; i < num; i++) {
+        _write_sequence_midi_text(*(va_arg(valist, Seq *)), i);
+    }
+
+    /* clean memory reserved for valist */
+    va_end(valist);
+
+    _make_midi_from_midi_text();
+}
+
 void render_as_midi(Seq * input_sequence){
-    _write_sequence_midi_text(*input_sequence);
+    _write_sequence_midi_text(*input_sequence, 0);
     _make_midi_from_midi_text();
 }
 
