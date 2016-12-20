@@ -23,6 +23,9 @@ tests-fail:
 tests-pass:
 	cd test; make test-pass
 
+test-clear:
+	cd test; make test-clear
+
 .PHONY: clean
 clean:
 	cd src; make clean

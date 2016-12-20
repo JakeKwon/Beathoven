@@ -26,6 +26,9 @@ tests-pass: build
 tests-fail: build
 	cd compiler; ./fail_test.sh
 
+test-clear:
+	cd compiler; ./clearlogs.sh
+
 build:
 	cd ..; make all
 
