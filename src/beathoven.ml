@@ -8,10 +8,9 @@
 type action = Compile | Help | Raw | Sast
 
 let get_help =
-  "Beathoven Usage: beathoven <flag> < [src] [output_file]\n" ^
+  "Beathoven Usage: beathoven <flag> < [src] > [output_file]\n" ^
   "  -c\tCompile beathoven source file to LLVM IR in output_file with stdlib\n" ^
-  "  -h\tDisplay this list of options\n" ^
-  "  -r\tCompile beathoven input_file into raw c output_file\n"
+  "  -h\tDisplay this list of options\n"
 
 (* Error reporting helper function *)
 let get_pos_and_tok lexbuf =
@@ -20,7 +19,6 @@ let get_pos_and_tok lexbuf =
     column_num = cur.Lexing.pos_cnum - cur.Lexing.pos_bol and
     token = Lexing.lexeme lexbuf in
   line_num, column_num, token
-
 
 let _ =
   let action =
