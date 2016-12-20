@@ -8,7 +8,8 @@ RED='\033[0;31m'
 # Add the code to test/compiler/pass
 
 INPUTS="pass/*.bt"
-LLI="lli"
+
+LLI="lli-3.8"
 BEAT="../../beathoven.sh -c"
 
 printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
