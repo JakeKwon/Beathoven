@@ -44,7 +44,7 @@ let get_type_from_expr (expr : S.expr) =
   | LitStr(_) -> A.Primitive(String)
   | LitPitch(_,_,_) -> A.Primitive(Pitch)
   | LitDuration(_,_) -> A.Primitive(Duration)
-  | LitNote(_,_) -> A.Musictype(Note)
+  | LitNote(_,_) -> A.Structtype("Note")
   | Null -> A.Primitive(Unit) (* Null -> Primitive(Null_t) *)
   | Binop(_,_,_,d) -> d
   | Uniop(_,_,d) -> d
@@ -152,7 +152,7 @@ and analyze_seq env (expr_list:A.expr list) =
       let flatten_seq l (expr : S.expr) =
         (* Cast datatype and flatten Seq *)
         match get_type_from_expr expr with
-        | A.Musictype(Note) -> expr :: l
+        | A.Structtype("Note") -> expr :: l
         | A.Primitive(Pitch) -> S.LitNote(expr, LitDuration(1, 4)) :: l
         | A.Primitive(Duration) -> S.LitNote(LitPitch('C', 4, 0), expr) :: l
         | A.Arraytype(seq_ele_type) -> (
@@ -315,7 +315,7 @@ and analyze_assign env e1 e2 =
     else
       match t1, t2 with
       | Arraytype(d), Arraytype(Primitive(Unit)) -> S.LitArray([], d) (* it means e2 is [] *)
-      | Musictype(Note), _ -> S.LitNote(get_litpitch rhs, S.LitDuration(1, 4))
+      | Structtype("Note"), _ -> S.LitNote(get_litpitch rhs, S.LitDuration(1, 4))
       | _ ->
         raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
   in
@@ -357,7 +357,11 @@ and analyze_funccall env s el =
   *)
 
 let get_sast_structtype env s =
-  let n = get_global_name env.name s in
+  let n =
+    (* Builtin Struct *)
+    if s = "Note" then s
+    else get_global_name env.name s 
+  in
   if not (StringMap.mem n !(env.btmodule).struct_map)
   then raise (Exceptions.UndefinedStructType n)
   else Structtype(n) (* rename Structtype using sast(global) name *)

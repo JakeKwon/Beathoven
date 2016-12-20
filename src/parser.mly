@@ -101,7 +101,8 @@ primitive:
 
 datatype_nonarray:
     primitive { Primitive($1) }
-  | NOTE { Musictype(Note) }
+  /*| NOTE { Musictype(Note) }*/
+  | NOTE { Structtype("Note") }
   | SEQ { Arraytype(seq_ele_type) }
   | STRUCT ID { Structtype($2) }
 

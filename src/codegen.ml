@@ -81,7 +81,7 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(Char) -> i8_t
   | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
   | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
-  | Musictype(Note) -> lookup_struct "Note"
+  (* | Musictype(Note) -> lookup_struct "Note" *)
   | Structtype(s) -> lookup_struct s
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
@@ -349,7 +349,7 @@ and codegen_assign lhs_expr rhs_expr builder =
 
 and codegen_note pitch duration builder =
   let p = codegen_expr builder pitch and d = codegen_expr builder duration in
-  get_lit_alloca false ".litNote" (A.Musictype(Note)) [("p", p); ("d", d)] builder
+  get_lit_alloca false ".litNote" (A.Structtype("Note")) [("p", p); ("d", d)] builder
 
 and codegen_structfield struct_expr fid isref builder =
   let struct_ll = codegen_expr builder struct_expr in
@@ -618,7 +618,7 @@ let codegen_builtin_funcs () =
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
   let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in
   let _ = L.declare_function "_str_of_duration" _str_of_duration_t the_module in
-  let _str_of_Note_t = L.function_type str_t [| get_bind_type (A.Musictype(Note)) |] in
+  let _str_of_Note_t = L.function_type str_t [| get_bind_type (A.Structtype("Note")) |] in
   let _ = L.declare_function "_str_of_Note" _str_of_Note_t the_module in
   ()
 
