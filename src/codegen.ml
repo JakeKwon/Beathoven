@@ -36,6 +36,7 @@ and void_t = L.void_type context
 let str_t = L.pointer_type i8_t
 let ptr_t = str_t
 let size_t = L.type_of (L.size_of i8_t)
+let void_p = L.pointer_type size_t
 let null_ll = L.const_null i32_t
 and null_str = L.const_null str_t
 
@@ -85,11 +86,12 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
 
+(* Create the struct for Arraytype(d), {int size; d* ptr; } *)
 and lookup_array (d : A.datatype) =
   try Hashtbl.find array_tbl d
   with | Not_found ->
     let struct_t = L.named_struct_type context ("Arr_" ^ (Pprint.string_of_datatype d)) in
-    let type_array = [|i32_t; L.pointer_type (lltype_of_datatype d)|] in (* size; ptr of d*)
+    let type_array = [|size_t; L.pointer_type (lltype_of_datatype d)|] in
     L.struct_set_body struct_t type_array is_struct_packed;
     Hashtbl.add array_tbl d struct_t;
     struct_t
@@ -98,7 +100,6 @@ let get_bind_type d =
   let lltype = lltype_of_datatype d in
   match d with
   | Primitive(_) -> lltype
-  (* TODO: Array *)
   | _ -> L.pointer_type lltype
 
 let lltype_of_bind_list (bind_list : A.bind list) =
@@ -112,18 +113,20 @@ let codegen_local_allocate (typ : A.datatype) var_name builder =
   let alloca = L.build_alloca t var_name builder in
   Hashtbl.add local_tbl var_name alloca;
   alloca
+(* TODO: L.build_array_alloca *)
 
-(* Declare global variable and remember its llvalue in global_tbl *)
-let codegen_global_allocate (typ : A.datatype) var_name builder =
-  if _debug then Log.debug ("codegen_global_allocate: " ^ var_name);
+(* Declare global variable and remember its llvalue
+   in global_tbl if it's not a temporary variable *)
+let codegen_global_allocate (typ : A.datatype) var_name builder isPermanent =
+  Log.debug ("codegen_global_allocate: " ^ var_name);
   let zeroinitializer = L.const_null (lltype_of_datatype typ) in
   let alloca = L.define_global var_name zeroinitializer the_module in
-  Hashtbl.add global_tbl var_name alloca;
+  if isPermanent then Hashtbl.add global_tbl var_name alloca;
   alloca
 
 let codegen_allocate (typ : A.datatype) var_name builder =
   if _debug then Log.debug ("codegen_allocate: " ^ var_name);
-  if !is_main then codegen_global_allocate typ var_name builder
+  if !is_main then codegen_global_allocate typ var_name builder true
   else codegen_local_allocate typ var_name builder
 
 
@@ -198,7 +201,44 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
 (* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
+(* Such as @p = global %struct._pitch { i8 67, i32 1, i32 1 }, align 4 *)
 
+let get_ids_tmp = function
+  | Id(s, _) -> "." ^ s
+  | StructField(_, s, _) -> ".struct." ^ s
+
+
+(* ------------------- LLVM Utils ------------------- *)
+
+let break_block = ref (null_ll)
+(* let continue_block = ref (null_ll) *)
+let in_loop = ref false
+
+let add_terminal builder' f =
+  match L.block_terminator (L.insertion_block builder') with
+  | Some ll -> Log.debug ("add_terminal: " ^ (L.string_of_llvalue ll))
+  | None -> ignore (f builder') (* Add a terminal, i.e. a branch *)
+
+let memcpy (lhs : L.llvalue) (rhs : L.llvalue) (size : L.llvalue) builder =
+  let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
+  let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
+  Log.debug ("memcpy(): \n" ^ (L.string_of_llvalue lhs_p) ^ "\n" ^
+             (L.string_of_llvalue rhs_p) ^ "\n" ^ (L.string_of_llvalue size));
+  ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size |] "" builder);
+  lhs_p
+
+let codegen_arraycopy lhs rhs d len builder = (* L.llvalue *)
+  let len_cast = L.build_intcast len size_t ".lencast" builder in
+  let size_ele = L.size_of d in
+  let size = L.build_mul len_cast size_ele ".size" builder in
+  memcpy lhs rhs size builder
+
+let get_array_ptr arr_s idx_ll builder =
+  let arr_p =
+    let ptr_p = L.build_struct_gep arr_s 1 (".arrp_p") builder in
+    L.build_load ptr_p ".arrp" builder
+  in
+  L.build_gep arr_p [| idx_ll |] ".rawidx" builder
 
 (* -------------------------------------------- *)
 
@@ -255,12 +295,20 @@ let rec codegen_print expr_list builder =
   build_call printf (Array.of_list (s :: params)) "tmp" llbuilder
    *)
 
+
+and codegen_len el builder =
+  if List.length el <> 1 then (Log.error "[ParamNumberNotMatch]"; null_ll)
+  else (
+    let arr_struct_p = codegen_expr builder (List.hd el) in
+    let arr_struct_p = L.build_pointercast arr_struct_p void_p ".void_p" builder in
+    L.build_call (lookup_func "len") [| arr_struct_p |] ".arrlen" builder)
+
 and codegen_funccall fname el d builder =
   let f = lookup_func fname in
   let (actuals : L.llvalue array) = Array.of_list (List.map (codegen_expr builder) el) in
   (if _debug then
      Log.debug ("codegen_funccall(" ^ fname ^ "): ");
-   let helper ll = Log.debug (L.string_of_llvalue ll) in
+   let helper ll = Log.debug ("- " ^ L.string_of_llvalue ll) in
    Array.iter helper actuals);
   match d with
   | A.Primitive(A.Unit) -> L.build_call f actuals "" builder
@@ -273,29 +321,25 @@ and codegen_assign_with_lhs lhs rhs_expr builder =
     ignore(L.build_store rhs lhs builder);
     rhs
   in
-  let memcpy rhs = (* rhs is non-primitive, so rhs is ref *)
+  let copy rhs = (* rhs is non-primitive, so rhs is ref *)
     let size_ll = (* the size of the type which rhs_p points to *)
       let codegen_sizeof e builder =
         let lltype = lltype_of_datatype (Analyzer.get_type_from_expr e) in
         let size_ll = L.size_of lltype in
         Log.debug ("rhs_size: " ^ (L.string_of_llvalue size_ll));
-        (* L.build_bitcast size_ll size_t "size" builder *)
         size_ll
       in
       codegen_sizeof rhs_expr builder
     in
-    let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
-    let rhs_p = L.build_bitcast rhs ptr_t "rhs_p" builder in
     (* set the value of what lhs_p points_to *)
-    ignore(L.build_call (lookup_func "memcpy") [|lhs_p; rhs_p; size_ll |] "" builder);
-    rhs_p
+    memcpy lhs rhs size_ll builder (* rhs_p *)
   in
   let d = Analyzer.get_type_from_expr rhs_expr in
   let rhs = codegen_expr builder rhs_expr in
   Log.debug ("lhs: " ^ (L.string_of_llvalue lhs) ^ "\n rhs: " ^ (L.string_of_llvalue rhs));
   match d with
   | Primitive(_) -> store rhs
-  | _ -> memcpy rhs
+  | _ -> copy rhs
 
 and codegen_assign lhs_expr rhs_expr builder =
   let lhs = codegen_expr_ref builder lhs_expr in
@@ -309,72 +353,117 @@ and codegen_note pitch duration builder =
 
 and codegen_structfield struct_expr fid isref builder =
   let struct_ll = codegen_expr builder struct_expr in
-  (* let struct_ll = lookup_id sid builder in *)
-  let f = match fid with Id(f, _) -> f in
-  let field_index =
+  let tmp_name = fid in (* TODO: get_ids_tmp *)
+  let field_index = (* TODO: separate *)
     let field =
       let global_field_name = function
-        | A.Structtype(s) -> s ^ "." ^ f
+        | A.Structtype(s) -> s ^ "." ^ tmp_name
         | _ -> raise (Exceptions.Impossible("Must be structtype unless Analyzer fails"))
       in
       global_field_name (Analyzer.get_type_from_expr struct_expr)
     in
     Hashtbl.find struct_field_indexes field
   in
-  let p = L.build_struct_gep struct_ll field_index f builder in
+  let p = L.build_struct_gep struct_ll field_index tmp_name builder in
   if isref then p
-  else L.build_load p f builder
+  else L.build_load p tmp_name builder
 
 (* ----- Array ----- *)
+
+and codegen_raw_array el d builder = (* d is element_type *)
+  let len = L.const_int size_t (List.length el) in
+  (* garbage!! no GC *)
+  let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
+  List.iteri (fun i e ->
+      let ptr = L.build_gep arr [| (L.const_int i32_t i) |] ".idx" builder in
+      ignore(codegen_assign_with_lhs ptr e builder);
+    ) el;
+  len, arr (* return llvalue of ptr of element_type *)
+
+and codegen_set_array_struct d name (len : L.llvalue) (arr : L.llvalue) builder =
+  let alloca = codegen_global_allocate d name builder false in
+  Log.debug ("codegen_set_array_struct: " ^ (L.string_of_llvalue alloca));
+  let arr_len = L.build_struct_gep alloca 0 (name ^ ".len") builder in
+  let arr_p = L.build_struct_gep alloca 1 (name ^ ".p") builder in
+  let len_cast = L.build_intcast len size_t ".lencast" builder in
+  ignore(L.build_store len_cast arr_len builder);
+  ignore(L.build_store arr arr_p builder);
+  alloca
 
 and codegen_array el d builder =
   if d = A.Primitive(Unit) then null_ll (* TODO: null!! skip unknown empty array [] *)
   else
-    let len, arr = (* codegen_raw_array el element_type builder *)
-      (* no GC *)
-      let len =
-        let length =
-          List.fold_left (fun count expr ->
-              match Analyzer.get_type_from_expr expr with
-              | Arraytype(_) ->
-                count + 1 (* TODO: codegen_expr expr *)
-              | _ -> count + 1
-            ) 0 el
-        in
-        L.const_int i32_t length
-      in
-      let arr = L.build_array_malloc (lltype_of_datatype d) len ".arr" builder in
-      let i = ref 0 in
-      List.iter (fun e ->
-          let ptr = L.build_gep arr [| (L.const_int i32_t !i) |] ".idx" builder in
-          ignore(codegen_assign_with_lhs ptr e builder);
-          incr i;
-        ) el;
-      len, arr (* return llvalue of ptr of element_type *)
-    in
+    let len, arr = codegen_raw_array el d builder in
     let lit_name = ".litarr_" ^ (Pprint.string_of_datatype d) in
-    let alloca = codegen_global_allocate (A.Arraytype(d)) lit_name builder in
-    let arr_len = L.build_struct_gep alloca 0 (lit_name ^ ".len") builder in
-    let arr_p = L.build_struct_gep alloca 1 (lit_name ^ ".p") builder in
-    ignore(L.build_store len arr_len builder);
-    ignore(L.build_store arr arr_p builder);
-    alloca
+    codegen_set_array_struct (A.Arraytype(d)) lit_name len arr builder
 
 and codegen_arrayidx a idx d isref builder =
   let idx_ll = codegen_expr builder idx in
   let arr_s = codegen_expr builder a in
   (* TODO: check idx in range  *)
-  let arr_p =
-    let ptr_p = L.build_struct_gep arr_s 1 (".ptr_p") builder in
-    L.build_load ptr_p ".arr_p" builder
-  in
-  let p = L.build_gep arr_p [| idx_ll |] ".arridx" builder in
+  let p = get_array_ptr arr_s idx_ll builder in
   if isref then p
   else
     match d with
     | A.Primitive(_) -> L.build_load p ".val" builder
     | _ -> p
 
+and codegen_arraysub a idx1 idx2 d builder =
+  (* TODO: [:], [1:], [:-1] *)
+  let ele_type =
+    match d with
+    | A.Arraytype(d) -> d
+  in
+  let ele_lltype = lltype_of_datatype ele_type in
+  let arr_idx1 = codegen_arrayidx a idx1 ele_type true builder in
+  (* TODO: check idx1 < idx2  *)
+  let new_len = codegen_binop idx2 A.Sub idx1 builder in
+  let new_arr = L.build_array_malloc ele_lltype new_len ".arrsub_p" builder in
+  (* copy original array elements to new array *)
+  let _ = codegen_arraycopy new_arr arr_idx1 ele_lltype new_len builder in
+  codegen_set_array_struct d ".arrsub" new_len new_arr builder
+
+and codegen_concat_array el d builder =
+  (* garbage!! no GC *)
+  let len_list = (* len of each array *)
+    let get_len expr =
+      let len =
+        match expr with
+        | LitArray(el, _) -> L.const_int i32_t (List.length el)
+        | _ -> codegen_len [expr] builder
+        (* L.build_bitcast () size_t ".cast" builder *)
+      in
+      Log.debug ("codegen_concat_array: " ^ (L.string_of_llvalue len)); len
+    in
+    List.map get_len el
+  in
+  let acc = ref (L.const_int i32_t 0) in
+  let acc_len_array = (* start position of each array in the new array *)
+    let acc_len len =
+      let old_acc = !acc in
+      Log.debug (L.string_of_llvalue len);
+      acc := L.build_add !acc len ".add" builder;
+      old_acc
+    in
+    Array.of_list (List.map acc_len len_list)
+  in
+  let ele_lltype =
+    let ele_type = match d with
+      | A.Arraytype(d) -> d
+      | _ -> raise (Exceptions.Impossible "Analyzer assures that this is Arraytype" )
+    in
+    lltype_of_datatype ele_type
+  in
+  let new_arr = L.build_array_malloc ele_lltype !acc ".arrconcat_p" builder in
+  let expr_array = Array.of_list (List.map (codegen_expr builder) el) in
+  Log.debug ("codegen_concat_array: expr " ^ (L.string_of_llvalue (expr_array.(0))));
+  (List.iteri (fun i len ->
+       let arr_p = get_array_ptr (expr_array.(i)) (L.const_int i32_t 0) builder in
+       let ptr = L.build_gep new_arr [| acc_len_array.(i) |] ".concatidx" builder in
+       Log.debug ("codegen_concat_array: ptr " ^ (L.string_of_llvalue ptr));
+       ignore(codegen_arraycopy ptr arr_p ele_lltype len builder)
+     ) len_list);
+  codegen_set_array_struct d ".arrconcat" !acc new_arr builder
 
 (* ----- Operators ----- *)
 
@@ -425,13 +514,16 @@ and codegen_expr builder = function
   | Assign(e1, e2, _) -> codegen_assign e1 e2 builder
   | FuncCall(fname, el, d) ->
     (match fname with
-       "printf" -> codegen_print el builder
+     | "printf" -> codegen_print el builder
+     | "len" -> codegen_len el builder
      | _ -> codegen_funccall fname el d builder )
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
+  (* Note that in Analyzer all legal types will be converted to Note types in a LitSeq  *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
-  | ArraySub(a, idx1, idx2, d) -> L.const_null i32_t (* TODO *)
+  | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder (* ref *)
+  | ArrayConcat(el, d) -> codegen_concat_array el d builder (* ref *)
 
 and codegen_expr_ref builder expr =
   match expr with
@@ -445,8 +537,9 @@ and codegen_expr_ref builder expr =
 (* ----- Statements ----- *)
 
 let rec codegen_stmt builder = function
-    Block sl -> List.fold_left codegen_stmt builder sl
+  | Block sl -> List.fold_left codegen_stmt builder sl
   | Expr(e, _) -> ignore(codegen_expr builder e); builder
+  | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | VarDecl(d, s, e) ->
     ignore(codegen_allocate d s builder);
     if e <> Noexpr then ignore(codegen_assign (Id(s, d)) e builder);
@@ -454,8 +547,14 @@ let rec codegen_stmt builder = function
   | Return(e, d) -> ignore(codegen_ret d e builder); builder
   | If(e, s1, s2) -> codegen_if e s1 s2 builder
   | While(pred, body) -> codegen_while pred body builder
-  | Break -> builder (*TODO*)
-  | Continue -> builder (*TODO*)
+  | For(e1, e2, e3, body) -> codegen_stmt builder (* this way not works well with Continue *)
+                               (Block [
+                                   Expr(e1, Analyzer.get_type_from_expr e1);
+                                   While(e2,
+                                         Block [body;
+                                                Expr(e3, Analyzer.get_type_from_expr e1)]) ] )
+  | Break -> ignore(L.build_br (L.block_of_value !break_block) builder); builder
+  (* | Continue -> ignore(L.build_br (L.block_of_value !continue_block) builder); builder *)
   | _ -> Core.Std.failwith "[Impossible] Struct declaration are skiped in analyzer"
 
 and codegen_ret d expr builder =
@@ -463,62 +562,37 @@ and codegen_ret d expr builder =
     Noexpr -> L.build_ret_void builder
   | _ -> L.build_ret (codegen_expr builder expr) builder
 
-and codegen_if exp then_ (else_:stmt) builder =
-  let cond_val = codegen_expr builder exp in
-  (* Grab the first block so that we might later add the conditional branch
-   * to it at the end of the function. *)
+and codegen_if condition sast_then (sast_else : stmt) builder =
+  let cond_val = codegen_expr builder condition in
   let start_bb = L.insertion_block builder in
   let the_function = L.block_parent start_bb in
-  let then_bb = L.append_block context "then" the_function in
-  (* Emit 'then' value. *)
-  L.position_at_end then_bb builder;
-  let _(* then_val *) = codegen_stmt builder then_ in
-  (* Codegen of 'then' can change the current block, update then_bb for the
-   * phi. We create a new name because one is used for the phi node, and the
-   * other is used for the conditional branch. *)
-  let new_then_bb = L.insertion_block builder in
-  (* Emit 'else' value. *)
-  let else_bb = L.append_block context "else" the_function in
-  L.position_at_end else_bb builder;
-  let _ (* else_val *) = codegen_stmt builder else_ in
-  (* Codegen of 'else' can change the current block, update else_bb for the
-   * phi. *)
-  let new_else_bb = L.insertion_block builder in
-  let merge_bb = L.append_block context "ifcont" the_function in
-  L.position_at_end merge_bb builder;
-  (* let then_bb_val = value_of_block new_then_bb in *)
-  let else_bb_val = L.value_of_block new_else_bb in
-  (* let incoming = [(then_bb_val, new_then_bb); (else_bb_val, new_else_bb)] in *)
-  (* let phi = build_phi incoming "iftmp" llbuilder in *)
-
-  (* Return to the start block to add the conditional branch. *)
-  L.position_at_end start_bb builder;
-  ignore (L.build_cond_br cond_val then_bb else_bb builder);
-
-  (* Set a unconditional branch at the end of the 'then' block and the
-   * 'else' block to the 'merge' block. *)
-  L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
-  L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
-
-  (* Finally, set the builder to the end of the merge block. *)
-  L.position_at_end merge_bb builder;
-
-  (* else_bb_val *) (* phi *)
-  builder
+  (* Insert blocks *)
+  let then_bb = L.append_block context "if_then" the_function in
+  let else_bb = L.append_block context "if_else" the_function in
+  let merge_bb = L.append_block context "if_merge" the_function in
+  (* Build if_cond block *)
+  let cond_builder = L.builder_at_end context start_bb in
+  let _ = L.build_cond_br cond_val then_bb else_bb cond_builder in
+  (* Build if_then block *)
+  let then_builder = codegen_stmt (L.builder_at_end context then_bb) sast_then in
+  let _ = add_terminal then_builder (L.build_br merge_bb) in
+  (* Build if_else block *)
+  let else_builder = codegen_stmt (L.builder_at_end context else_bb) sast_else in
+  let _ = add_terminal else_builder (L.build_br merge_bb) in
+  L.builder_at_end context merge_bb
 
 and codegen_while condition body builder =
   let the_function = L.block_parent (L.insertion_block builder) in
-  let add_terminal builder' f =
-    match L.block_terminator (L.insertion_block builder') with
-    | Some ll -> Log.debug ("codegen_while: " ^ (L.string_of_llvalue ll))
-    | None -> ignore (f builder') (* Add a terminal, a branch *)
-  in
-  (* Insert condition block *)
+  (* Insert blocks *)
   let cond_bb = L.append_block context "loop_cond" the_function in
   let body_bb = L.append_block context "loop_body" the_function in
   let merge_bb = L.append_block context "loop_merge" the_function in
   (* br label %loop_cond *)
   let _ = L.build_br cond_bb builder in
+  (* let old_val = !in_loop in
+  let _ = if not old_val then break_block := L.value_of_block merge_bb in (* break outmost loop?? *)
+  let _ = in_loop := true in *)
+  let _ = break_block := L.value_of_block merge_bb in
   (* Build loop_cond block *)
   let cond_builder = L.builder_at_end context cond_bb in
   let cond_val = codegen_expr cond_builder condition in
@@ -526,8 +600,8 @@ and codegen_while condition body builder =
   (* Build loop_body block *)
   let body_builder = codegen_stmt (L.builder_at_end context body_bb) body in
   add_terminal body_builder (L.build_br cond_bb);
+  (* in_loop := old_val; *)
   L.builder_at_end context merge_bb
-
 
 let codegen_builtin_funcs () =
   (* Declare printf(), which the print built-in function will call *)
@@ -536,6 +610,10 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
+  let len_t = L.function_type i32_t [| void_p |] in
+  let _ = L.declare_function "len" len_t the_module in
+  let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.seq_ele_type)) |] in (* TODO: add param *)
+  let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in
   let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in
   let _str_of_duration_t = L.function_type str_t [| get_bind_type (A.Primitive(Duration)) |] in
@@ -570,7 +648,7 @@ let codegen_func func =
   if func.returnType = A.Primitive(A.Unit)
   then ignore(L.build_ret_void llbuilder)
   else ()
-  (* TODO: return 0 for main.  *)
+(* TODO: return 0 for main.  *)
 (* L.build_ret (L.const_int i32_t 0) llbuilder;  *)
 
 let codegen_def_struct (s : A.struct_decl) =
@@ -591,7 +669,6 @@ let codegen_struct (s : A.struct_decl) =
              (* array_type i8_type 10; vector_type i64_type 10  *)
              |] in
  *)
-
 
 let linker filename =
   (* let llctx = L.global_context () in *)
@@ -620,14 +697,3 @@ let codegen_program program =
   List.iter build_funcs_and_structs btmodules; (* main ?? *)
   linker "stdlib.bc";
   the_module
-
-
-
-(* Batteries  *)
-
-(* Invoke "f builder" if the current block doesn't already
-   have a terminal (e.g., a branch). *)
-(* let add_terminal builder f =
-   match L.block_terminator (L.insertion_block builder) with
-    Some _ -> ()
-   | None -> ignore (f builder) in *)

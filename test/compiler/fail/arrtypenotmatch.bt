@@ -1,0 +1,4 @@
+int [] arr;
+arr = [];
+arr = ["hello"];
+int [] arr2 = ["hello"];

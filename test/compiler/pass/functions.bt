@@ -1,4 +1,3 @@
-
 func printHello() -> unit {
     print(5);
     print("\n");
@@ -26,4 +25,3 @@ printHello();
 bar(1,2);
 int d = returnMe(5);
 print(d);
-

@@ -1,0 +1,5 @@
+Uncaught exception:
+
+  wanted: Exceptions.ArrayTypeNotMatch(int)
+  however Line 3 throws: Exceptions.AssignTypeMismatch("Array_int", "Array_string")
+  and Line 4 throws: Exceptions.VardeclTypeMismatch("Array_int", "Array_string")

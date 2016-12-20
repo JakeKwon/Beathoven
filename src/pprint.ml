@@ -49,7 +49,8 @@ let string_of_uop (uop : A.unary_operator) =
     Neg -> "-"
   | Not -> "!"
 
-let rec string_of_expr = function
+let rec string_of_expr expr =
+  match expr with
     LitInt(l) -> string_of_int l
   | LitBool(true) -> "true"
   | LitBool(false) -> "false"
@@ -61,6 +62,9 @@ let rec string_of_expr = function
   | FuncCall(f, el, _) ->
     f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
+  | LitArray(el, _) -> "Array: " ^ (String.concat ", " (List.map string_of_expr el))
+  | LitPitch(_,_,_) -> "pitch expr"
+  | LitNote(_,_) -> "note expr"
 
 
 (* Print SAST tree representation *)
@@ -73,7 +77,7 @@ let rec json_of_expr expr =
       Id(s, d) -> `Assoc [("id", `Assoc [("name", `String s); tuple_of_datatype d])]
     | StructField(e1, e2, d) -> `Assoc [("StructField",
                                          `Assoc [("struct", (json_of_expr e1));
-                                                 ("field", (json_of_expr e2));
+                                                 ("field", `String e2);
                                                  tuple_of_datatype d;
                                                 ])]
     | LitBool(b) -> `Assoc [("bool", `Bool b)]
@@ -113,11 +117,16 @@ let rec json_of_expr expr =
                                            ])]
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
-    | LitArray(el, d) -> `Assoc [("Array",
+    (* | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))] *)
+    | LitArray(el, d) -> `Assoc [("LitArray",
                                   `Assoc [("elements", `List (List.map json_of_expr el));
                                           tuple_of_datatype d
                                          ])]
-    | ArrayIdx(a, idx, d) -> `Assoc [("ArrayEle",
+    | ArrayConcat(el, d) -> `Assoc [("ArrayConcat",
+                                     `Assoc [("arrays", `List (List.map json_of_expr el));
+                                             tuple_of_datatype d
+                                            ])]
+    | ArrayIdx(a, idx, d) -> `Assoc [("ArrayIdx",
                                       `Assoc [("Array", json_of_expr a);
                                               ("Idx", json_of_expr idx);
                                               tuple_of_datatype d
@@ -137,7 +146,11 @@ let rec json_of_stmt stmt =
     | Expr(e, d) -> `Assoc [("stmt_expr", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | Return(e, d) -> `Assoc [("return", `Assoc [("expr", json_of_expr e); tuple_of_datatype d])]
     | If (e, s1, s2) -> `Assoc [("if", `Assoc [("cond", json_of_expr e); ("then", json_of_stmt s1)]); ("else", json_of_stmt s2)]
-    (* | For (e1, e2, e3, s) -> `Assoc [("sfor", `Assoc [("init", map_sexpr_to_json e1); ("cond", map_sexpr_to_json e2); ("inc", map_sexpr_to_json e3); ("body", map_sstmt_to_json s)])] *)
+    | For (e1, e2, e3, s) -> `Assoc [("for",
+                                      `Assoc [("init", json_of_expr e1);
+                                              ("cond", json_of_expr e2);
+                                              ("next", json_of_expr e3);
+                                              ("body", json_of_stmt s)])]
     | While (e, s) -> `Assoc [("while", `Assoc [("cond", json_of_expr e); ("body", json_of_stmt s)])]
     | Break -> `String "break"
     | Continue -> `String "continue"

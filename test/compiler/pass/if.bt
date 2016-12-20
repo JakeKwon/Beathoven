@@ -10,3 +10,10 @@ func if_else_tester(bool flag) -> unit
 }
 if_else_tester(true);
 if_else_tester(false);
+
+int x = 5;
+
+if (x == 5){
+  print("\n");
+  print(true);
+}

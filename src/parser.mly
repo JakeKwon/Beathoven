@@ -10,7 +10,7 @@
 %}
 
 /* Token and type specifications */
-%token <int> LIT_INT
+%token <int> LIT_INT LIT_INT_DOTS
 %token <bool> LIT_BOOL
 %token <string> LIT_STR
 %token <float> LIT_DOUBLE
@@ -28,7 +28,7 @@
 %token COLON DOT COMMA
 %token NOT AND OR
 %token RARROW
-%token SLASH PARALLEL
+%token SLASH PARALLEL APOSTROPHE DOTS
 %token OCTAVE_RAISE OCTAVE_LOWER SCORE_RESOLUTION
 %token FUNC USING MODULE
 %token MATCH MATCHCASE
@@ -47,8 +47,8 @@
 %nonassoc SLASH
 %right NOT
 %right RBRACK
-%left LBRACK
-%left DOT /* right?? */
+%left LBRACK DOT
+%nonassoc DOTS
 /*
 %left OCTAVE_RAISE OCTAVE_LOWER
 */
@@ -68,13 +68,13 @@ literal_pitch:
     (if (String.length $1 <= 1) then 4 else (int_of_char $1.[1] - int_of_char '0')),
     (if (String.length $1 <= 2) then 0 else if $1.[2] = '#' then 1 else -1) ) }
 
+literal_note_complete: /* Maybe I should parse Note literals in scanner with regex */
+  | LIT_INT_DOTS literal_duration { LitNote(LitInt($1), $2) } /* For 5..1/4 */
+
 literal_note:
-  /* TODO: LitInt() is not yet supported for pitch */
-  | LIT_INT COLON literal_duration { LitNote(LitInt($1), $3) }
-  | literal_pitch COLON literal_duration { LitNote($1, $3) }
-  | LIT_INT COLON { LitNote(LitInt($1), LitDuration(1, 4)) } /* don't have this in LRM!! */
-  | literal_pitch COLON { LitNote($1, LitDuration(1, 4)) } /* don't have this in LRM!! */
-  | COLON literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
+    literal_note_complete { $1 }
+    /* LitSeq only supports complete literal note */
+  | DOTS literal_duration { LitNote(LitPitch('C', 4, 0), $2) }
 
 literal:
   /*| NULL { Null }*/
@@ -86,7 +86,7 @@ literal:
   /* these are still Primitive() */
   | literal_pitch { $1 }
   | literal_duration { $1 }
-
+  | literal_note { $1 }
 
 primitive:
     UNIT { Unit }
@@ -102,7 +102,7 @@ primitive:
 datatype_nonarray:
     primitive { Primitive($1) }
   | NOTE { Musictype(Note) }
-  /*| musictype { Musictype($1) }*/
+  | SEQ { Arraytype(seq_ele_type) }
   | STRUCT ID { Structtype($2) }
 
 datatype:
@@ -113,7 +113,8 @@ datatype:
 
 ids:
     ID { Id($1) }
-  | expr DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
+  | ids DOT ID { StructField($1, $3) } /* how about struct.struct.f?? */
+  | ids LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
 
 index_range: /* Python-like array access */
     expr COLON expr { ($1, $3) }
@@ -121,14 +122,11 @@ index_range: /* Python-like array access */
   | expr COLON { ($1, Noexpr) }
   | COLON { (LitInt(0), Noexpr) }
 
-expr_array:
-  | LBRACK expr_list RBRACK { LitArray($2) }
-  | expr LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
-
 expr:
-  | literal { $1 }
-  /* Note that ID can still have whatever type, such as Arraytype and Musictype  */
   | ids { $1 }
+  | literal { $1 }
+  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) } /* For 5..1/4 */
+  | expr DOTS expr { LitNote($1, $3) }
   | MINUS expr { Uniop (Neg, $2) }
   | expr PLUS expr { Binop($1, Add, $3) }
   | expr MINUS expr { Binop($1, Sub, $3) }
@@ -141,33 +139,43 @@ expr:
   | expr LTE expr { Binop($1, Leq, $3) }
   | expr GT expr { Binop($1, Greater, $3) }
   | expr GTE expr { Binop($1, Geq, $3) }
-  | ID LPAREN expr_with_note_list RPAREN { FuncCall($1, $3)}
-  /*
-  | NOT expr { Unop (Not, $2) }
   | expr AND expr { Binop($1, And, $3) }
   | expr OR expr { Binop($1, Or, $3) }
-*/
-  | expr LBRACK expr RBRACK { ArrayIdx($1, $3) } /* ids?? */
+  | NOT expr { Uniop (Not, $2) }
+  | ID LPAREN expr_list RPAREN { FuncCall($1, $3)}
+  | ids ASSIGN expr { Assign($1, $3) }
+  | ids LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
+  | LBRACK expr_list RBRACK { LitArray($2) }
+  | LT note_list GT { LitSeq($2) } /* using expr_list will have a lot of conflicts */
   | LPAREN expr RPAREN { $2 }
-  | expr ASSIGN expr_array { Assign($1, $3) }
-  /* | expr_array { $1 } This has shift/reduce error. Why?? My mind stucks now */
 
-/*TODO: expr_with_array: */
+/*LPAREN ids RPAREN*/
 
-expr_with_note:
-  | expr { $1 }
-  | literal_note { $1 }
-  | expr ASSIGN expr_with_note { Assign($1, $3) }
+/* ------------------- Note List ------------------- */
+
+note_list:
+  | note_rev_list { List.rev $1 }
+
+note:
+    ids { $1 }
+  | LIT_INT { LitNote(LitInt($1), LitDuration(1, 4)) }
+  | literal_pitch { LitNote($1, LitDuration(1, 4)) }
+  | literal_note_complete { $1 }
+  | LIT_INT_DOTS ids { LitNote(LitInt($1), $2) }
+  | LIT_INT DOTS literal_duration { LitNote(LitInt($1), $3) } /* For 5 ..1/4 */
+  | literal_pitch DOTS literal_duration { LitNote($1, $3) }
+  | ids DOTS literal_duration { LitNote($1, $3) }
+  | ids DOTS ids { LitNote($1, $3) }
+  | LIT_INT DOTS ids { LitNote(LitInt($1), $3) }
+  | literal_pitch DOTS ids { LitNote($1, $3) }
+  /* TODO: LitInt(), ids are not yet supported for Note */
+  | literal_duration { LitNote(LitPitch('C', 4, 0), $1) }
+
+note_rev_list:
+    /* nothing */ { [] }
+  | note_rev_list note { $2 :: $1 } /* note that id can be whatever datatype */
 
 /* ------------------- Expressions List ------------------- */
-
-expr_with_note_list:
-  | { [] }
-  | expr_with_note_rev_list { List.rev $1 }
-
-expr_with_note_rev_list:
-    expr_with_note { [$1] }
-  | expr_with_note_rev_list COMMA expr_with_note { $3 :: $1 }
 
 expr_list:
     /* nothing */ { [] }
@@ -177,24 +185,27 @@ expr_rev_list:
     expr { [$1] }
   | expr_rev_list COMMA expr { $3 :: $1 }
 
+expr_opt:
+    /* nothing */ { Noexpr }
+  | expr { $1 }
+
 
 /* ------------------- Statements ------------------- */
 
 stmt:
-    expr_with_note SEP { Expr($1) }
+    expr SEP { Expr($1) }
   | var_decl { $1 }
-  | RETURN expr_with_note SEP { Return($2) }
+  | RETURN expr SEP { Return($2) }
   | RETURN SEP { Return(Noexpr) }
   | LBRACE stmt_list RBRACE { Block($2) }
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
   | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
-  /*
-  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt
-   { For($3, $5, $7, $9) }
-  */
+  | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt { For($3, $5, $7, $9) }
+  | FOR ids IN RANGE LPAREN expr COMMA expr RPAREN stmt
+    { For(Assign($2, $6), Binop($2, Less, $8), Assign($2, Binop($2, Add, LitInt(1))), $10) }
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
-  | CONTINUE SEP { Continue }
+  /*| CONTINUE SEP { Continue }*/
 
 stmt_list:
   | stmt_rev_list { List.rev $1 }
@@ -202,12 +213,10 @@ stmt_list:
 stmt_rev_list:
     /* nothing */ { [] }
   | stmt_rev_list stmt { $2 :: $1 }
-  /*| stmt stmt_rev_list { $1 :: $2 }*/
 
 var_decl:
     datatype ID SEP { VarDecl($1, $2, Noexpr) }
-  | datatype ID ASSIGN expr_with_note SEP { VarDecl($1, $2, $4) }
-  | datatype ID ASSIGN expr_array SEP { VarDecl($1, $2, $4) }
+  | datatype ID ASSIGN expr SEP { VarDecl($1, $2, $4) }
 
 /* ------------------- Structs ------------------- */
 
@@ -280,8 +289,4 @@ program:
   | include_list btmodule EOF { [$2] }
 
 /* TODO: right now include_list must be on the top */
-
-/*
-p.s. parser is still clean in this version without Musictype(Note).
-https://github.com/JakeKwon/Beathoven/blob/68ec6cee97ef888fca6f21b298821769553c513c/src/parser.mly
-*/
+/* Parser is stateless (no memory) */

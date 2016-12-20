@@ -20,10 +20,16 @@ type primitive =
   | Pitch
   | Duration
 
-type musictype = Note | Seq
+type musictype = Note
 
 type datatype = Primitive of primitive | Musictype of musictype
               | Structtype of string | Arraytype of datatype
+
+(* Musictype(Seq) = Arraytype(seq_ele_type).
+ * Seq is internally Arraytype and has all attributes of arrays.
+ * It's better to define it as one of Arraytypes. 
+ *)
+let seq_ele_type = Musictype(Note)
 
 type binary_operator =
     Add | Sub | Mult | Div | Mod | Equal | Neq
@@ -56,6 +62,7 @@ type expr =
   | Assign of expr * expr
   | FuncCall of string * expr list
   | Noexpr
+  | LitSeq of expr list
   | LitArray of expr list
   | ArrayIdx of expr * expr
   | ArraySub of expr * expr * expr
@@ -67,6 +74,7 @@ type stmt =
   | Return of expr
   | If of expr * stmt * stmt
   | While of expr * stmt
+  | For of expr * expr * expr * stmt
   | Break
   | Continue
   | Struct of struct_decl

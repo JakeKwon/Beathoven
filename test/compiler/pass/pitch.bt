@@ -3,3 +3,5 @@ pitch p = C4;
 pitch q;
 q = C4;
 pitch r = 2;
+string r_string = str_of_pitch(r);
+print("This pitch is ", r_string);

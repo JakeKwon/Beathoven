@@ -8,8 +8,9 @@ RED='\033[0;31m'
 # Add the code to test/compiler/pass
 
 INPUTS="pass/*.bt"
+
 LLI="lli-3.8"
-BEAT="../../src/beathoven"
+BEAT="../../beathoven.sh -c"
 
 printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 
@@ -78,7 +79,6 @@ RunFail() {
 Compare() {
     # generatedfiles="$generatedfiles $3"
     printf "Comparing... $* \n"
-    printf "diff -b $1 $2 > $3\n"
     echo diff -b $1 $2 ">" $3 1>&2
     diff -b "$1" "$2" > "$3" 2>&1 || {
         SignalError "$1 differs. See globallog.log file for breakdown."
@@ -107,7 +107,7 @@ Check(){
 
     # Run "$MICROC" "<" $1 ">" "${basename}.ll" &&
     # Run "$LLI" "${basename}.ll" ">" "${basename}.out" &&
-    Run "$BEAT" "<" $1 ">" "$TMP_LLI_FILE"
+    Run $BEAT $1 $TMP_LLI_FILE
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # printf $TMP_OUT_FILE ${reffile}.out logs/${basename}.diff
     Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
@@ -146,7 +146,9 @@ CheckFail() {
     # printf "$LLI $TMP_LLI_FILE > $TMP_OUT_FILE \n"
     # to llvm
     # Run "$BEAT" "$1" "$TMP_LLI_FILE" original
-    RunFail "$BEAT" "<" $1 "2>" "$TMP_ERR_FILE" ">>" $globallog
+#     RunFail "$BEAT" "<" $1 "2>" "$TMP_ERR_FILE" ">>" $globallog
+
+    RunFail $BEAT $1 "$TMP_ERR_FILE" "2>" "$TMP_ERR_FILE" ">>" $globallog
     eval "head -3" $TMP_ERR_FILE ">" "TEMPORARY"
     eval "cp TEMPORARY " $TMP_ERR_FILE
     rm TEMPORARY

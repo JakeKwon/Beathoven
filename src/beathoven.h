@@ -11,14 +11,13 @@
 /* Basic types */
 
 typedef char * string;
-
+typedef void * ptr_t;
 
 // Arraytype(Int)
-typedef struct _Arr_int {
-    int len;
+typedef struct Arr_int {
+    size_t len;
     int* arr;
-} _Arr_int;
-
+} Arr_int;
 
 /* Basic music types */
 
@@ -74,11 +73,11 @@ typedef struct _note_or_chord {
 
 // Musictype(Seq)
 typedef struct Seq {
-    int len;
+    size_t len;
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
-
+typedef Seq Arr_Note;
 
 typedef struct _Sequence {
     Seq seq;
@@ -88,7 +87,7 @@ typedef struct _Sequence {
 
 // Sequence[]
 typedef struct _Arr_Sequence {
-    int len;
+    size_t len;
     _Sequence* arr;
 } _Arr_Sequence;
 
@@ -102,7 +101,7 @@ typedef struct Part {
 
 // Part[]
 typedef struct _Arr_Part {
-    int len;
+    size_t len;
     Part* arr;
 } _Arr_Part;
 

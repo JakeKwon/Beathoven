@@ -6,7 +6,7 @@
 type log_level = Error | Warn | Info | Debug
 
 let min_level = Debug
-
+let has_failed = ref false
 
 let int_of_level = function
   | Error -> 4
@@ -57,7 +57,7 @@ let print (level : log_level) (fmt : string) =
      [Gagallium : The 6 parameters of (’a, ’b, ’c, ’d, ’e, ’f) format6](http://gallium.inria.fr/blog/format6/)
   *)
 
-let error fmt = print Error fmt
+let error fmt = has_failed:= true ; print Error fmt
 let warn fmt = print Warn fmt
 let info fmt = print Info fmt
 let debug fmt = print Debug fmt

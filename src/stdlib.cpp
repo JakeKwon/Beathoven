@@ -5,8 +5,6 @@
 #include <vector>
 #include <string>
 
-typedef void * ptr_t;
-
 char _buffer[20];
 // std::vector<int> v;
 //std::string str;
@@ -15,12 +13,6 @@ ptr_t get_arr_ptr() {
     // return (ptr_t)(&v);
 }
 
-void overload1(int i) {
-
-}
-void overload2(char i) {
-
-}
 /*
 string _str_of_Note(Note *note) { // cannot pass the whole struct as parameter
     string _buffer = (string) malloc(14); // garbage!

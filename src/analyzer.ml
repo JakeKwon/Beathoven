@@ -52,6 +52,7 @@ let get_type_from_expr (expr : S.expr) =
   | FuncCall(_,_,d)-> d
   | Noexpr -> A.Primitive(Unit)
   | LitArray(_,d) -> Arraytype(d)
+  | ArrayConcat(_,d) -> d
   | ArrayIdx(_,_,d) -> d
   | ArraySub(_,_,_,d) -> d
 
@@ -59,10 +60,28 @@ let get_stmt_from_expr e =
   let t = get_type_from_expr e in
   S.Expr(e, t)
 
-(* ------------------- debug ------------------- *)
+let check_condition (e : S.expr) =
+  match (get_type_from_expr e) with
+  | A.Primitive(Bool) | A.Primitive(Unit) -> ()
+  | _ -> raise (Exceptions.InvalidConditionType)
 
-let get_map_size map =
-  StringMap.fold (fun k v i -> i + 1) map 0
+let get_litpitch (sast_expr : S.expr) =
+  match get_type_from_expr sast_expr with
+  | A.Primitive(Pitch) -> sast_expr
+  | A.Primitive(Int) -> (
+      match sast_expr with
+      | LitInt(d) ->
+        if d = 0 then S.LitPitch('H',4,0)
+        (* ((d+4) mod 7) + 62) gives right note for each integer input *)
+        else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (( (d+1) mod 7 + 65)),4,0)
+        else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
+      | Id(_) -> sast_expr (* TODO: codegen !! *)
+      | _ -> raise (Exceptions.Impossible "get_litpitch")
+    )
+  | _ -> Log.error "[InvalidPitchAssignment]"; sast_expr
+
+(* let get_map_size map =
+   StringMap.fold (fun k v i -> i + 1) map 0 *)
 
 (* ------------------- build sast from ast ------------------- *)
 
@@ -79,9 +98,7 @@ let rec build_sast_expr env (expr : A.expr) =
   | LitStr(s) -> env, S.LitStr(s)
   | LitPitch(k, o, a) -> env, S.LitPitch(k, o, a)
   | LitDuration(a, b) -> env, S.LitDuration(a, b)
-  | LitNote(p, d) -> let _, pitch = build_sast_expr env p
-    and _, duration = build_sast_expr env d in
-    env, S.LitNote(pitch, duration)
+  | LitNote(p, d) -> analyze_note env p d
   | Binop(e1, op, e2) -> analyze_binop env e1 op e2
   | Uniop(op, e) -> analyze_unop env op e
   | Assign(e1, e2) -> analyze_assign env e1 e2
@@ -89,6 +106,7 @@ let rec build_sast_expr env (expr : A.expr) =
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
+  | LitSeq(el) -> analyze_seq env el (* LitArray(el', seq_ele_type) *)
   | LitArray(el) -> analyze_array env el
   | ArrayIdx(a, e) -> analyze_arrayidx env a e
   | ArraySub(a, e1, e2) -> analyze_arraysub env a e1 e2
@@ -115,42 +133,86 @@ and analyze_struct env e f =
     with | Not_found -> raise(Exceptions.StructFieldNotFound(
         (string_of_datatype struct_type), f))
   in
-  let field_id = S.Id(snd field_bind, fst field_bind) in
-  env, S.StructField(sast_expr, field_id, fst field_bind)
+  env, S.StructField(sast_expr, snd field_bind, fst field_bind)
+
+and analyze_note env p d =
+  let _, pitch = build_sast_expr env p in
+  let pitch = get_litpitch pitch in
+  let _, duration = build_sast_expr env d in
+  env, S.LitNote(pitch, duration)
 
 (* ----- Array ----- *)
 
+and analyze_seq env (expr_list:A.expr list) =
+  let _, sast_expr_list = build_sast_expr_list env expr_list in
+  if List.length sast_expr_list = 0 then
+    env, S.LitArray([], A.seq_ele_type)
+  else
+    let flattened_sast_expr_list =
+      let flatten_seq l (expr : S.expr) =
+        (* Cast datatype and flatten Seq *)
+        match get_type_from_expr expr with
+        | A.Musictype(Note) -> expr :: l
+        | A.Primitive(Pitch) -> S.LitNote(expr, LitDuration(1, 4)) :: l
+        | A.Primitive(Duration) -> S.LitNote(LitPitch('C', 4, 0), expr) :: l
+        | A.Arraytype(seq_ele_type) -> (
+            match expr with
+            | LitArray(el, _) -> (List.rev el) @ l
+            | _ -> expr :: l
+          )
+        (* Future: Chord *)
+        | _ -> Log.error "[TypeNotMatch] Element of Seq should have Note type"; l
+      in
+      List.rev (List.fold_left flatten_seq [] sast_expr_list)
+    in
+    env, S.LitArray(flattened_sast_expr_list, seq_ele_type)
+
+(* TODO: update it *)
 and analyze_array env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
     env, S.LitArray([], Primitive(Unit))
   else
-    let ele_type =
-      let ele_type = get_type_from_expr (List.hd sast_expr_list) in
+    let get_ele_type expr  =
+      let ele_type = get_type_from_expr expr  in
       match ele_type with
-      | Arraytype(d) -> d
-      | _ -> ele_type
+      | Arraytype(d) -> ele_type, d
+      | _ -> ele_type, ele_type
     in
+    let ele_type = ref (A.Primitive(Unit)) in
     let sast_expr_list =
-      let ele_type = ref (A.Primitive(Unit)) in
       let helper_array l (expr : S.expr) =
-        let d =
-          match get_type_from_expr expr with
-          | Arraytype(d) -> d
-          | _ as d -> d
-        in
-        if d = Primitive(Unit) then l (* expr is [] *)
+        let d, d' = get_ele_type expr in
+        Log.debug ((string_of_datatype d) ^ " and " ^ (string_of_datatype d'));
+        if d' = Primitive(Unit) then l (* expr is [] *)
         else
-          (if !ele_type = Primitive(Unit) then ele_type := d;
-           if d = !ele_type then
-             match expr with
-             | LitArray(el, _) -> (List.rev el) @ l
-             | _ as e -> e :: l
-           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d)))
+          (if !ele_type = Primitive(Unit) then ele_type := d';
+           (* Note that d' is not Unit *)
+           if d = !ele_type then (
+             expr :: (fst l), snd l)
+           else if d' = !ele_type then
+             (
+               match expr with
+               | S.LitArray(el, _) -> (el @ (fst l), snd l)
+               | _ as e ->
+                let arrays =
+                  if List.length (fst l) = 0 then snd l
+                  else (S.LitArray(fst l, d') :: snd l)
+                in
+                ([] , e :: arrays)
+             )
+           else raise (Exceptions.ArrayTypeNotMatch(string_of_datatype d'))
+          )
       in
-      List.rev (List.fold_left helper_array [] sast_expr_list)
+      let l = List.fold_left helper_array ([], []) (List.rev sast_expr_list) in
+      if List.length (fst l) = 0 then snd l
+      else S.LitArray(fst l, !ele_type) :: snd l
     in
-    env, S.LitArray(sast_expr_list, ele_type)
+    let sast_litarray =
+      if List.length sast_expr_list = 1 then List.hd sast_expr_list
+      else S.ArrayConcat(sast_expr_list, Arraytype(!ele_type))
+    in
+    env, sast_litarray
 
 and analyze_arrayidx env a e =
   let _, sast_arr = build_sast_expr env a in
@@ -166,11 +228,16 @@ and analyze_arrayidx env a e =
 and analyze_arraysub env a e1 e2 =
   let _, sast_arr = build_sast_expr env a in
   let d = get_type_from_expr sast_arr in
+  let get_sast_index e =
+    let _, idx = build_sast_expr env e in
+    let t = get_type_from_expr idx in
+    if t = Primitive(Int) || t = Primitive(Unit) then idx
+    else (Log.error "[IndexTypeMismatch]"; idx)
+  in
   match d with
   | Arraytype(_) -> (
-      let _, idx1 = build_sast_expr env e1 in
-      let _, idx2 = build_sast_expr env e2 in
-      (* TODO J: check Python-like idx *)
+      let idx1 = get_sast_index e1 and
+      idx2 = get_sast_index e2 in
       env, S.ArraySub(sast_arr, idx1, idx2, d)
     )
   | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
@@ -243,14 +310,16 @@ and analyze_assign env e1 e2 =
   let _, rhs = build_sast_expr env e2 in
   let t1 = get_type_from_expr lhs in
   let t2 = get_type_from_expr rhs in
-  match t1, t2 with
-  | Arraytype(d), Arraytype(Primitive(Unit)) ->
-    let rhs = S.LitArray([], d) in (* it means e2 is [] *)
-    env, S.Assign(lhs, rhs, t1)
-  | _ ->
-    if t1 = t2 then env, S.Assign(lhs, rhs, t1)
+  let rhs =
+    if t1 = t2 then rhs
     else
-      raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+      match t1, t2 with
+      | Arraytype(d), Arraytype(Primitive(Unit)) -> S.LitArray([], d) (* it means e2 is [] *)
+      | Musictype(Note), _ -> S.LitNote(get_litpitch rhs, S.LitDuration(1, 4))
+      | _ ->
+        raise (Exceptions.AssignTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+  in
+  env, S.Assign(lhs, rhs, t1)
 
 and analyze_funccall env s el =
   let _, sast_el = build_sast_expr_list env el in
@@ -258,6 +327,7 @@ and analyze_funccall env s el =
     let func = StringMap.find s builtin_funcs in
     env, S.FuncCall(func.fname, sast_el, func.returnType)
   (* TODO: check builtin funcs *)
+  (* such as, len() only accepts arrays *)
   with | Not_found ->
   try
     let fname = get_global_func_name env.name s in
@@ -285,7 +355,6 @@ and analyze_funccall env s el =
   SCall(fname, actuals, func.sreturnType, 0)
   SCall(sfname, actuals, f.returnType, index)
   *)
-
 
 let get_sast_structtype env s =
   let n = get_global_name env.name s in
@@ -315,26 +384,21 @@ let build_sast_vardecl env t1 s e =
     let _, sast_expr = build_sast_expr env e in
     let t2 = get_type_from_expr sast_expr in
     let sast_expr =
-      match t1, t2 with
-      | Arraytype(d), Arraytype(Primitive(Unit)) ->
-        S.LitArray([], d) (* it means e is [] *)
-      | Primitive(Pitch), Primitive(Int) -> 
-        ( match sast_expr with 
-          | LitInt(d) -> 
-            if d = 0 then S.LitPitch('H',4,0)
-            (* ((d+4) mod 7) + 62) gives right note for each integer input *)
-            else if d >= 1 && d <= 7 then S.LitPitch(Char.chr (((d+4) mod 7) + 62),4,0)
-            else raise (Exceptions.InvalidPitchAssignment "make sure your pitch is with in 0-7")
-          | _ -> raise (Exceptions.InvalidPitchAssignment "invalid pitch")
-        )
-      | _ -> if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
-        else raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
+      if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
+      else
+        match t1, t2 with
+        (* Cast *)
+        | Arraytype(d), Arraytype(Primitive(Unit)) ->
+          S.LitArray([], d) (* it means e is [] *)
+        | Primitive(Pitch), Primitive(Int) -> get_litpitch sast_expr
+        | seq_ele_type, _ -> S.LitNote(get_litpitch sast_expr, LitDuration(1, 4))
+        | _ ->
+          raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in
     env.var_map <- StringMap.add s t1 env.var_map;
     if env.ismain then (* add variable to module fields *)
       !(env.btmodule).field_map <- StringMap.add s t1 !(env.btmodule).field_map;
     env, S.VarDecl(t1, s, sast_expr)
-
 
 let rec build_sast_block env = function
   | [] -> env, S.Block([])
@@ -343,18 +407,16 @@ let rec build_sast_block env = function
 
 and build_sast_stmt env (stmt : A.stmt) =
   match stmt with
-    Block sl -> build_sast_block env sl
+  | Block sl -> build_sast_block env sl
   | Expr e -> let _, se = build_sast_expr env e in env, get_stmt_from_expr se
-  | Return e -> check_return e env
-  | If (e, s1, s2) -> check_if e s1 s2 env
-  (* | If (se, s1, s2) -> check_stmt se s1 env *)
-  (* | For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env *)
-  | While(e, s) -> check_while e s env
+  | Return e -> build_sast_return e env
+  | If (e, s1, s2) -> build_sast_if e s1 s2 env
+  | For(e1, e2, e3, s) -> build_sast_for e1 e2 e3 s env
+  | While(e, s) -> build_sast_while e s env
   | Break -> check_break env (* TODO: Need to check if in right context *)
   | Continue -> check_continue env (* TODO: Need to check if in right context *)
   | VarDecl(d, s, e) -> build_sast_vardecl env d s e
   | Struct _ -> env, S.Expr(Noexpr, A.Primitive(Unit)) (* skip structs *)
-
 
 and build_sast_stmt_list env (stmt_list:A.stmt list) =
   let helper_stmt stmt =
@@ -365,99 +427,40 @@ and build_sast_stmt_list env (stmt_list:A.stmt list) =
   (* print_int (get_map_size env.var_map); *)
   env, sast_stmt_list
 
-(* and check_if e s1 s2 env =
-   let _, se = build_sast_expr env e in
-   let t = get_type_from_expr se in
-   let _, ifbody = build_sast_stmt env s1 in
-   let _, elsebody = build_sast_stmt env s2 in
-   if t = A.Primitive(Bool)
-    then env, S.If(se, ifbody, elsebody)
-    else raise (Exceptions.IfComparisonNotBool "foo") *)
-
-(* and check_while e s env =
-   let old_val = env.env_in_while in
-   let env = update_call_stack env env.env_in_for true in
-
-   let _, se = build_sast_expr env e in
-   let t = get_type_from_expr se in
-   let sstmt, _ = parse_stmt env s in
-   let swhile =
-    if (t = A.Primitive(Bool) || t = A.Primitive(Unit))
-      then S.While(se, sstmt)
-      else raise Exceptions.InvalidWhileStatementType
-   in
-
-   let env = update_call_stack env env.env_in_for old_val in
-   swhile, env *)
-
-
-and check_sblock sl env = match sl with
-    []  -> S.Block([S.Expr(S.Noexpr, A.Primitive(Unit))])
-  | _   ->
-    let sl, _ = convert_stmt_list_to_sstmt_list env sl in
-    S.Block(sl)
-
-and check_expr_stmt e env =
+and build_sast_return e env =
   let _, se = build_sast_expr env e in
   let t = get_type_from_expr se in
-  env, S.Expr(se, t)
+  if t = env.env_returnType
+  then env, S.Return(se, t)
+  else raise (Exceptions.ReturnTypeMismatch(string_of_datatype t, string_of_datatype env.env_returnType))
 
-and check_return e env =
+and build_sast_if e s1 s2 env =
   let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
-  match t, env.env_returnType with
-  (* A.Primitive(Unit), Primitive(Objecttype(_))
-     |   Primitive(Null_t), Arraytype(_, _) -> SReturn(se, t), env *)
-  |   _ ->
-    if t = env.env_returnType
-    then env, S.Return(se, t)
-    else raise (Exceptions.ReturnTypeMismatch(string_of_datatype t, string_of_datatype env.env_returnType))
-
-and check_if e s1 s2 env =
-  let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
   let _, ifbody = build_sast_stmt env s1 in
   let _, elsebody = build_sast_stmt env s2 in
-  if t = A.Primitive(Bool)
+  if (get_type_from_expr se) = A.Primitive(Bool)
   then env, S.If(se, ifbody, elsebody)
-  else raise (Exceptions.IfComparisonNotBool "foo")
-(*
-and check_for e1 e2 e3 s env =
+  else raise (Exceptions.InvalidConditionType)
+
+and build_sast_for e1 e2 e3 s env =
   let old_val = env.env_in_for in
-  (* let env = update_call_stack env true env.env_in_while in *)
   env.env_in_for <- true;
   let _, se1 = build_sast_expr env e1 in
   let _, se2 = build_sast_expr env e2 in
   let _, se3 = build_sast_expr env e3 in
-  let forbody, _ = parse_stmt env s in
-  let conditional = get_type_from_expr se2 in
-  let sfor =
-    if (conditional = A.Primitive(Bool) || conditional = A.Primitive(Unit))
-      then S.For(se1, se2, se3, forbody)
-      else raise (Exceptions.InvalidForStatementType "foo")
-  in
-
-  (* let env = update_call_stack env old_val env.env_in_while in *)
+  let _, body = build_sast_stmt env s in
+  check_condition se2;
   env.env_in_for <- old_val;
-  sfor, env
- *)
-and check_while e s env =
+  env, S.For(se1, se2, se3, body)
+
+and build_sast_while e s env =
   let old_val = env.env_in_while in
-  (* let env = update_call_stack env env.env_in_for true in *)
   env.env_in_while <- true;
-
   let _, se = build_sast_expr env e in
-  let t = get_type_from_expr se in
-  let _, sstmt = parse_stmt env s in
-  let swhile =
-    if (t = A.Primitive(Bool) || t = A.Primitive(Unit))
-    then S.While(se, sstmt)
-    else raise Exceptions.InvalidWhileStatementType
-  in
-
-  (* let env = update_call_stack env env.env_in_for old_val in *)
+  let _, body = build_sast_stmt env s in
+  check_condition se;
   env.env_in_while <- old_val;
-  env, swhile
+  env, S.While(se, body)
 
 and check_break env =
   if env.env_in_for || env.env_in_while then
@@ -471,34 +474,6 @@ and check_continue env =
   else
     raise Exceptions.CannotCallContinueOutsideOfLoop
 
-and parse_stmt env = function
-    Block sl            -> env, check_sblock sl env
-  |   Expr e              -> check_expr_stmt e env
-  |   Return e            -> check_return e env
-  |   If(e, s1, s2)       -> check_if e s1 s2 env
-  (* |   For(e1, e2, e3, e4) -> check_for e1 e2 e3 e4 env   *)
-  |   While(e, s)         -> check_while e s env
-  |   Break               -> check_break env (* Need to check if in right context *)
-  |   Continue            -> check_continue env (* Need to check if in right context *)
-(* |   Local(d, s, e)      -> local_handler d s e env *)
-(* | VarDecl (d, _, e) -> if get_type_from_expr e != d then raise (Exceptions.VariableDeclarationNotMatch "foo"); ()
-   | If (e, _, _) -> if get_type_from_expr e != A.Primitive(A.Bool) then raise (Exceptions.IfComparisonNotBool "foo"); ()
-   | Return (e,_) -> if get_type_from_expr e != returnType then raise (Exceptions.ReturntypeNotMatch "foo"); ()
-*)
-
-(* Update this function to return an env object *)
-and convert_stmt_list_to_sstmt_list env stmt_list =
-  let env_ref = ref(env) in
-  let rec iter = function
-      head::tail ->
-      let env, a_head = parse_stmt !env_ref head in
-      env_ref := env;
-      a_head::(iter tail)
-    | [] -> []
-  in
-  let sstmt_list = (iter stmt_list), !env_ref in
-  sstmt_list
-
 let check_fbody fbody returnType =
   let len = List.length fbody in
   if len = 0 then true else
@@ -507,9 +482,6 @@ let check_fbody fbody returnType =
       A.Primitive(Unit), _   -> true
     |   _, S.Return(_, _)   -> true
     |   _                   -> false
-
-
-
 
 let build_sast_func_decl btmodule_map mname btmodule_env ismain (func:A.func_decl) =
   let env =
@@ -590,7 +562,6 @@ let build_sast btmodule_map (btmodule_list:A.btmodule list) =
     }
   in
   List.map build_sast_btmodule btmodule_list
-
 
 let build_btmodule_map (btmodule_list : A.btmodule list) =
   let build_btmodule_env map btmodule =

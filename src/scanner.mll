@@ -30,7 +30,7 @@ let hasint = digit+ '.' digit*
 let hasfrac = digit* '.' digit+
 let hasexp = 'e' ('+'? | '-') digit+
 
-let pitch = ['A'-'G'] (['1'-'7'] ('#'|'b')?)?
+let pitch = ['A'-'G'] ( (['0'-'9'] | "10" ) ('#'|'b')?)?
 
 
 (* Regex conflicts are resolved by order *)
@@ -60,8 +60,6 @@ rule token = parse
   | "<=" { LTE }
   | '>' { GT }
   | ">=" { GTE }
-  | ':' { COLON }
-	| '.' { DOT }
   | ',' { COMMA }
   | '!' { NOT }
   | "&" { PARALLEL }
@@ -70,6 +68,10 @@ rule token = parse
   | "->" { RARROW }
   | '/' { SLASH }
   | "::" { SCORE_RESOLUTION }
+  | ".." { DOTS }
+  | ':' { COLON }
+  | '.' { DOT }
+  | ''' { APOSTROPHE }
   | '^' { OCTAVE_RAISE }
   | '_' { OCTAVE_LOWER }
   | "=>" { MATCHCASE }
@@ -107,8 +109,9 @@ rule token = parse
   | "Chord" { CHORD }
   | "Seq" { SEQ }
 (* ------------- Literals ------------- *)
-  | pitch as lit { LIT_PITCH(lit) }
   | digit+ as lit { LIT_INT(int_of_string lit) }
+  | digit+ as lit ".."  { LIT_INT_DOTS(int_of_string lit) }
+  | pitch as lit { LIT_PITCH(lit) }
   | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | ''' ( ascii | digit | escape ) ''' as str { LIT_CHAR(get_char str) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }
