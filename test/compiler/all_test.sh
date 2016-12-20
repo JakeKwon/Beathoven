@@ -16,7 +16,7 @@ printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 
 # Set time limit for all operations
 ulimit -t 30
-
+helperPrint=false
 globallog=logs/globallog.log
 rm -f logs/globallog.log
 rm -f logs/*.ll
@@ -44,11 +44,11 @@ LLIFail() {
 
 SignalError() {
     if [ $error -eq 0 ] ; then
-  printf "${RED}FAILURE${NC}"
+  printf "\n${RED}FAILURE${NC}\t"
   error=1
   totalerrors=$(($totalerrors + $one))
     fi
-    echo "  $1"
+    echo "$1"
 }
 
 
@@ -57,7 +57,9 @@ which "$LLI" >> $globallog || LLIFail
 # Run <args>
 # Report the command, run it, and report any errors
 Run() {
-    printf "Running... $* \n"
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Running... $* \n"
+    fi
     echo $* 1>&2
     eval $*
     #     SignalError "$1 failed on $*"
@@ -66,7 +68,9 @@ Run() {
 }
 
 RunFail() {
-    printf "Running... $* \n"
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Running... $* \n"
+    fi
     echo $* 1>&2
     eval $*
   #   && {
@@ -78,10 +82,14 @@ RunFail() {
 
 Compare() {
     # generatedfiles="$generatedfiles $3"
-    printf "Comparing... $* \n"
-    echo diff -b $1 $2 ">" $3 1>&2
-    diff -b "$1" "$2" > "$3" 2>&1 || {
-        SignalError "$1 differs. See globallog.log file for breakdown."
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Comparing... $* \n"
+    fi
+
+    diff -b "$1" "$2" > "logs/$3" 2>&1 || {
+        echo diff -b $1 $2 "> logs/" $3 1>&2
+        SignalError "Output differs. See $3"
+        diff -b "$1" "$2" > "diffs/$3" 2>&1
         echo "FAILED $1 differs from $2" 1>&2
     }
 }
@@ -94,7 +102,7 @@ Check(){
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Pass Test: $basename ${NC}\n"
+    printf "\n${CYAN}Running Pass Test: $basename ${NC}\t"
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
@@ -110,7 +118,7 @@ Check(){
     Run $BEAT $1 $TMP_LLI_FILE
     Run "$LLI" "$TMP_LLI_FILE" ">" "$TMP_OUT_FILE"
     # printf $TMP_OUT_FILE ${reffile}.out logs/${basename}.diff
-    Compare "$TMP_OUT_FILE" ${reffile}.out logs/${basename}.diff
+    Compare "$TMP_OUT_FILE" ${reffile}.out ${basename}.diff
     # printf "\nRunning $BEAT < $1 ${basename}.ll > ${basename}.ll\n"
 
     # Report the status and clean up the generated files
@@ -119,7 +127,7 @@ Check(){
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}SUCCESS${NC}\n"
+  printf "${GREEN}SUCCESS${NC}"
   echo "###### OK" 1>&2
     else
   echo "###### FAILED" 1>&2
@@ -134,7 +142,7 @@ CheckFail() {
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Fail Test: $basename ${NC}\n"
+    printf "\n${CYAN}Running Fail Test: $basename ${NC}\t"
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
@@ -154,7 +162,7 @@ CheckFail() {
     rm TEMPORARY
     # rm "TEMPORARY"
     # Run "$LLI" "$TMP_LLI_FILE" "2>" "$TMP_OUT_FILE"
-    Compare "$TMP_ERR_FILE" ${reffile}.err logs/${basename}.diff
+    Compare "$TMP_ERR_FILE" ${reffile}.err ${basename}.diff
 
     # generatedfiles="$generatedfiles ${basename}.err ${basename}.diff" &&
     # RunFail "$MICROC" "<" $1 "2>" "${basename}.err" ">>" $globallog &&
@@ -166,7 +174,7 @@ CheckFail() {
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}SUCCESS${NC}\n"
+  printf "${GREEN}SUCCESS${NC}"
   echo "###### OK" 1>&2
     else
   echo "###### FAILED" 1>&2
@@ -188,12 +196,16 @@ do
 
   Check $file 2>> $globallog
 done
-printf "You have $totalerrors out of $totalfiles pass errors"
+printf "\nYou have $totalerrors out of $totalfiles PASS errors"
 printf "\n\n${CYAN}####  End of Pass Compiler Tests!  ####${NC}"
 
 
-printf "\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
+printf "\n\n\n${CYAN}####  Starting Fail Compiler Tests!  ####${NC}"
 failfiles="fail/*.bt"
+error=0
+totalfiles=0
+totalerrors=0
+
 
 for file in $failfiles
 do
@@ -207,5 +219,6 @@ do
 
   CheckFail $file 2>> $globallog
 done
+printf "\nYou have $totalerrors out of $totalfiles FAIL errors"
 printf "\n\n${CYAN}####  End of Fail Compiler Tests!  ####${NC}"
 

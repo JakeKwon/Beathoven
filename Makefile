@@ -11,17 +11,20 @@ test: clean
 tests:
 	cd test; make test-only
 
-test-fail:
-	cd test; make test-fail
-
-test-pass:
-	cd test; make test-pass
-
-tests-fail:
+test-fail: clean
 	cd test; make tests-fail
 
-tests-pass:
+test-pass: clean
 	cd test; make tests-pass
+
+tests-fail:
+	cd test; make test-fail
+
+tests-pass:
+	cd test; make test-pass
+
+test-clear:
+	cd test; make test-clear
 
 .PHONY: clean
 clean:

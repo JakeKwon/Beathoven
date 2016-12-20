@@ -20,16 +20,18 @@ type primitive =
   | Pitch
   | Duration
 
-type musictype = Note
+(* Change Musictype(Note) as Structtype("Note") so that can access it like struct  *)
+(* type musictype = Note *)
 
-type datatype = Primitive of primitive | Musictype of musictype
+type datatype = Primitive of primitive
+              (* | Musictype of musictype *)
               | Structtype of string | Arraytype of datatype
 
 (* Musictype(Seq) = Arraytype(seq_ele_type).
  * Seq is internally Arraytype and has all attributes of arrays.
- * It's better to define it as one of Arraytypes. 
+ * It's better to define it as one of Arraytypes.
  *)
-let seq_ele_type = Musictype(Note)
+let seq_ele_type = Structtype("Note") 
 
 type binary_operator =
     Add | Sub | Mult | Div | Mod | Equal | Neq

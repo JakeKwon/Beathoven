@@ -1,0 +1,8 @@
+int [] arr1 = [9, 8, 7];
+int [] arr2 = [6, 5, 4];
+int [] a= [arr1, arr2, 3, 4, 5];
+print("printing joined array element: ", a[3], "\n");
+a[3] = 300;
+print("printing edited joined array element: ", a[3], " \n");
+int [] b = a[1:4];
+print("printing sub array element: ", b[0], " \n");

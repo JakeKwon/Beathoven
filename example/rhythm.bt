@@ -1,0 +1,28 @@
+/* overwrite the duration of `beats` to `melody` */
+func Rhythm(Seq beats, Seq melody) -> Seq {
+    if (len(beats) == 0) {
+        print("empty beats");
+        return melody;
+    }
+    else {
+        int i = 0;
+        int j;
+        for j in range(0, len(melody)) {
+            melody[j].d = beats[i].d;
+            if (i + 1 < len(beats)) i = i + 1;
+            else i = 0;
+            //print(i);
+        }
+    }
+    return melody;
+}
+
+duration w = 1/1;
+duration q = 1/4;
+Seq melody = <1 1 5 5 6 6 5..2/4>;
+Seq beats = <q q w q q w>;
+Rhythm(beats, melody);
+int i;
+for i in range(0, len(melody)) {
+    print(str_of_Note(melody[i]), ' ');
+}
