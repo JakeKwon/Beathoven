@@ -150,9 +150,11 @@ and analyze_seq env (expr_list:A.expr list) =
   else
     let flattened_sast_expr_list =
       let flatten_seq l (expr : S.expr) =
+        (* Cast datatype and flatten Seq *)
         match get_type_from_expr expr with
         | A.Musictype(Note) -> expr :: l
         | A.Primitive(Pitch) -> S.LitNote(expr, LitDuration(1, 4)) :: l
+        | A.Primitive(Duration) -> S.LitNote(LitPitch('C', 4, 0), expr) :: l
         | A.Arraytype(seq_ele_type) -> (
             match expr with
             | LitArray(el, _) -> (List.rev el) @ l

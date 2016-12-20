@@ -201,13 +201,23 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
 (* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
+(* Such as @p = global %struct._pitch { i8 67, i32 1, i32 1 }, align 4 *)
 
 let get_ids_tmp = function
   | Id(s, _) -> "." ^ s
   | StructField(_, s, _) -> ".struct." ^ s
 
 
-(* ------------------- Memory Access ------------------- *)
+(* ------------------- LLVM Utils ------------------- *)
+
+let break_block = ref (null_ll)
+(* let continue_block = ref (null_ll) *)
+let in_loop = ref false
+
+let add_terminal builder' f =
+  match L.block_terminator (L.insertion_block builder') with
+  | Some ll -> Log.debug ("add_terminal: " ^ (L.string_of_llvalue ll))
+  | None -> ignore (f builder') (* Add a terminal, i.e. a branch *)
 
 let memcpy (lhs : L.llvalue) (rhs : L.llvalue) (size : L.llvalue) builder =
   let lhs_p = L.build_bitcast lhs ptr_t "lhs_p" builder in
@@ -543,8 +553,8 @@ let rec codegen_stmt builder = function
                                    While(e2,
                                          Block [body;
                                                 Expr(e3, Analyzer.get_type_from_expr e1)]) ] )
-  | Break -> builder (*TODO*)
-  | Continue -> builder (*TODO*)
+  | Break -> ignore(L.build_br (L.block_of_value !break_block) builder); builder
+  (* | Continue -> ignore(L.build_br (L.block_of_value !continue_block) builder); builder *)
   | _ -> Core.Std.failwith "[Impossible] Struct declaration are skiped in analyzer"
 
 and codegen_ret d expr builder =
@@ -552,63 +562,37 @@ and codegen_ret d expr builder =
     Noexpr -> L.build_ret_void builder
   | _ -> L.build_ret (codegen_expr builder expr) builder
 
-and codegen_if exp then_ (else_:stmt) builder =
-  let cond_val = codegen_expr builder exp in
-  (* Grab the first block so that we might later add the conditional branch
-   * to it at the end of the function. *)
+and codegen_if condition sast_then (sast_else : stmt) builder =
+  let cond_val = codegen_expr builder condition in
   let start_bb = L.insertion_block builder in
   let the_function = L.block_parent start_bb in
-  let then_bb = L.append_block context "then" the_function in
-  (* Emit 'then' value. *)
-  L.position_at_end then_bb builder;
-  let _(* then_val *) = codegen_stmt builder then_ in
-  (* Codegen of 'then' can change the current block, update then_bb for the
-   * phi. We create a new name because one is used for the phi node, and the
-   * other is used for the conditional branch. *)
-  let new_then_bb = L.insertion_block builder in
-  (* Emit 'else' value. *)
-  let else_bb = L.append_block context "else" the_function in
-  L.position_at_end else_bb builder;
-  let _ (* else_val *) = codegen_stmt builder else_ in
-  (* Codegen of 'else' can change the current block, update else_bb for the
-   * phi. *)
-  let new_else_bb = L.insertion_block builder in
-
-  let merge_bb = L.append_block context "ifcont" the_function in
-  L.position_at_end merge_bb builder;
-  (* let then_bb_val = value_of_block new_then_bb in *)
-  let else_bb_val = L.value_of_block new_else_bb in
-  (* let incoming = [(then_bb_val, new_then_bb); (else_bb_val, new_else_bb)] in *)
-  (* let phi = build_phi incoming "iftmp" llbuilder in *)
-
-  (* Return to the start block to add the conditional branch. *)
-  L.position_at_end start_bb builder;
-  ignore (L.build_cond_br cond_val then_bb else_bb builder);
-
-  (* Set a unconditional branch at the end of the 'then' block and the
-   * 'else' block to the 'merge' block. *)
-  L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
-  L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
-
-  (* Finally, set the builder to the end of the merge block. *)
-  L.position_at_end merge_bb builder;
-
-  (* else_bb_val *) (* phi *)
-  builder
+  (* Insert blocks *)
+  let then_bb = L.append_block context "if_then" the_function in
+  let else_bb = L.append_block context "if_else" the_function in
+  let merge_bb = L.append_block context "if_merge" the_function in
+  (* Build if_cond block *)
+  let cond_builder = L.builder_at_end context start_bb in
+  let _ = L.build_cond_br cond_val then_bb else_bb cond_builder in
+  (* Build if_then block *)
+  let then_builder = codegen_stmt (L.builder_at_end context then_bb) sast_then in
+  let _ = add_terminal then_builder (L.build_br merge_bb) in
+  (* Build if_else block *)
+  let else_builder = codegen_stmt (L.builder_at_end context else_bb) sast_else in
+  let _ = add_terminal else_builder (L.build_br merge_bb) in
+  L.builder_at_end context merge_bb
 
 and codegen_while condition body builder =
   let the_function = L.block_parent (L.insertion_block builder) in
-  let add_terminal builder' f =
-    match L.block_terminator (L.insertion_block builder') with
-    | Some ll -> Log.debug ("codegen_while: " ^ (L.string_of_llvalue ll))
-    | None -> ignore (f builder') (* Add a terminal, a branch *)
-  in
-  (* Insert condition block *)
+  (* Insert blocks *)
   let cond_bb = L.append_block context "loop_cond" the_function in
   let body_bb = L.append_block context "loop_body" the_function in
   let merge_bb = L.append_block context "loop_merge" the_function in
   (* br label %loop_cond *)
   let _ = L.build_br cond_bb builder in
+  (* let old_val = !in_loop in
+  let _ = if not old_val then break_block := L.value_of_block merge_bb in (* break outmost loop?? *)
+  let _ = in_loop := true in *)
+  let _ = break_block := L.value_of_block merge_bb in
   (* Build loop_cond block *)
   let cond_builder = L.builder_at_end context cond_bb in
   let cond_val = codegen_expr cond_builder condition in
@@ -616,6 +600,7 @@ and codegen_while condition body builder =
   (* Build loop_body block *)
   let body_builder = codegen_stmt (L.builder_at_end context body_bb) body in
   add_terminal body_builder (L.build_br cond_bb);
+  (* in_loop := old_val; *)
   L.builder_at_end context merge_bb
 
 let codegen_builtin_funcs () =

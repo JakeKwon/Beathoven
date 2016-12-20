@@ -30,7 +30,7 @@ let hasint = digit+ '.' digit*
 let hasfrac = digit* '.' digit+
 let hasexp = 'e' ('+'? | '-') digit+
 
-let pitch = ['A'-'G'] (['1'-'7'] ('#'|'b')?)?
+let pitch = ['A'-'G'] ( (['0'-'9'] | "10" ) ('#'|'b')?)?
 
 
 (* Regex conflicts are resolved by order *)
