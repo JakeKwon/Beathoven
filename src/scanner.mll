@@ -31,6 +31,7 @@ let hasfrac = digit* '.' digit+
 let hasexp = 'e' ('+'? | '-') digit+
 
 let pitch = ['A'-'G'] ( (['0'-'9'] | "10" ) ('#'|'b')?)?
+let pitch_relative = ['1'-'7'] ('^'|'_')
 
 
 (* Regex conflicts are resolved by order *)
@@ -112,6 +113,9 @@ rule token = parse
   | digit+ as lit { LIT_INT(int_of_string lit) }
   | digit+ as lit ".."  { LIT_INT_DOTS(int_of_string lit) }
   | pitch as lit { LIT_PITCH(lit) }
+  | pitch_relative as lit { LIT_PITCH(
+    (Core.Std.Char.to_string (Char.chr (((int_of_char lit.[0] - 48)+1) mod 7 + 65)))
+    ^ (if lit.[1] = '^' then "5" else "3") ) }
   | ((hasint | hasfrac) hasexp?) | (digit+ hasexp) as lit { LIT_DOUBLE(float_of_string lit) }
   | ''' ( ascii | digit | escape ) ''' as str { LIT_CHAR(get_char str) }
   | '"' (('\\' '"'| [^'"'])* as str) '"' { LIT_STR(Scanf.unescaped str) }

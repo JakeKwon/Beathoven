@@ -228,16 +228,17 @@ and analyze_arrayidx env a e =
 and analyze_arraysub env a e1 e2 =
   let _, sast_arr = build_sast_expr env a in
   let d = get_type_from_expr sast_arr in
-  let get_sast_index e =
+  let get_sast_index e se =
     let _, idx = build_sast_expr env e in
     let t = get_type_from_expr idx in
-    if t = Primitive(Int) || t = Primitive(Unit) then idx
+    if t = Primitive(Int) then idx
+    else if t = Primitive(Unit) then se
     else (Log.error "[IndexTypeMismatch]"; idx)
   in
   match d with
   | Arraytype(_) -> (
-      let idx1 = get_sast_index e1 and
-      idx2 = get_sast_index e2 in
+      let idx1 = get_sast_index e1 (S.LitInt(0)) and
+      idx2 = get_sast_index e2 (S.FuncCall("len", [sast_arr], Primitive(Int))) in
       env, S.ArraySub(sast_arr, idx1, idx2, d)
     )
   | _ -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
@@ -360,7 +361,7 @@ let get_sast_structtype env s =
   let n =
     (* Builtin Struct *)
     if s = "Note" then s
-    else get_global_name env.name s 
+    else get_global_name env.name s
   in
   if not (StringMap.mem n !(env.btmodule).struct_map)
   then raise (Exceptions.UndefinedStructType n)
