@@ -205,7 +205,7 @@ stmt:
     { For(Assign($2, $6), Binop($2, Less, $8), Assign($2, Binop($2, Add, LitInt(1))), $10) }
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
-  | CONTINUE SEP { Continue }
+  /*| CONTINUE SEP { Continue }*/
 
 stmt_list:
   | stmt_rev_list { List.rev $1 }
