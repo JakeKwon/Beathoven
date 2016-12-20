@@ -201,6 +201,7 @@ let get_literal_alloca name d (l : (string * L.llvalue) list) builder =
 (* An alternative is to use initializer (but need a table for initializer, )
    L.const_named_struct (lookup_struct "pitch")
    ([|L.const_null str_t; L.const_int i32_t o; L.const_int i32_t a|]) *)
+(* Such as @p = global %struct._pitch { i8 67, i32 1, i32 1 }, align 4 *)
 
 let get_ids_tmp = function
   | Id(s, _) -> "." ^ s
@@ -552,16 +553,14 @@ and codegen_ret d expr builder =
     Noexpr -> L.build_ret_void builder
   | _ -> L.build_ret (codegen_expr builder expr) builder
 
-and codegen_if exp then_ (else_:stmt) builder =
-  let cond_val = codegen_expr builder exp in
-  (* Grab the first block so that we might later add the conditional branch
-   * to it at the end of the function. *)
+and codegen_if condition sast_then (sast_else : stmt) builder =
+  let cond_val = codegen_expr builder condition in
   let start_bb = L.insertion_block builder in
   let the_function = L.block_parent start_bb in
   let then_bb = L.append_block context "then" the_function in
   (* Emit 'then' value. *)
   L.position_at_end then_bb builder;
-  let _(* then_val *) = codegen_stmt builder then_ in
+  let _(* then_val *) = codegen_stmt builder sast_then in
   (* Codegen of 'then' can change the current block, update then_bb for the
    * phi. We create a new name because one is used for the phi node, and the
    * other is used for the conditional branch. *)
@@ -569,7 +568,7 @@ and codegen_if exp then_ (else_:stmt) builder =
   (* Emit 'else' value. *)
   let else_bb = L.append_block context "else" the_function in
   L.position_at_end else_bb builder;
-  let _ (* else_val *) = codegen_stmt builder else_ in
+  let _ (* else_val *) = codegen_stmt builder sast_else in
   (* Codegen of 'else' can change the current block, update else_bb for the
    * phi. *)
   let new_else_bb = L.insertion_block builder in
@@ -603,7 +602,7 @@ and codegen_while condition body builder =
     | Some ll -> Log.debug ("codegen_while: " ^ (L.string_of_llvalue ll))
     | None -> ignore (f builder') (* Add a terminal, a branch *)
   in
-  (* Insert condition block *)
+  (* Insert blocks *)
   let cond_bb = L.append_block context "loop_cond" the_function in
   let body_bb = L.append_block context "loop_body" the_function in
   let merge_bb = L.append_block context "loop_merge" the_function in

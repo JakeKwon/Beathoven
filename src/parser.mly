@@ -149,6 +149,7 @@ expr:
   | LT note_list GT { LitSeq($2) } /* using expr_list will have a lot of conflicts */
   | LPAREN expr RPAREN { $2 }
 
+/*LPAREN ids RPAREN*/
 
 /* ------------------- Note List ------------------- */
 
@@ -168,6 +169,7 @@ note:
   | LIT_INT DOTS ids { LitNote(LitInt($1), $3) }
   | literal_pitch DOTS ids { LitNote($1, $3) }
   /* TODO: LitInt(), ids are not yet supported for Note */
+  | literal_duration { LitNote(LitPitch('C', 4, 0), $1) }
 
 note_rev_list:
     /* nothing */ { [] }
@@ -199,6 +201,8 @@ stmt:
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([Expr(Noexpr)])) }
   | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7) }
   | FOR LPAREN expr_opt SEP expr_opt SEP expr_opt RPAREN stmt { For($3, $5, $7, $9) }
+  | FOR ids IN RANGE LPAREN expr COMMA expr RPAREN stmt
+    { For(Assign($2, $6), Binop($2, Less, $8), Assign($2, Binop($2, Add, LitInt(1))), $10) }
   | WHILE LPAREN expr RPAREN stmt { While($3, $5) }
   | BREAK SEP { Break }
   | CONTINUE SEP { Continue }
