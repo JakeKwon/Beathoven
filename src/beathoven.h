@@ -77,6 +77,7 @@ typedef struct Seq {
     // _Seq_ele *arr; // the terrible version
     Note *arr;
 } Seq;
+typedef Seq Arr_Note;
 
 typedef struct _Sequence {
     Seq seq;

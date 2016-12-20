@@ -25,7 +25,6 @@ type expr =
   | Assign of expr * expr * A.datatype
   | FuncCall of string * expr list * A.datatype
   | Noexpr
-  | LitSeq of expr list
   | LitArray of expr list * A.datatype (* element type *)
   | ArrayConcat of expr list * A.datatype (* type of array *)
   | ArrayIdx of expr * expr * A.datatype
@@ -48,9 +47,7 @@ type func_decl = {
   formals : A.bind list;
   returnType : A.datatype;
   body : stmt list;
-  (* btmodule  *)
-  (* functype *)
-  (* TODO?: separate vars from stmt list in analyzer *)
+  (* TODO: separate vars from stmt list in analyzer or parser ?? *)
 }
 
 type btmodule = {

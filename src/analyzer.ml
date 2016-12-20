@@ -51,7 +51,6 @@ let get_type_from_expr (expr : S.expr) =
   | Assign(_,_,d) -> d
   | FuncCall(_,_,d)-> d
   | Noexpr -> A.Primitive(Unit)
-  | LitSeq(_) -> Musictype(Seq)
   | LitArray(_,d) -> Arraytype(d)
   | ArrayConcat(_,d) -> d
   | ArrayIdx(_,_,d) -> d
@@ -107,7 +106,7 @@ let rec build_sast_expr env (expr : A.expr) =
     analyze_funccall env s el (* env, FuncCall (s,el,_) *)
   | Noexpr -> env, S.Noexpr
   | Null -> env, S.Null
-  | LitSeq(el) -> analyze_seq env el
+  | LitSeq(el) -> analyze_seq env el (* LitArray(el', seq_ele_type) *)
   | LitArray(el) -> analyze_array env el
   | ArrayIdx(a, e) -> analyze_arrayidx env a e
   | ArraySub(a, e1, e2) -> analyze_arraysub env a e1 e2
@@ -147,16 +146,16 @@ and analyze_note env p d =
 and analyze_seq env (expr_list:A.expr list) =
   let _, sast_expr_list = build_sast_expr_list env expr_list in
   if List.length sast_expr_list = 0 then
-    env, S.LitSeq([])
+    env, S.LitArray([], A.seq_ele_type)
   else
     let flattened_sast_expr_list =
       let flatten_seq l (expr : S.expr) =
         match get_type_from_expr expr with
         | A.Musictype(Note) -> expr :: l
         | A.Primitive(Pitch) -> S.LitNote(expr, LitDuration(1, 4)) :: l
-        | A.Musictype(Seq) -> (
+        | A.Arraytype(seq_ele_type) -> (
             match expr with
-            | LitSeq(el) -> (List.rev el) @ l
+            | LitArray(el, _) -> (List.rev el) @ l
             | _ -> expr :: l
           )
         (* Future: Chord *)
@@ -164,7 +163,7 @@ and analyze_seq env (expr_list:A.expr list) =
       in
       List.rev (List.fold_left flatten_seq [] sast_expr_list)
     in
-    env, S.LitSeq(flattened_sast_expr_list)
+    env, S.LitArray(flattened_sast_expr_list, seq_ele_type)
 
 (* TODO: update it *)
 and analyze_array env (expr_list:A.expr list) =
@@ -182,12 +181,12 @@ and analyze_array env (expr_list:A.expr list) =
     let sast_expr_list =
       let helper_array l (expr : S.expr) =
         let d, d' = get_ele_type expr in
+        Log.debug ((string_of_datatype d) ^ " and " ^ (string_of_datatype d'));
         if d' = Primitive(Unit) then l (* expr is [] *)
         else
           (if !ele_type = Primitive(Unit) then ele_type := d';
            (* Note that d' is not Unit *)
            if d = !ele_type then (
-             Log.debug (string_of_expr expr);
              expr :: (fst l), snd l)
            else if d' = !ele_type then
              (
@@ -204,7 +203,8 @@ and analyze_array env (expr_list:A.expr list) =
           )
       in
       let l = List.fold_left helper_array ([], []) (List.rev sast_expr_list) in
-      S.LitArray(fst l, !ele_type) :: snd l
+      if List.length (fst l) = 0 then snd l
+      else S.LitArray(fst l, !ele_type) :: snd l
     in
     let sast_litarray =
       if List.length sast_expr_list = 1 then List.hd sast_expr_list
@@ -217,7 +217,6 @@ and analyze_arrayidx env a e =
   let ele_type =
     match get_type_from_expr sast_arr with
     | Arraytype(d) -> d
-    | Musictype(Seq) -> Musictype(Note)
     | _ as d -> raise (Exceptions.ShouldAccessArray(string_of_datatype d))
   in
   let _, idx = build_sast_expr env e in
@@ -234,7 +233,7 @@ and analyze_arraysub env a e1 e2 =
     else (Log.error "[IndexTypeMismatch]"; idx)
   in
   match d with
-  | Arraytype(_) | Musictype(Seq) -> (
+  | Arraytype(_) -> (
       let idx1 = get_sast_index e1 and
       idx2 = get_sast_index e2 in
       env, S.ArraySub(sast_arr, idx1, idx2, d)
@@ -386,10 +385,11 @@ let build_sast_vardecl env t1 s e =
       if (t1 = t2) || (sast_expr = S.Noexpr) then sast_expr
       else
         match t1, t2 with
+        (* Cast *)
         | Arraytype(d), Arraytype(Primitive(Unit)) ->
           S.LitArray([], d) (* it means e is [] *)
         | Primitive(Pitch), Primitive(Int) -> get_litpitch sast_expr
-        | Musictype(Note), _ -> S.LitNote(get_litpitch sast_expr, LitDuration(1, 4))
+        | seq_ele_type, _ -> S.LitNote(get_litpitch sast_expr, LitDuration(1, 4))
         | _ ->
           raise (Exceptions.VardeclTypeMismatch(string_of_datatype t1, string_of_datatype t2))
     in

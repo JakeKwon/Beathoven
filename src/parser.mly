@@ -102,7 +102,7 @@ primitive:
 datatype_nonarray:
     primitive { Primitive($1) }
   | NOTE { Musictype(Note) }
-  | SEQ { Musictype(Seq) }
+  | SEQ { Arraytype(seq_ele_type) }
   | STRUCT ID { Structtype($2) }
 
 datatype:
@@ -145,7 +145,7 @@ expr:
   | ids ASSIGN expr { Assign($1, $3) }
   | ids LBRACK index_range RBRACK { ArraySub($1, fst $3, snd $3) }
   | LBRACK expr_list RBRACK { LitArray($2) }
-  | LT note_list GT { LitSeq($2) } /* expr_list will have a lot of conflicts */
+  | LT note_list GT { LitSeq($2) } /* using expr_list will have a lot of conflicts */
   | LPAREN expr RPAREN { $2 }
 
 

@@ -82,7 +82,6 @@ let rec lltype_of_datatype (d : A.datatype) =
   | Primitive(Duration) -> L.pointer_type (lookup_struct "_duration")
   | Primitive(Pitch) -> L.pointer_type (lookup_struct "_pitch")
   | Musictype(Note) -> lookup_struct "Note"
-  | Musictype(Seq) -> lookup_array (A.Musictype(Note)) (* Future: note/chord *)
   | Structtype(s) -> lookup_struct s
   | Arraytype(d) -> lookup_array d
   | _ -> raise(Exceptions.Impossible("lltype_of_datatype"))
@@ -403,7 +402,6 @@ and codegen_arraysub a idx1 idx2 d builder =
   let ele_type =
     match d with
     | A.Arraytype(d) -> d
-    | A.Musictype(Seq) -> A.Musictype(Note)
   in
   let ele_lltype = lltype_of_datatype ele_type in
   let arr_idx1 = codegen_arrayidx a idx1 ele_type true builder in
@@ -511,7 +509,6 @@ and codegen_expr builder = function
   | Binop(e1, op, e2, _) -> codegen_binop e1 op e2 builder
   | Uniop(op, e1, _) -> codegen_unop op e1 builder
   (* Note that in Analyzer all legal types will be converted to Note types in a LitSeq  *)
-  | LitSeq(el) -> codegen_array el (A.Musictype(Note)) builder (* ref *)
   | LitArray(el, d) -> codegen_array el d builder (* ref *)
   | ArrayIdx(a, idx, d) -> codegen_arrayidx a idx d false builder (* load *)
   | ArraySub(a, idx1, idx2, d) -> codegen_arraysub a idx1 idx2 d builder (* ref *)
@@ -629,7 +626,7 @@ let codegen_builtin_funcs () =
   (* Functions defined in stdlib.bc *)
   let len_t = L.function_type size_t [| void_p |] in
   let _ = L.declare_function "len" len_t the_module in
-  let render_as_midi_t = L.function_type void_t [| ptr_t |] in (* TODO: add param *)
+  let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.seq_ele_type)) |] in (* TODO: add param *)
   let _ = L.declare_function "render_as_midi" render_as_midi_t the_module in
   let _str_of_pitch_t = L.function_type str_t [| get_bind_type (A.Primitive(Pitch)) |] in
   let _ = L.declare_function "_str_of_pitch" _str_of_pitch_t the_module in

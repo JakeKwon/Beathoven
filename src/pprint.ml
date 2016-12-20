@@ -24,7 +24,6 @@ let rec string_of_datatype (t : A.datatype) =
   | Primitive(Pitch) -> "pitch"
   | Primitive(Duration) -> "duration"
   | Musictype(Note) -> "Note"
-  | Musictype(Seq) -> "Seq"
   | Structtype(s) -> "Struct_" ^ s
   | Arraytype(d) -> "Array_" ^ (string_of_datatype d)
 (* TODO J: other datatypes  *)
@@ -50,7 +49,8 @@ let string_of_uop (uop : A.unary_operator) =
     Neg -> "-"
   | Not -> "!"
 
-let rec string_of_expr = function
+let rec string_of_expr expr =
+  match expr with
     LitInt(l) -> string_of_int l
   | LitBool(true) -> "true"
   | LitBool(false) -> "false"
@@ -63,6 +63,8 @@ let rec string_of_expr = function
     f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
   | LitArray(el, _) -> "Array: " ^ (String.concat ", " (List.map string_of_expr el))
+  | LitPitch(_,_,_) -> "pitch expr"
+  | LitNote(_,_) -> "note expr"
 
 
 (* Print SAST tree representation *)
@@ -115,7 +117,7 @@ let rec json_of_expr expr =
                                            ])]
     | Noexpr -> `String "noexpr"
     | Null -> `String "null"
-    | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))]
+    (* | LitSeq(el) -> `Assoc [("Seq", `List (List.map json_of_expr el))] *)
     | LitArray(el, d) -> `Assoc [("LitArray",
                                   `Assoc [("elements", `List (List.map json_of_expr el));
                                           tuple_of_datatype d
