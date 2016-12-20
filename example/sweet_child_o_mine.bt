@@ -1,0 +1,12 @@
+duration e = 1/8;
+duration w = 1/1;
+Seq seq1_v1 = <D4..e D5..e A4..e D4..e G4..e D4..e F4#..e D4..e>;
+Seq first_voice = [seq1_v1, seq1_v1, seq1_v1, seq1_v1];
+Seq seq1_v2 = <A3..w>;
+Seq seq1_v3 = <D3..w>;
+Seq seq2_v2 = <G3..w>;
+Seq seq2_v3 = <C3..w>;
+Seq seq3_v2 = <D3..w>;
+Seq seq3_v3 = <G2..w>;
+Seq second_voice = [seq1_v2, seq2_v2, seq3_v2, seq1_v2];
+render_seqs_as_midi(2, first_voice, second_voice);
