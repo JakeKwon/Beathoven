@@ -15,7 +15,7 @@ printf "${CYAN}####  Running Compiler pass Tests!  ####${NC}\n\n"
 
 # Set time limit for all operations
 ulimit -t 30
-
+helperPrint=false
 globallog=logs/globallog.log
 rm -f logs/globallog.log
 rm -f logs/*.ll
@@ -56,7 +56,9 @@ which "$LLI" >> $globallog || LLIFail
 # Run <args>
 # Report the command, run it, and report any errors
 Run() {
-    printf "Running... $* \n"
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Running... $* \n"
+    fi
     echo $* 1>&2
     eval $*
     #     SignalError "$1 failed on $*"
@@ -65,7 +67,9 @@ Run() {
 }
 
 RunFail() {
-    printf "Running... $* \n"
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Running... $* \n"
+    fi
     echo $* 1>&2
     eval $*
   #   && {
@@ -77,10 +81,12 @@ RunFail() {
 
 Compare() {
     # generatedfiles="$generatedfiles $3"
-    printf "Comparing... $* \n"
+    if [ $helperPrint -eq 1 ] ; then
+      printf "Comparing... $* \n"
+    fi
     echo diff -b $1 $2 ">" $3 1>&2
     diff -b "$1" "$2" > "$3" 2>&1 || {
-        SignalError "$1 differs. See globallog.log file for breakdown."
+        SignalError "Output differs. See $3 "
         echo "FAILED $1 differs from $2" 1>&2
     }
 }
@@ -93,7 +99,7 @@ Check(){
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Pass Test: $basename ${NC}\n"
+    printf "\n${CYAN}Running Pass Test: $basename ${NC}\t"
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
@@ -118,7 +124,7 @@ Check(){
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}SUCCESS${NC}\n"
+  printf "${GREEN}SUCCESS${NC}"
   echo "###### OK" 1>&2
     else
   echo "###### FAILED" 1>&2
@@ -133,7 +139,7 @@ CheckFail() {
     reffile=`echo $1 | sed 's/.bt$//'`
     basedir="`echo $1 | sed 's/\/[^\/]*$//'`/."
 
-    printf "\n${CYAN}Running Fail Test: $basename ${NC}\n"
+    printf "\n${CYAN}Running Fail Test: $basename ${NC}\t"
 
     echo 1>&2
     echo "###### Testing $basename" 1>&2
@@ -165,7 +171,7 @@ CheckFail() {
   if [ $keep -eq 0 ] ; then
       rm -f $generatedfiles
   fi
-  printf "${GREEN}SUCCESS${NC}\n"
+  printf "${GREEN}SUCCESS${NC}"
   echo "###### OK" 1>&2
     else
   echo "###### FAILED" 1>&2
