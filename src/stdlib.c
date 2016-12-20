@@ -26,6 +26,8 @@ string _str_of_pitch(pitch p) {
     return _buffer;
 }
 
+
+
 void _write_sequence_midi_text(Seq input_sequence){
 
   int midi_pitches[input_sequence.len];
