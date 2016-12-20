@@ -95,6 +95,8 @@ let (builtin_funcs : func_decl StringMap.t) =
   let map = StringMap.empty in
   let map = StringMap.add "print"
       (get_func_decl "printf" unit_t []) map in
+  let map = StringMap.add "render_seqs_as_midi"
+      (get_func_decl "render_seqs_as_midi" unit_t []) map in
   let map = StringMap.add "len"
       (get_func_decl "len" int_t [ ]) map in (* TODO: add the param *)
   let map = StringMap.add "render_as_midi"

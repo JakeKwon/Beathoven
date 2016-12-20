@@ -23,16 +23,21 @@ func Rhythm(Seq beats, Seq melody) -> Seq {
         int i = 0;
         int j;
         for j in range(0, len(melody)) {
-            //set_duration()
-            //melody[j].duration = beats[i].duration;
+            melody[j].d = beats[i].d;
             if (i + 1 < len(beats)) i = i + 1;
             else i = 0;
-            print(i);
+            //print(i);
         }
     }
     return melody;
 }
 
-Seq seq1 = <1 1 5 5 6 6 5..2/4>;
-Seq seq2 = <4 4 3 3 2 2>;
-Rhythm(seq2, seq1);
+duration w = 1/1;
+duration q = 1/4;
+Seq melody = <1 1 5 5 6 6 5..2/4>;
+Seq beats = <q q w q q w>;
+Rhythm(beats, melody);
+int i;
+for i in range(0, len(melody)) {
+    print(str_of_Note(melody[i]), ' ');
+}

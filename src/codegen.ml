@@ -610,6 +610,8 @@ let codegen_builtin_funcs () =
   let memcpy_t = L.function_type void_t [| ptr_t; ptr_t; size_t |] in
   let _ = L.declare_function "memcpy" memcpy_t the_module in
   (* Functions defined in stdlib.bc *)
+  let render_seqs_t = L.var_arg_function_type void_t [| i32_t |] in
+  let _ = L.declare_function "render_seqs_as_midi" render_seqs_t the_module in
   let len_t = L.function_type i32_t [| void_p |] in
   let _ = L.declare_function "len" len_t the_module in
   let render_as_midi_t = L.function_type void_t [| get_bind_type (A.Arraytype(A.seq_ele_type)) |] in (* TODO: add param *)
