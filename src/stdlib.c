@@ -1,5 +1,6 @@
 /*
  * Authors:
+ *  - Rodrigo Manubens
  *  - Ruonan Xu
  */
 
