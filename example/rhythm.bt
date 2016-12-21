@@ -18,11 +18,19 @@ func Rhythm(Seq beats, Seq melody) -> Seq {
 }
 
 duration w = 1/1;
-duration q = 1/4;
+duration q = 2/4;
 Seq melody = <1 1 5 5 6 6 5..2/4>;
-Seq beats = <q q w q q w>;
-Rhythm(beats, melody);
+Seq beats = <w w w w w w>;
+Seq newBeat = melody[:];
+Rhythm(beats, newBeat);
+Seq all = [melody, newBeat];
+
+/*
+
 int i;
 for i in range(0, len(melody)) {
     print(str_of_Note(melody[i]), ' ');
 }
+*/
+
+render_as_midi(all);
